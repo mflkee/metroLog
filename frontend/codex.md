@@ -284,7 +284,24 @@ Must include:
 * active/inactive state controls,
 * visibility of whether the user must change password on next login,
 * temporary-password reveal/copy block shown only to the administrator who created or reset the user,
-* simple permission-management workflow.
+* simple permission-management workflow,
+* navigation from a user row to a dedicated user-detail page.
+
+If the administrator opens their own record from this area,
+the UI should route them to `/profile` rather than showing a duplicate admin-view page.
+
+### `/admin/users/:id`
+
+Administrator-only user-detail page.
+
+Must include:
+
+* account status,
+* phone,
+* organization,
+* position,
+* facility,
+* quick navigation back to the main user list.
 
 ### `/login`
 
@@ -303,6 +320,10 @@ Simple profile/account page.
 Must include:
 
 * basic account info,
+* editable phone field,
+* editable organization field,
+* editable position field,
+* editable facility field,
 * role or permission visibility when relevant,
 * password change form,
 * visual handling for first-login forced password change state,
@@ -382,6 +403,7 @@ Suggested components:
 * `CreateUserDialog`
 * `TemporaryPasswordDialog`
 * `ForcePasswordChangeGate`
+* `UserDetailsView`
 
 ---
 
@@ -434,6 +456,12 @@ Forms must be:
 * easy to scan,
 * consistent in layout,
 * capable of handling dynamic fields.
+
+Profile display blocks should remain compact and readable:
+
+* avoid oversized cards for short account metadata,
+* prefer tight row-based presentation for user profile details,
+* support long values such as email, position, or facility with clean wrapping.
 
 ---
 

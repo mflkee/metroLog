@@ -68,10 +68,18 @@ Required auth behavior:
 - administrators create user accounts from the user-management page,
 - user creation must support assigning role and issuing a temporary password,
 - first login with a temporary password must require immediate password change,
-- password fields may enforce no copy/paste if this remains a product policy,
 - profile page must support direct password change,
+- profile page must support editing profile metadata such as phone, organization, position, and facility,
 - administrators must be able to reset a user's password by issuing a new temporary password,
+- administrators must be able to open another user's account page and review their contact or role-related data,
+- if an administrator opens their own record from the user-management area, the UI should route them to the regular profile page,
 - email or Telegram delivery for credentials/recovery may be added later, but is not required for MVP.
+
+Profile metadata currently expected in the MVP:
+- phone
+- organization
+- position
+- facility
 
 ### Application frame expectations
 

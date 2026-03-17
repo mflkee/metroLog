@@ -157,6 +157,10 @@ Fields:
 * is_active
 * must_change_password
 * password_changed_at optional
+* phone optional
+* organization optional
+* position optional
+* facility optional
 * created_at
 * updated_at
 
@@ -685,6 +689,15 @@ Expected filters:
 
 Admin-only user details.
 
+Response should include:
+
+* core account fields,
+* phone,
+* organization,
+* position,
+* facility,
+* `must_change_password`.
+
 ### `POST /api/v1/users`
 
 Admin-only user creation endpoint.
@@ -707,6 +720,17 @@ Must support:
 * role changes,
 * activation/deactivation,
 * optional profile metadata updates.
+
+### `PATCH /api/v1/auth/me`
+
+Authenticated self-profile update.
+
+Must support:
+
+* phone updates in free text format,
+* organization updates,
+* position updates,
+* facility updates.
 
 ### `POST /api/v1/users/{id}/reset-password`
 
@@ -846,7 +870,8 @@ Responsibilities:
 * update permission-related state,
 * reset passwords by issuing new temporary passwords,
 * enforce first-login password change behavior,
-* enforce admin-only access to user management.
+* enforce admin-only access to user management,
+* expose self-profile metadata updates for the authenticated user.
 
 ### Repair service
 

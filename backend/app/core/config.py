@@ -10,6 +10,9 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     secret_key: str = "change-me"
     access_token_ttl_hours: int = 12
+    bootstrap_admin_display_name: str = "Bootstrap Administrator"
+    bootstrap_admin_email: str = "admin@metrolog.local"
+    bootstrap_admin_password: str = "ChangeMe123"
     frontend_app_url: str = "http://localhost:5173"
     email_delivery_mode: str = "console"
     smtp_host: str = ""

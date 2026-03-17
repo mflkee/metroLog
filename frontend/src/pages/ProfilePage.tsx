@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 
-import { changePassword } from "@/api/auth";
+import { changePassword, getCurrentUser, updateProfile } from "@/api/auth";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   blockPasswordClipboard,
@@ -13,12 +13,47 @@ import { useAuthStore } from "@/store/auth";
 export function ProfilePage() {
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
+  const setUser = useAuthStore((state) => state.setUser);
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [phone, setPhone] = useState(user?.phone ?? "");
+  const [position, setPosition] = useState(user?.position ?? "");
+  const [facility, setFacility] = useState(user?.facility ?? "");
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [profileMessage, setProfileMessage] = useState<string | null>(null);
+  const [isProfileSubmitting, setIsProfileSubmitting] = useState(false);
+
+  async function handleSaveProfile(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setProfileError(null);
+    setProfileMessage(null);
+
+    if (!token) {
+      setProfileError("Сессия неактивна. Войди заново.");
+      return;
+    }
+
+    setIsProfileSubmitting(true);
+
+    try {
+      const updatedUser = await updateProfile(token, { phone, position, facility });
+      setUser(updatedUser);
+      setPhone(updatedUser.phone ?? "");
+      setPosition(updatedUser.position ?? "");
+      setFacility(updatedUser.facility ?? "");
+      setProfileMessage("Профиль обновлен.");
+    } catch (submitError) {
+      setProfileError(
+        submitError instanceof Error ? submitError.message : "Не удалось обновить профиль.",
+      );
+    } finally {
+      setIsProfileSubmitting(false);
+    }
+  }
 
   async function handleChangePassword(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,6 +83,11 @@ export function ProfilePage() {
         newPassword,
         confirmNewPassword: confirmPassword,
       });
+      const refreshedUser = await getCurrentUser(token);
+      setUser(refreshedUser);
+      setPhone(refreshedUser.phone ?? "");
+      setPosition(refreshedUser.position ?? "");
+      setFacility(refreshedUser.facility ?? "");
       setMessage(response.message);
       setCurrentPassword("");
       setNewPassword("");
@@ -65,7 +105,7 @@ export function ProfilePage() {
     <section>
       <PageHeader
         title="Профиль"
-        description="Учетная страница с базовой информацией, статусом email и сменой пароля."
+        description="Учетная страница с базовой информацией и сменой пароля."
       />
       <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
         {user ? (
@@ -84,75 +124,150 @@ export function ProfilePage() {
                 <dd>{roleLabels[user.role]}</dd>
               </div>
               <div>
-                <dt className="font-semibold text-ink">Email подтвержден</dt>
-                <dd>{user.emailVerifiedAt ? "Да" : "Нет"}</dd>
+                <dt className="font-semibold text-ink">Требуется смена пароля</dt>
+                <dd>{user.mustChangePassword ? "Да" : "Нет"}</dd>
               </div>
               <div>
                 <dt className="font-semibold text-ink">Статус</dt>
                 <dd>{user.isActive ? "Активен" : "Отключен"}</dd>
               </div>
+              <div>
+                <dt className="font-semibold text-ink">Телефон</dt>
+                <dd>{user.phone || "Не указан"}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-ink">Должность</dt>
+                <dd>{user.position || "Не указана"}</dd>
+              </div>
+              <div>
+                <dt className="font-semibold text-ink">Объект</dt>
+                <dd>{user.facility || "Не указан"}</dd>
+              </div>
             </dl>
 
-            <form className="space-y-4 rounded-2xl border border-line bg-white/85 p-4" onSubmit={handleChangePassword}>
-              <div>
-                <h3 className="text-base font-semibold text-ink">Смена пароля</h3>
+            <div className="space-y-4">
+              <form
+                className="space-y-4 rounded-2xl border border-line bg-white/85 p-4"
+                onSubmit={handleSaveProfile}
+              >
+                <div>
+                  <h3 className="text-base font-semibold text-ink">Данные профиля</h3>
+                  <p className="mt-1 text-sm text-steel">
+                    Телефон можно вводить в любом формате. Должность и объект сохраняются как рабочие подписи профиля.
+                  </p>
+                </div>
+
+                <label className="block text-sm text-steel">
+                  Телефон
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="+7 (999) 123-45-67"
+                    value={phone}
+                    onChange={(event) => setPhone(event.target.value)}
+                  />
+                </label>
+
+                <label className="block text-sm text-steel">
+                  Должность
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder="Инженер-метролог"
+                    value={position}
+                    onChange={(event) => setPosition(event.target.value)}
+                  />
+                </label>
+
+                <label className="block text-sm text-steel">
+                  Объект
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder='ПСП ХАЛ "Северный"'
+                    value={facility}
+                    onChange={(event) => setFacility(event.target.value)}
+                  />
+                </label>
+
+                {profileError ? <p className="text-sm text-[#b04c43]">{profileError}</p> : null}
+                {profileMessage ? <p className="text-sm text-signal-ok">{profileMessage}</p> : null}
+
+                <button
+                  className="btn-primary disabled:opacity-60"
+                  type="submit"
+                  disabled={isProfileSubmitting}
+                >
+                  {isProfileSubmitting ? "Сохраняем..." : "Сохранить профиль"}
+                </button>
+              </form>
+
+              <form
+                className="space-y-4 rounded-2xl border border-line bg-white/85 p-4"
+                onSubmit={handleChangePassword}
+              >
+                <div>
+                  <h3 className="text-base font-semibold text-ink">Смена пароля</h3>
                 <p className="mt-1 text-sm text-steel">
-                  Стандартная смена пароля через текущий пароль и новое подтверждение.
+                  {user.mustChangePassword
+                    ? "Временный пароль еще активен. Смена пароля обязательна перед дальнейшей работой."
+                    : "Стандартная смена пароля через текущий пароль и новое подтверждение."}
                 </p>
-              </div>
+                </div>
 
-              <label className="block text-sm text-steel">
-                Текущий пароль
-                <input
-                  className="form-input"
-                  type="password"
-                  autoComplete="current-password"
-                  value={currentPassword}
-                  onChange={(event) => setCurrentPassword(event.target.value)}
-                  onCopy={blockPasswordClipboard}
-                  onCut={blockPasswordClipboard}
-                  onPaste={blockPasswordClipboard}
-                />
-              </label>
+                <label className="block text-sm text-steel">
+                  Текущий пароль
+                  <input
+                    className="form-input"
+                    type="password"
+                    autoComplete="current-password"
+                    value={currentPassword}
+                    onChange={(event) => setCurrentPassword(event.target.value)}
+                    onCopy={blockPasswordClipboard}
+                    onCut={blockPasswordClipboard}
+                    onPaste={blockPasswordClipboard}
+                  />
+                </label>
 
-              <label className="block text-sm text-steel">
-                Новый пароль
-                <input
-                  className="form-input"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={6}
-                  value={newPassword}
-                  onChange={(event) => setNewPassword(event.target.value)}
-                  onCopy={blockPasswordClipboard}
-                  onCut={blockPasswordClipboard}
-                  onPaste={blockPasswordClipboard}
-                />
-              </label>
+                <label className="block text-sm text-steel">
+                  Новый пароль
+                  <input
+                    className="form-input"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={6}
+                    value={newPassword}
+                    onChange={(event) => setNewPassword(event.target.value)}
+                    onCopy={blockPasswordClipboard}
+                    onCut={blockPasswordClipboard}
+                    onPaste={blockPasswordClipboard}
+                  />
+                </label>
 
-              <label className="block text-sm text-steel">
-                Подтверждение нового пароля
-                <input
-                  className="form-input"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  onCopy={blockPasswordClipboard}
-                  onCut={blockPasswordClipboard}
-                  onPaste={blockPasswordClipboard}
-                />
-              </label>
+                <label className="block text-sm text-steel">
+                  Подтверждение нового пароля
+                  <input
+                    className="form-input"
+                    type="password"
+                    autoComplete="new-password"
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    onCopy={blockPasswordClipboard}
+                    onCut={blockPasswordClipboard}
+                    onPaste={blockPasswordClipboard}
+                  />
+                </label>
 
-              <p className="text-xs text-steel">{passwordPolicyMessage}</p>
-              {error ? <p className="text-sm text-[#b04c43]">{error}</p> : null}
-              {message ? <p className="text-sm text-signal-ok">{message}</p> : null}
+                <p className="text-xs text-steel">{passwordPolicyMessage}</p>
+                {error ? <p className="text-sm text-[#b04c43]">{error}</p> : null}
+                {message ? <p className="text-sm text-signal-ok">{message}</p> : null}
 
-              <button className="btn-primary disabled:opacity-60" type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Сохраняем..." : "Сменить пароль"}
-              </button>
-            </form>
+                <button className="btn-primary disabled:opacity-60" type="submit" disabled={isSubmitting}>
+                  {isSubmitting ? "Сохраняем..." : "Сменить пароль"}
+                </button>
+              </form>
+            </div>
           </div>
         ) : (
           <p className="text-sm text-steel">

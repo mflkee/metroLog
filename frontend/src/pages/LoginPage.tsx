@@ -1,8 +1,7 @@
 import { FormEvent, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import { loginUser } from "@/api/auth";
-import { blockPasswordClipboard } from "@/lib/password";
 import { useAuthStore } from "@/store/auth";
 
 export function LoginPage() {
@@ -29,7 +28,7 @@ export function LoginPage() {
     try {
       const session = await loginUser({ email, password });
       setSession({ token: session.accessToken, user: session.user });
-      navigate("/dashboard", { replace: true });
+      navigate(session.user.mustChangePassword ? "/profile" : "/dashboard", { replace: true });
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Не удалось выполнить вход.");
     } finally {
@@ -41,7 +40,9 @@ export function LoginPage() {
     <section className="space-y-5 rounded-3xl border border-line bg-white p-6 shadow-panel">
       <div>
         <h2 className="text-xl font-semibold text-ink">Вход</h2>
-        <p className="mt-2 text-sm text-steel">Простой utilitarian-экран без лишних блоков.</p>
+        <p className="mt-2 text-sm text-steel">
+          Внутренний вход для пользователей, которых создает администратор.
+        </p>
       </div>
       <form className="space-y-4" onSubmit={handleSubmit}>
         <label className="block text-sm text-steel">
@@ -63,9 +64,6 @@ export function LoginPage() {
             autoComplete="current-password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            onCopy={blockPasswordClipboard}
-            onCut={blockPasswordClipboard}
-            onPaste={blockPasswordClipboard}
           />
         </label>
         {stateMessage ? <p className="text-sm text-signal-ok">{stateMessage}</p> : null}
@@ -74,26 +72,9 @@ export function LoginPage() {
           {isSubmitting ? "Входим..." : "Войти"}
         </button>
       </form>
-      <div className="space-y-2 text-sm text-steel">
-        <p>
-          Нет аккаунта?{" "}
-          <Link className="font-semibold text-signal-info" to="/register">
-            Регистрация
-          </Link>
-        </p>
-        <p>
-          Нужно подтвердить email?{" "}
-          <Link className="font-semibold text-signal-info" to="/verify-email">
-            Ввести код
-          </Link>
-        </p>
-        <p>
-          Забыл пароль?{" "}
-          <Link className="font-semibold text-signal-info" to="/forgot-password">
-            Сбросить через почту
-          </Link>
-        </p>
-      </div>
+      <p className="text-sm text-steel">
+        Нет доступа? Администратор должен создать учетную запись и передать временный пароль.
+      </p>
     </section>
   );
 }

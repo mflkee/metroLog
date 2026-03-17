@@ -27,6 +27,10 @@ class UserRepository:
         statement = select(User).where(User.id == user_id)
         return self.session.scalar(statement)
 
+    def get_by_id_for_update(self, user_id: int) -> User | None:
+        statement = select(User).where(User.id == user_id).with_for_update()
+        return self.session.scalar(statement)
+
     def list_all(self) -> list[User]:
         statement = select(User).order_by(User.created_at.asc(), User.id.asc())
         return list(self.session.scalars(statement))

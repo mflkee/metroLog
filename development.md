@@ -8,10 +8,10 @@ It should stay short and reflect only the current task state.
 Phase 1 - Minimal Auth and Roles
 
 ## Current Iteration
-Stage 1 auth model revised: internal admin-created users with temporary passwords and forced password change must replace the earlier open email-registration approach.
+Stage 1 refactored: internal admin-created users, temporary passwords, forced password change, and bootstrap admin are now implemented.
 
 ## Status
-In progress
+Completed
 
 ## Completed
 - Added root project specification to `codex.md`.
@@ -62,11 +62,19 @@ In progress
 - Re-verified backend and frontend checks after the auth extension.
 - Revised the product specification away from open self-registration and toward admin-created internal users with temporary passwords and first-login password change.
 - Marked the existing email-registration implementation as transitional and no longer the target MVP auth behavior.
+- Reworked the shared gray theme into a monochrome palette between the white and dark themes.
+- Refactored backend auth to bootstrap an administrator, remove public registration flow, add `must_change_password`, and issue temporary passwords from admin actions.
+- Refactored frontend auth and admin UI to remove public registration, create users from the admin page, reset passwords, and gate the shell on forced password change.
+- Added bootstrap-admin env configuration and updated docs for the internal auth model.
+- Re-verified backend tests and backend lint checks after the Stage 1 refactor.
+- Re-verified frontend lint, test, and production build after the Stage 1 refactor.
+- Removed temporary probe users from the live Docker database after Stage 1 verification, leaving only the intended bootstrap admin and current working user.
+- Repointed the bootstrap administrator to `makeevgb@mkair.ru` and removed the temporary `admin@metrolog.local` record, leaving a single administrator account in the live Docker database.
+- Stretched the Stage 1 shell layout to full viewport width so the sidebar/topbar frame no longer clips on the right when the browser zoom changes.
+- Added editable profile fields in Stage 1 for phone, position, and facility, with self-service update through the authenticated profile page.
 
 ## Next
 - Keep permission model simple: `ADMINISTRATOR`, `MKAIR`, `CUSTOMER`.
-- Refactor Stage 1 implementation to remove public registration from MVP flow.
-- Add bootstrap-admin, create-user, reset-temporary-password, and must-change-password behavior to the real auth implementation.
 - Prepare Stage 2: folders, groups, and equipment registry foundation.
 - Revisit Docker startup when Docker is available in the environment.
 

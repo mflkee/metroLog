@@ -9,15 +9,11 @@ import { EquipmentCardsPage } from "@/pages/EquipmentCardsPage";
 import { EquipmentDetailsPage } from "@/pages/EquipmentDetailsPage";
 import { EquipmentPage } from "@/pages/EquipmentPage";
 import { EventsPage } from "@/pages/EventsPage";
-import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilePage } from "@/pages/ProfilePage";
-import { RegisterPage } from "@/pages/RegisterPage";
 import { RepairsPage } from "@/pages/RepairsPage";
-import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { SettingsPage } from "@/pages/SettingsPage";
-import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
 import { VerificationPage } from "@/pages/VerificationPage";
 
 export const router = createBrowserRouter([
@@ -30,13 +26,7 @@ export const router = createBrowserRouter([
     children: [
       {
         element: <AuthLayout />,
-        children: [
-          { path: "/login", element: <LoginPage /> },
-          { path: "/register", element: <RegisterPage /> },
-          { path: "/verify-email", element: <VerifyEmailPage /> },
-          { path: "/forgot-password", element: <ForgotPasswordPage /> },
-          { path: "/reset-password", element: <ResetPasswordPage /> },
-        ],
+        children: [{ path: "/login", element: <LoginPage /> }],
       },
     ],
   },

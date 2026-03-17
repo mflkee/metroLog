@@ -7,8 +7,12 @@ type RawUser = {
   display_name: string;
   email: string;
   role: UserRole;
-  email_verified_at: string | null;
   is_active: boolean;
+  must_change_password: boolean;
+  password_changed_at: string | null;
+  phone: string | null;
+  position: string | null;
+  facility: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -24,8 +28,12 @@ export type AuthUser = {
   displayName: string;
   email: string;
   role: UserRole;
-  emailVerifiedAt: string | null;
   isActive: boolean;
+  mustChangePassword: boolean;
+  passwordChangedAt: string | null;
+  phone: string | null;
+  position: string | null;
+  facility: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -46,33 +54,16 @@ export type LoginPayload = {
   password: string;
 };
 
-export type RegisterPayload = {
-  displayName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-};
-
-export type VerifyEmailPayload = {
-  email: string;
-  code: string;
-};
-
-export type ForgotPasswordPayload = {
-  email: string;
-};
-
-export type ResetPasswordPayload = {
-  email: string;
-  code: string;
-  newPassword: string;
-  confirmNewPassword: string;
-};
-
 export type ChangePasswordPayload = {
   currentPassword: string;
   newPassword: string;
   confirmNewPassword: string;
+};
+
+export type UpdateProfilePayload = {
+  phone: string;
+  position: string;
+  facility: string;
 };
 
 export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
@@ -84,57 +75,6 @@ export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
     },
   });
   return mapAuthResponse(response);
-}
-
-export async function registerUser(payload: RegisterPayload): Promise<AuthActionResponse> {
-  return apiRequest<AuthActionResponse>("/auth/register", {
-    method: "POST",
-    body: {
-      display_name: payload.displayName,
-      email: payload.email,
-      password: payload.password,
-      confirm_password: payload.confirmPassword,
-    },
-  });
-}
-
-export async function verifyEmail(payload: VerifyEmailPayload): Promise<AuthResponse> {
-  const response = await apiRequest<RawAuthResponse>("/auth/verify-email", {
-    method: "POST",
-    body: {
-      email: payload.email,
-      code: payload.code,
-    },
-  });
-  return mapAuthResponse(response);
-}
-
-export async function resendVerification(email: string): Promise<AuthActionResponse> {
-  return apiRequest<AuthActionResponse>("/auth/resend-verification", {
-    method: "POST",
-    body: { email },
-  });
-}
-
-export async function requestPasswordReset(
-  payload: ForgotPasswordPayload,
-): Promise<AuthActionResponse> {
-  return apiRequest<AuthActionResponse>("/auth/forgot-password", {
-    method: "POST",
-    body: { email: payload.email },
-  });
-}
-
-export async function resetPassword(payload: ResetPasswordPayload): Promise<AuthActionResponse> {
-  return apiRequest<AuthActionResponse>("/auth/reset-password", {
-    method: "POST",
-    body: {
-      email: payload.email,
-      code: payload.code,
-      new_password: payload.newPassword,
-      confirm_new_password: payload.confirmNewPassword,
-    },
-  });
 }
 
 export async function getCurrentUser(token: string): Promise<AuthUser> {
@@ -160,6 +100,22 @@ export async function changePassword(
   });
 }
 
+export async function updateProfile(
+  token: string,
+  payload: UpdateProfilePayload,
+): Promise<AuthUser> {
+  const response = await apiRequest<RawUser>("/auth/me", {
+    method: "PATCH",
+    token,
+    body: {
+      phone: payload.phone,
+      position: payload.position,
+      facility: payload.facility,
+    },
+  });
+  return mapUser(response);
+}
+
 function mapAuthResponse(response: RawAuthResponse): AuthResponse {
   return {
     accessToken: response.access_token,
@@ -174,8 +130,12 @@ export function mapUser(user: RawUser): AuthUser {
     displayName: user.display_name,
     email: user.email,
     role: user.role,
-    emailVerifiedAt: user.email_verified_at,
     isActive: user.is_active,
+    mustChangePassword: user.must_change_password,
+    passwordChangedAt: user.password_changed_at,
+    phone: user.phone,
+    position: user.position,
+    facility: user.facility,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
   };

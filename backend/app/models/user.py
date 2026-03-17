@@ -32,6 +32,14 @@ class User(Base):
         nullable=True,
     )
     is_active: Mapped[bool] = mapped_column(nullable=False, default=True)
+    must_change_password: Mapped[bool] = mapped_column(nullable=False, default=False)
+    password_changed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    position: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    facility: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

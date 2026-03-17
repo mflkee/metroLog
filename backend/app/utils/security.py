@@ -5,6 +5,7 @@ import hashlib
 import hmac
 import json
 import secrets
+import string
 from datetime import UTC, datetime, timedelta
 
 
@@ -29,6 +30,16 @@ def verify_password(password: str, password_hash: str) -> bool:
 def create_numeric_code(length: int = 6) -> str:
     max_value = 10**length
     return f"{secrets.randbelow(max_value):0{length}d}"
+
+
+def create_temporary_password(length: int = 12) -> str:
+    alphabet = string.ascii_letters + string.digits
+    while True:
+        password = "".join(secrets.choice(alphabet) for _ in range(length))
+        if any(character.isalpha() for character in password) and any(
+            character.isdigit() for character in password
+        ):
+            return password
 
 
 def hash_secret(value: str) -> str:

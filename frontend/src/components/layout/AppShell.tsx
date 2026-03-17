@@ -9,10 +9,10 @@ type AppShellProps = {
 
 export function AppShell({ children }: AppShellProps) {
   return (
-    <div className="min-h-screen bg-mist text-ink">
-      <div className="mx-auto grid min-h-screen max-w-[1600px] grid-cols-1 lg:grid-cols-[280px_1fr]">
+    <div className="min-h-screen min-w-full bg-mist text-ink">
+      <div className="grid min-h-screen min-w-full grid-cols-1 lg:grid-cols-[280px_minmax(0,1fr)]">
         <Sidebar />
-        <div className="flex min-h-screen flex-col">
+        <div className="flex min-h-screen min-w-0 flex-col">
           <Topbar />
           <main className="flex-1 px-4 pb-8 pt-4 sm:px-6 lg:px-8">{children}</main>
         </div>
@@ -20,4 +20,3 @@ export function AppShell({ children }: AppShellProps) {
     </div>
   );
 }
-

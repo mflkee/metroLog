@@ -2,9 +2,11 @@ import { Link, useLocation } from "react-router-dom";
 
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { SectionTabs } from "@/components/layout/SectionTabs";
+import { useAuthStore } from "@/store/auth";
 
 export function Topbar() {
   const location = useLocation();
+  const mustChangePassword = useAuthStore((state) => state.user?.mustChangePassword);
 
   return (
     <header className="sticky top-0 z-10 border-b border-line bg-white/85 px-4 py-4 backdrop-blur sm:px-6 lg:px-8">
@@ -28,7 +30,11 @@ export function Topbar() {
         <AccountMenu />
       </div>
       <SectionTabs />
+      {mustChangePassword ? (
+        <div className="mt-4 rounded-2xl border border-signal-info bg-[#eaf4f8] px-4 py-3 text-sm text-ink">
+          Временный пароль еще активен. Продолжение работы доступно только после смены пароля в профиле.
+        </div>
+      ) : null}
     </header>
   );
 }
-

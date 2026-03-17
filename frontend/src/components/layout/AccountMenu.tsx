@@ -15,7 +15,10 @@ export function AccountMenu() {
         {user ? (
           <div className="hidden text-right md:block">
             <p className="text-sm font-semibold text-ink">{user.displayName}</p>
-            <p className="text-xs uppercase tracking-[0.18em] text-steel">{roleLabels[user.role]}</p>
+            <p className="text-xs uppercase tracking-[0.18em] text-steel">
+              {roleLabels[user.role]}
+              {user.mustChangePassword ? " · смена пароля" : ""}
+            </p>
           </div>
         ) : null}
         <Link

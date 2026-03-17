@@ -16,6 +16,7 @@ function RouteStatePage({ title, description }: { title: string; description: st
 
 export function RequireGuest() {
   const status = useAuthStore((state) => state.status);
+  const mustChangePassword = useAuthStore((state) => state.user?.mustChangePassword);
 
   if (status === "loading") {
     return (
@@ -27,7 +28,7 @@ export function RequireGuest() {
   }
 
   if (status === "authenticated") {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to={mustChangePassword ? "/profile" : "/dashboard"} replace />;
   }
 
   return <Outlet />;

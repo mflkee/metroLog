@@ -1,56 +1,31 @@
-import re
+from __future__ import annotations
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.orm import sessionmaker
 
-from app.services.email_service import email_outbox
-
-
-def extract_code_from_email_body(body: str) -> str:
-    match = re.search(r"Код(?: подтверждения| сброса)?: (\d{6})", body)
-    assert match is not None
-    return match.group(1)
+from app.core.config import settings
+from app.services.user_service import UserService
 
 
-async def register_user(
+def bootstrap_admin(db_engine) -> tuple[str, str]:
+    testing_session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    with testing_session() as session:
+        UserService(session).ensure_bootstrap_admin()
+    return settings.bootstrap_admin_email, settings.bootstrap_admin_password
+
+
+async def login_user(
     client: AsyncClient,
     *,
-    display_name: str,
     email: str,
-    password: str = "password123",
+    password: str,
 ) -> dict[str, object]:
     response = await client.post(
-        "/api/v1/auth/register",
+        "/api/v1/auth/login",
         json={
-            "display_name": display_name,
             "email": email,
             "password": password,
-            "confirm_password": password,
-        },
-    )
-    assert response.status_code == 201
-    return response.json()
-
-
-async def register_and_verify_user(
-    client: AsyncClient,
-    *,
-    display_name: str,
-    email: str,
-    password: str = "password123",
-) -> dict[str, object]:
-    await register_user(
-        client,
-        display_name=display_name,
-        email=email,
-        password=password,
-    )
-    verification_code = extract_code_from_email_body(email_outbox[-1].body)
-    response = await client.post(
-        "/api/v1/auth/verify-email",
-        json={
-            "email": email,
-            "code": verification_code,
         },
     )
     assert response.status_code == 200
@@ -58,113 +33,48 @@ async def register_and_verify_user(
 
 
 @pytest.mark.anyio
-async def test_registration_sends_verification_email_and_blocks_login_until_verified(
+async def test_bootstrap_admin_can_login_and_is_forced_to_change_password(
     client: AsyncClient,
+    db_engine,
 ) -> None:
+    email, password = bootstrap_admin(db_engine)
+
     response = await client.post(
-        "/api/v1/auth/register",
-        json={
-            "display_name": "Admin User",
-            "email": "admin@example.com",
-            "password": "password123",
-            "confirm_password": "password123",
-        },
-    )
-
-    assert response.status_code == 201
-    assert response.json()["message"] == "Verification email sent."
-    assert len(email_outbox) == 1
-    assert email_outbox[0].to_email == "admin@example.com"
-
-    login_response = await client.post(
         "/api/v1/auth/login",
         json={
-            "email": "admin@example.com",
-            "password": "password123",
-        },
-    )
-    assert login_response.status_code == 403
-    assert login_response.json()["detail"] == "Email address is not verified."
-
-
-@pytest.mark.anyio
-async def test_registration_rejects_weak_password(client: AsyncClient) -> None:
-    response = await client.post(
-        "/api/v1/auth/register",
-        json={
-            "display_name": "Admin User",
-            "email": "admin@example.com",
-            "password": "123456",
-            "confirm_password": "123456",
+            "email": email,
+            "password": password,
         },
     )
 
-    assert response.status_code == 400
-    assert (
-        response.json()["detail"]
-        == "Password must be at least 6 characters long and include both letters and digits."
-    )
-
-
-@pytest.mark.anyio
-async def test_verify_email_authenticates_user_and_first_user_becomes_administrator(
-    client: AsyncClient,
-) -> None:
-    await register_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
-    )
-    verification_code = extract_code_from_email_body(email_outbox[-1].body)
-
-    verify_response = await client.post(
-        "/api/v1/auth/verify-email",
-        json={
-            "email": "admin@example.com",
-            "code": verification_code,
-        },
-    )
-    assert verify_response.status_code == 200
-    payload = verify_response.json()
+    assert response.status_code == 200
+    payload = response.json()
     assert payload["user"]["role"] == "ADMINISTRATOR"
-    assert payload["user"]["email_verified_at"] is not None
-
-    me_response = await client.get(
-        "/api/v1/auth/me",
-        headers={"Authorization": f"Bearer {payload['access_token']}"},
-    )
-    assert me_response.status_code == 200
-    assert me_response.json()["email"] == "admin@example.com"
+    assert payload["user"]["must_change_password"] is True
 
 
 @pytest.mark.anyio
-async def test_next_verified_user_defaults_to_customer(client: AsyncClient) -> None:
-    await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
-    )
-    payload = await register_and_verify_user(
-        client,
-        display_name="Customer User",
-        email="customer@example.com",
-    )
+async def test_administrator_can_create_list_and_reset_users(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
 
-    assert payload["user"]["role"] == "CUSTOMER"
-
-
-@pytest.mark.anyio
-async def test_administrator_can_list_users_and_update_roles(client: AsyncClient) -> None:
-    admin = await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
+    create_response = await client.post(
+        "/api/v1/users",
+        headers={"Authorization": f"Bearer {admin['access_token']}"},
+        json={
+            "display_name": "Customer User",
+            "email": "customer@example.com",
+            "role": "CUSTOMER",
+            "is_active": True,
+        },
     )
-    customer = await register_and_verify_user(
-        client,
-        display_name="Customer User",
-        email="customer@example.com",
-    )
+    assert create_response.status_code == 201
+    created_payload = create_response.json()
+    assert created_payload["user"]["must_change_password"] is True
+    assert created_payload["temporary_password"]
 
     list_response = await client.get(
         "/api/v1/users",
@@ -173,27 +83,111 @@ async def test_administrator_can_list_users_and_update_roles(client: AsyncClient
     assert list_response.status_code == 200
     assert len(list_response.json()) == 2
 
-    update_response = await client.patch(
-        f"/api/v1/users/{customer['user']['id']}/role",
+    reset_response = await client.post(
+        f"/api/v1/users/{created_payload['user']['id']}/reset-password",
         headers={"Authorization": f"Bearer {admin['access_token']}"},
-        json={"role": "MKAIR"},
     )
-    assert update_response.status_code == 200
-    assert update_response.json()["role"] == "MKAIR"
+    assert reset_response.status_code == 200
+    assert reset_response.json()["temporary_password"]
+    assert reset_response.json()["user"]["must_change_password"] is True
 
 
 @pytest.mark.anyio
-async def test_customer_cannot_access_user_admin_routes(client: AsyncClient) -> None:
-    await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
+async def test_created_user_must_change_password_and_can_clear_flag(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+
+    create_response = await client.post(
+        "/api/v1/users",
+        headers={"Authorization": f"Bearer {admin['access_token']}"},
+        json={
+            "display_name": "Operator User",
+            "email": "operator@example.com",
+            "role": "MKAIR",
+            "is_active": True,
+        },
     )
-    customer = await register_and_verify_user(
-        client,
-        display_name="Customer User",
-        email="customer@example.com",
+    assert create_response.status_code == 201
+    temporary_password = create_response.json()["temporary_password"]
+
+    login_response = await client.post(
+        "/api/v1/auth/login",
+        json={
+            "email": "operator@example.com",
+            "password": temporary_password,
+        },
     )
+    assert login_response.status_code == 200
+    operator = login_response.json()
+    assert operator["user"]["must_change_password"] is True
+
+    change_response = await client.post(
+        "/api/v1/auth/change-password",
+        headers={"Authorization": f"Bearer {operator['access_token']}"},
+        json={
+            "current_password": temporary_password,
+            "new_password": "Operator123",
+            "confirm_new_password": "Operator123",
+        },
+    )
+    assert change_response.status_code == 200
+
+    me_response = await client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {operator['access_token']}"},
+    )
+    assert me_response.status_code == 200
+    assert me_response.json()["must_change_password"] is False
+
+
+@pytest.mark.anyio
+async def test_user_can_update_profile_fields(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+
+    response = await client.patch(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {admin['access_token']}"},
+        json={
+            "phone": "+7 (999) 123-45-67",
+            "position": "Инженер-метролог",
+            "facility": 'ПСП ХАЛ "Северный"',
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["phone"] == "+7 (999) 123-45-67"
+    assert payload["position"] == "Инженер-метролог"
+    assert payload["facility"] == 'ПСП ХАЛ "Северный"'
+
+
+@pytest.mark.anyio
+async def test_customer_cannot_access_user_admin_routes(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+
+    create_response = await client.post(
+        "/api/v1/users",
+        headers={"Authorization": f"Bearer {admin['access_token']}"},
+        json={
+            "display_name": "Customer User",
+            "email": "customer@example.com",
+            "role": "CUSTOMER",
+            "is_active": True,
+        },
+    )
+    customer_password = create_response.json()["temporary_password"]
+    customer = await login_user(client, email="customer@example.com", password=customer_password)
 
     response = await client.get(
         "/api/v1/users",
@@ -203,142 +197,28 @@ async def test_customer_cannot_access_user_admin_routes(client: AsyncClient) -> 
 
 
 @pytest.mark.anyio
-async def test_last_administrator_cannot_be_demoted(client: AsyncClient) -> None:
-    admin = await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
-    )
+async def test_last_administrator_cannot_be_demoted_or_deactivated(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
 
-    response = await client.patch(
-        f"/api/v1/users/{admin['user']['id']}/role",
+    demote_response = await client.patch(
+        f"/api/v1/users/{admin['user']['id']}",
         headers={"Authorization": f"Bearer {admin['access_token']}"},
         json={"role": "CUSTOMER"},
     )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "The system must keep at least one administrator."
+    assert demote_response.status_code == 400
+    assert demote_response.json()["detail"] == "The system must keep at least one administrator."
 
-
-@pytest.mark.anyio
-async def test_user_can_change_password_and_login_with_new_one(client: AsyncClient) -> None:
-    admin = await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
-    )
-
-    change_response = await client.post(
-        "/api/v1/auth/change-password",
+    deactivate_response = await client.patch(
+        f"/api/v1/users/{admin['user']['id']}",
         headers={"Authorization": f"Bearer {admin['access_token']}"},
-        json={
-            "current_password": "password123",
-            "new_password": "newpassword123",
-            "confirm_new_password": "newpassword123",
-        },
+        json={"is_active": False},
     )
-    assert change_response.status_code == 200
-
-    old_login_response = await client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": "admin@example.com",
-            "password": "password123",
-        },
-    )
-    assert old_login_response.status_code == 401
-
-    new_login_response = await client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": "admin@example.com",
-            "password": "newpassword123",
-        },
-    )
-    assert new_login_response.status_code == 200
-
-
-@pytest.mark.anyio
-async def test_change_password_requires_correct_current_password(client: AsyncClient) -> None:
-    admin = await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
-    )
-
-    response = await client.post(
-        "/api/v1/auth/change-password",
-        headers={"Authorization": f"Bearer {admin['access_token']}"},
-        json={
-            "current_password": "wrongpassword123",
-            "new_password": "newpassword123",
-            "confirm_new_password": "newpassword123",
-        },
-    )
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Current password is incorrect."
-
-
-@pytest.mark.anyio
-async def test_change_password_rejects_weak_new_password(client: AsyncClient) -> None:
-    admin = await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
-    )
-
-    response = await client.post(
-        "/api/v1/auth/change-password",
-        headers={"Authorization": f"Bearer {admin['access_token']}"},
-        json={
-            "current_password": "password123",
-            "new_password": "abcdef",
-            "confirm_new_password": "abcdef",
-        },
-    )
-
-    assert response.status_code == 400
+    assert deactivate_response.status_code == 400
     assert (
-        response.json()["detail"]
-        == "Password must be at least 6 characters long and include both letters and digits."
+        deactivate_response.json()["detail"]
+        == "The system must keep at least one administrator."
     )
-
-
-@pytest.mark.anyio
-async def test_forgot_password_sends_reset_code_and_allows_password_reset(
-    client: AsyncClient,
-) -> None:
-    await register_and_verify_user(
-        client,
-        display_name="Admin User",
-        email="admin@example.com",
-    )
-    email_outbox.clear()
-
-    forgot_response = await client.post(
-        "/api/v1/auth/forgot-password",
-        json={"email": "admin@example.com"},
-    )
-    assert forgot_response.status_code == 200
-    assert forgot_response.json()["message"] == "Password reset email sent if the account exists."
-    assert len(email_outbox) == 1
-
-    reset_code = extract_code_from_email_body(email_outbox[-1].body)
-    reset_response = await client.post(
-        "/api/v1/auth/reset-password",
-        json={
-            "email": "admin@example.com",
-            "code": reset_code,
-            "new_password": "resetpassword123",
-            "confirm_new_password": "resetpassword123",
-        },
-    )
-    assert reset_response.status_code == 200
-
-    login_response = await client.post(
-        "/api/v1/auth/login",
-        json={
-            "email": "admin@example.com",
-            "password": "resetpassword123",
-        },
-    )
-    assert login_response.status_code == 200

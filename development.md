@@ -72,6 +72,8 @@ Completed
 - Repointed the bootstrap administrator to `makeevgb@mkair.ru` and removed the temporary `admin@metrolog.local` record, leaving a single administrator account in the live Docker database.
 - Stretched the Stage 1 shell layout to full viewport width so the sidebar/topbar frame no longer clips on the right when the browser zoom changes.
 - Added editable profile fields in Stage 1 for phone, position, and facility, with self-service update through the authenticated profile page.
+- Tightened the Stage 1 profile presentation into compact info cards and extended self-service profile data with `organization`.
+- Added Stage 1 administrator access to individual user profile pages with phone, position, organization, and facility details.
 
 ## Next
 - Keep permission model simple: `ADMINISTRATOR`, `MKAIR`, `CUSTOMER`.

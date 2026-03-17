@@ -14,6 +14,7 @@ import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { RepairsPage } from "@/pages/RepairsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { UserDetailsPage } from "@/pages/UserDetailsPage";
 import { VerificationPage } from "@/pages/VerificationPage";
 
 export const router = createBrowserRouter([
@@ -50,7 +51,10 @@ export const router = createBrowserRouter([
           },
           {
             element: <RequireRoles allowedRoles={["ADMINISTRATOR"]} />,
-            children: [{ path: "/admin/users", element: <AdminUsersPage /> }],
+            children: [
+              { path: "/admin/users", element: <AdminUsersPage /> },
+              { path: "/admin/users/:userId", element: <UserDetailsPage /> },
+            ],
           },
         ],
       },

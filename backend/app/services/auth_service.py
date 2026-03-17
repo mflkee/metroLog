@@ -70,6 +70,7 @@ class AuthService:
 
     def update_profile(self, *, user: User, payload: UserProfileUpdateRequest) -> User:
         user.phone = _normalize_optional_text(payload.phone, limit=64)
+        user.organization = _normalize_optional_text(payload.organization, limit=255)
         user.position = _normalize_optional_text(payload.position, limit=255)
         user.facility = _normalize_optional_text(payload.facility, limit=255)
         self.session.commit()

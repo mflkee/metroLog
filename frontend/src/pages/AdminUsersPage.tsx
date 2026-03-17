@@ -1,4 +1,5 @@
 import { FormEvent, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -287,7 +288,12 @@ export function AdminUsersPage() {
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <h3 className="text-lg font-semibold text-ink">{user.displayName}</h3>
+                        <Link
+                          className="text-lg font-semibold text-ink transition hover:text-signal-info"
+                          to={currentUser?.id === user.id ? "/profile" : `/admin/users/${user.id}`}
+                        >
+                          {user.displayName}
+                        </Link>
                         <span className="rounded-full bg-[#edf2f5] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-steel">
                           {roleLabels[user.role]}
                         </span>
@@ -313,6 +319,10 @@ export function AdminUsersPage() {
                         ) : null}
                       </div>
                       <p className="text-sm text-steel">{user.email}</p>
+                      <p className="text-xs text-steel">
+                        {user.position || "Должность не указана"} ·{" "}
+                        {user.phone || "Телефон не указан"}
+                      </p>
                     </div>
 
                     <div className="flex flex-wrap gap-2">

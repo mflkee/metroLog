@@ -19,6 +19,7 @@ class UserRead(BaseModel):
     must_change_password: bool
     password_changed_at: datetime | None
     phone: str | None
+    organization: str | None
     position: str | None
     facility: str | None
     created_at: datetime
@@ -45,6 +46,7 @@ class UserUpdateRequest(BaseModel):
 
 class UserProfileUpdateRequest(BaseModel):
     phone: str | None = None
+    organization: str | None = None
     position: str | None = None
     facility: str | None = None
 

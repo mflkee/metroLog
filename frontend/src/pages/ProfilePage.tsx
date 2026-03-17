@@ -21,6 +21,7 @@ export function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [phone, setPhone] = useState(user?.phone ?? "");
+  const [organization, setOrganization] = useState(user?.organization ?? "");
   const [position, setPosition] = useState(user?.position ?? "");
   const [facility, setFacility] = useState(user?.facility ?? "");
   const [profileError, setProfileError] = useState<string | null>(null);
@@ -40,9 +41,10 @@ export function ProfilePage() {
     setIsProfileSubmitting(true);
 
     try {
-      const updatedUser = await updateProfile(token, { phone, position, facility });
+      const updatedUser = await updateProfile(token, { phone, organization, position, facility });
       setUser(updatedUser);
       setPhone(updatedUser.phone ?? "");
+      setOrganization(updatedUser.organization ?? "");
       setPosition(updatedUser.position ?? "");
       setFacility(updatedUser.facility ?? "");
       setProfileMessage("Профиль обновлен.");
@@ -86,6 +88,7 @@ export function ProfilePage() {
       const refreshedUser = await getCurrentUser(token);
       setUser(refreshedUser);
       setPhone(refreshedUser.phone ?? "");
+      setOrganization(refreshedUser.organization ?? "");
       setPosition(refreshedUser.position ?? "");
       setFacility(refreshedUser.facility ?? "");
       setMessage(response.message);
@@ -110,39 +113,31 @@ export function ProfilePage() {
       <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
         {user ? (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-            <dl className="grid gap-3 text-sm text-steel">
-              <div>
-                <dt className="font-semibold text-ink">Пользователь</dt>
-                <dd>{user.displayName}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-ink">Email</dt>
-                <dd>{user.email}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-ink">Роль</dt>
-                <dd>{roleLabels[user.role]}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-ink">Требуется смена пароля</dt>
-                <dd>{user.mustChangePassword ? "Да" : "Нет"}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-ink">Статус</dt>
-                <dd>{user.isActive ? "Активен" : "Отключен"}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-ink">Телефон</dt>
-                <dd>{user.phone || "Не указан"}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-ink">Должность</dt>
-                <dd>{user.position || "Не указана"}</dd>
-              </div>
-              <div>
-                <dt className="font-semibold text-ink">Объект</dt>
-                <dd>{user.facility || "Не указан"}</dd>
-              </div>
+            <dl className="overflow-hidden rounded-2xl border border-line bg-white/85">
+              {[
+                ["Пользователь", user.displayName],
+                ["Email", user.email],
+                ["Роль", roleLabels[user.role]],
+                ["Требуется смена пароля", user.mustChangePassword ? "Да" : "Нет"],
+                ["Статус", user.isActive ? "Активен" : "Отключен"],
+                ["Телефон", user.phone || "Не указан"],
+                ["Организация", user.organization || "Не указана"],
+                ["Должность", user.position || "Не указана"],
+                ["Объект", user.facility || "Не указан"],
+              ].map(([label, value], index) => (
+                <div
+                  key={label}
+                  className={[
+                    "grid gap-2 px-4 py-3 text-sm sm:grid-cols-[190px_minmax(0,1fr)] sm:gap-4",
+                    index > 0 ? "border-t border-line" : "",
+                  ].join(" ")}
+                >
+                  <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-steel">
+                    {label}
+                  </dt>
+                  <dd className="min-w-0 break-words font-medium text-ink">{value}</dd>
+                </div>
+              ))}
             </dl>
 
             <div className="space-y-4">
@@ -153,7 +148,7 @@ export function ProfilePage() {
                 <div>
                   <h3 className="text-base font-semibold text-ink">Данные профиля</h3>
                   <p className="mt-1 text-sm text-steel">
-                    Телефон можно вводить в любом формате. Должность и объект сохраняются как рабочие подписи профиля.
+                    Телефон можно вводить в любом формате. Организация, должность и объект сохраняются как рабочие подписи профиля.
                   </p>
                 </div>
 
@@ -165,6 +160,17 @@ export function ProfilePage() {
                     placeholder="+7 (999) 123-45-67"
                     value={phone}
                     onChange={(event) => setPhone(event.target.value)}
+                  />
+                </label>
+
+                <label className="block text-sm text-steel">
+                  Организация
+                  <input
+                    className="form-input"
+                    type="text"
+                    placeholder='ООО "МКАИР-ИТ"'
+                    value={organization}
+                    onChange={(event) => setOrganization(event.target.value)}
                   />
                 </label>
 

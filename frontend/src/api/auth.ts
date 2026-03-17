@@ -11,6 +11,7 @@ type RawUser = {
   must_change_password: boolean;
   password_changed_at: string | null;
   phone: string | null;
+  organization: string | null;
   position: string | null;
   facility: string | null;
   created_at: string;
@@ -32,6 +33,7 @@ export type AuthUser = {
   mustChangePassword: boolean;
   passwordChangedAt: string | null;
   phone: string | null;
+  organization: string | null;
   position: string | null;
   facility: string | null;
   createdAt: string;
@@ -62,6 +64,7 @@ export type ChangePasswordPayload = {
 
 export type UpdateProfilePayload = {
   phone: string;
+  organization: string;
   position: string;
   facility: string;
 };
@@ -109,6 +112,7 @@ export async function updateProfile(
     token,
     body: {
       phone: payload.phone,
+      organization: payload.organization,
       position: payload.position,
       facility: payload.facility,
     },
@@ -134,6 +138,7 @@ export function mapUser(user: RawUser): AuthUser {
     mustChangePassword: user.must_change_password,
     passwordChangedAt: user.password_changed_at,
     phone: user.phone,
+    organization: user.organization,
     position: user.position,
     facility: user.facility,
     createdAt: user.created_at,

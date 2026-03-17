@@ -38,6 +38,7 @@ class User(Base):
         nullable=True,
     )
     phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    organization: Mapped[str | None] = mapped_column(String(255), nullable=True)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)
     facility: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

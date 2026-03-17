@@ -53,6 +53,15 @@ class UserService:
     def list_users(self) -> list[User]:
         return self.users.list_all()
 
+    def get_user(self, *, user_id: int) -> User:
+        user = self.users.get_by_id(user_id)
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found.",
+            )
+        return user
+
     def create_user(self, payload: UserCreateRequest) -> tuple[User, str]:
         display_name = payload.display_name.strip()
         email = _normalize_email(payload.email)

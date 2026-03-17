@@ -91,6 +91,13 @@ async def test_administrator_can_create_list_and_reset_users(
     assert reset_response.json()["temporary_password"]
     assert reset_response.json()["user"]["must_change_password"] is True
 
+    detail_response = await client.get(
+        f"/api/v1/users/{created_payload['user']['id']}",
+        headers={"Authorization": f"Bearer {admin['access_token']}"},
+    )
+    assert detail_response.status_code == 200
+    assert detail_response.json()["email"] == "customer@example.com"
+
 
 @pytest.mark.anyio
 async def test_created_user_must_change_password_and_can_clear_flag(
@@ -156,6 +163,7 @@ async def test_user_can_update_profile_fields(
         headers={"Authorization": f"Bearer {admin['access_token']}"},
         json={
             "phone": "+7 (999) 123-45-67",
+            "organization": 'ООО "МКАИР-ИТ"',
             "position": "Инженер-метролог",
             "facility": 'ПСП ХАЛ "Северный"',
         },
@@ -164,6 +172,7 @@ async def test_user_can_update_profile_fields(
     assert response.status_code == 200
     payload = response.json()
     assert payload["phone"] == "+7 (999) 123-45-67"
+    assert payload["organization"] == 'ООО "МКАИР-ИТ"'
     assert payload["position"] == "Инженер-метролог"
     assert payload["facility"] == 'ПСП ХАЛ "Северный"'
 

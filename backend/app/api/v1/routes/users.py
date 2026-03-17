@@ -22,6 +22,16 @@ async def list_users(
     return [UserRead.model_validate(user) for user in users]
 
 
+@router.get("/{user_id}", response_model=UserRead)
+async def get_user(
+    user_id: int,
+    _: AdminUser,
+    db: DbSession,
+) -> UserRead:
+    user = UserService(db).get_user(user_id=user_id)
+    return UserRead.model_validate(user)
+
+
 @router.post("", response_model=UserTemporaryPasswordResponse, status_code=201)
 async def create_user(
     payload: UserCreateRequest,

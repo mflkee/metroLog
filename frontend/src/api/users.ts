@@ -10,6 +10,7 @@ type RawUser = {
   must_change_password: boolean;
   password_changed_at: string | null;
   phone: string | null;
+  organization: string | null;
   position: string | null;
   facility: string | null;
   created_at: string;
@@ -45,6 +46,14 @@ export async function fetchUsers(token: string): Promise<AuthUser[]> {
     token,
   });
   return response.map(mapUser);
+}
+
+export async function fetchUserById(token: string, userId: number): Promise<AuthUser> {
+  const response = await apiRequest<RawUser>(`/users/${userId}`, {
+    method: "GET",
+    token,
+  });
+  return mapUser(response);
 }
 
 export async function updateUserRole(

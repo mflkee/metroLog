@@ -34,6 +34,9 @@ Completed
 - Reworked equipment notes in the spec into note entries with mandatory author name and timestamp.
 - Created Stage 0 backend skeleton with FastAPI app, config, DB session, Alembic setup, and health endpoints.
 - Created Stage 0 frontend skeleton with Vite-style structure, shared AppShell, routes, and minimal auth/profile pages.
+- Added Stage 0 theme switching in the shared shell: white, dark, gray, and blueberry themes with persisted selection.
+- Refined Stage 0 theme switching into a dropdown selector and darkened the blueberry palette for clearer separation from the white theme.
+- Tuned the custom palettes further: gray moved into a warmer `#a89984` direction, blueberry softened, and a new `old-book` theme was added.
 - Added root project files: `.env.example`, `docker-compose.yml`, `.gitignore`, and `README.md`.
 - Added backend and frontend package manifests plus base lint/test configuration.
 - Verified backend static checks with `ruff check`.

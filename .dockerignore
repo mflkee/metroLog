@@ -1,0 +1,17 @@
+.git
+.gitignore
+.ruff_cache
+.pytest_cache
+backend/.pytest_cache
+backend/.ruff_cache
+backend/.venv
+frontend/node_modules
+frontend/dist
+backend/storage
+storage
+node_modules
+__pycache__
+*.pyc
+.env
+.tmp_excalidraw_page.png
+.tmp_excalidraw_page_300.png

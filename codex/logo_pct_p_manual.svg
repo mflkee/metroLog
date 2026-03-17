@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 399 208" width="399" height="208">
+  <g fill="#000">
+    <rect x="23" y="23" width="22" height="155"/>
+    <rect x="355" y="23" width="22" height="155"/>
+
+    <rect x="89" y="134" width="23" height="44"/>
+    <rect x="156" y="134" width="22" height="44"/>
+    <rect x="222" y="134" width="22" height="44"/>
+    <rect x="289" y="134" width="22" height="44"/>
+
+    <path fill-rule="evenodd" d="
+      M89 23H111V111H89Z
+      M111 23H123
+      C141 23 156 38 156 56
+      C156 74 141 89 123 89
+      H111Z
+      M111 44H121
+      C129 44 135 50 135 56
+      C135 62 129 68 121 68
+      H111Z" />
+
+    <path d="M235.92 40.08
+             A37 37 0 1 0 235.92 92.92"
+          fill="none" stroke="#000" stroke-width="23" stroke-linecap="butt"/>
+
+    <path d="M267 23H333V49H311V111H289V49H267Z"/>
+  </g>
+</svg>

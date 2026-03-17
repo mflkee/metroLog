@@ -1,0 +1,81 @@
+profiles:
+  prod:
+    data:
+      host: https://fgis.gost.ru/fundmetrology/eapi
+
+      # твой пример
+      cert_num: "С-ВЯ/05-02-2026/503716225"
+      vri_id: ""
+      mieta_number_1: "73828.19.1Р.00156416"
+      mieta_number_3: "73828.19.3Р.01021102"
+      rmieta_id: ""
+      mit_number: "73828-19"
+      factory_num: "0050"
+
+requests:
+  # -------------------------
+  # 1. Поверка: поиск по свидетельству
+  # -------------------------
+  vri_list_by_certificate:
+    method: GET
+    url: "{{host}}/vri"
+    query:
+      result_docnum: "{{cert_num}}"
+      year: "{{year}}"
+      rows: 20
+
+  vri_list_by_certificate_wildcard:
+    method: GET
+    url: "{{host}}/vri"
+    query:
+      result_docnum: "*{{cert_num}}*"
+      year: "{{year}}"
+      rows: 20
+
+  vri_list_by_type_and_factory:
+    method: GET
+    url: "{{host}}/vri"
+    query:
+      mit_number: "{{mit_number}}"
+      mi_number: "{{factory_num}}"
+      year: "{{year}}"
+      rows: 50
+
+  # -------------------------
+  # 2. Поверка: детальная запись
+  # -------------------------
+  vri_detail:
+    method: GET
+    url: "{{host}}/vri/{{vri_id}}"
+
+  # -------------------------
+  # 3. Эталоны (mieta): поиск по номеру в перечне
+  # -------------------------
+  mieta_list_by_number_1r:
+    method: GET
+    url: "{{host}}/mieta"
+    query:
+      number: "{{mieta_number_1}}"
+      rows: 20
+
+  mieta_list_by_number_3r:
+    method: GET
+    url: "{{host}}/mieta"
+    query:
+      number: "{{mieta_number_3}}"
+      rows: 20
+
+  mieta_list_by_type_and_factory:
+    method: GET
+    url: "{{host}}/mieta"
+    query:
+      mitype_num: "{{mit_number}}"
+      factory_num: "{{factory_num}}"
+      rows: 50
+
+  # -------------------------
+  # 4. Эталоны (mieta): детальная запись
+  # -------------------------
+  mieta_detail:
+    method: GET
+    url: "{{host}}/mieta/{{rmieta_id}}"

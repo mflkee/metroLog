@@ -5,13 +5,13 @@ This file is the working buffer for Codex-driven development.
 It should stay short and reflect only the current task state.
 
 ## Current Phase
-Phase 1 - Minimal Auth and Roles
+Phase 2 - Registry Foundation
 
 ## Current Iteration
-Stage 1 refactored: internal admin-created users, temporary passwords, forced password change, and bootstrap admin are now implemented.
+Stage 2 kickoff: folders, groups, and equipment registry foundation.
 
 ## Status
-Completed
+In Progress
 
 ## Completed
 - Added root project specification to `codex.md`.
@@ -74,10 +74,28 @@ Completed
 - Added editable profile fields in Stage 1 for phone, position, and facility, with self-service update through the authenticated profile page.
 - Tightened the Stage 1 profile presentation into a compact row-based summary and extended self-service profile data with `organization`.
 - Added Stage 1 administrator access to individual user profile pages with phone, position, organization, and facility details.
+- Added Stage 1 password UX updates: password visibility toggle, unrestricted clipboard actions, and split user name fields (`last_name`, `first_name`, `patronymic`) across backend, frontend, DB, and setup docs.
+- Added Stage 2 backend registry foundation: `EquipmentFolder`, `EquipmentGroup`, and `Equipment` models, migration, CRUD API, operator access rules, and contract tests.
+- Connected Stage 2 frontend registry pages to the real backend: folder/group drill-down, equipment list, quick equipment search, and a live equipment details card with basic editing.
+- Refined the Stage 2 registry model to make folder membership explicit on equipment, keep groups optional, replace `NON_SI` with explicit categories `SI / IO / VO / OTHER`, and remove `inventory_number` from the product contract.
+- Reworked the Stage 2 equipment UX toward a metroloGet-style flow: folder cards first, folder workspace second, modal creation actions, and a wider calmer registry table.
+- Added a dedicated frontend modal component for low-noise creation flows and aligned the equipment details card with the new folder/category model plus a reserved SI block.
+- Simplified shell navigation: removed the separate `Карточки` workspace, removed the duplicate top tab strip, and added a collapsible left sidebar with compact badge icons.
+- Extended the registry UI with edit/delete flows for folders, groups, and equipment, plus explicit confirmation before every deletion.
+- Simplified the shell further: removed the left intro card, moved the sidebar toggle into the sidebar itself, and reduced the top title to plain `metroLog`.
+- Added local font assets plus a persistent font selector next to theme selection, and tuned the `white`, `blueberry`, and `old-book` palettes for less aggressive backgrounds.
+
+## Stage 2 Plan
+- Iteration 2.1: backend entities and migration for `EquipmentFolder`, `EquipmentGroup`, and `Equipment`.
+- Iteration 2.2: backend CRUD API for folders, groups, and equipment with simple role rules.
+- Iteration 2.3: frontend equipment registry page with folder/group drill-down and equipment list.
+- Iteration 2.4: equipment details page backed by real API data.
 
 ## Next
 - Keep permission model simple: `ADMINISTRATOR`, `MKAIR`, `CUSTOMER`.
-- Prepare Stage 2: folders, groups, and equipment registry foundation.
+- Smoke-test Stage 2 in browser against the running backend and Docker environment.
+- Decide the next Stage 2 slice between SI verification workspace, equipment notes, or event-log hooks.
+- Validate the new folder-first registry behavior against real data entry scenarios in the browser.
 - Revisit Docker startup when Docker is available in the environment.
 
 ## Working Rule

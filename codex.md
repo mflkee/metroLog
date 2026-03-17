@@ -8,7 +8,7 @@ Build a web application for accounting laboratory and production equipment with 
 
 The system must provide:
 - a clean and modern application-like interface,
-- clear equipment cards,
+- clear equipment cards opened from the common registry,
 - repair lifecycle tracking,
 - dashboard with deadlines and overdue states,
 - synchronization of SI verification data from Arshin,
@@ -33,7 +33,7 @@ Workbook-to-product mapping:
 - `Поверка_СИ` -> SI verification page/workspace
 - `Ремонты` -> repairs page/workspace
 - `Журнал_событий` -> event log page
-- `Карточка_прибора` -> equipment cards workspace and detailed equipment card
+- `Карточка_прибора` -> detailed equipment card reached from the common registry
 - `Справочники` -> reference data pages
 - `Настройки` -> settings/admin page
 - `Как_пользоваться` -> help/onboarding page or built-in documentation
@@ -53,9 +53,21 @@ Current high-level product expectations:
 - the system must support both SI and non-SI equipment in one product,
 - SI verification is a dedicated operational area,
 - event log is a dedicated operational area,
-- equipment cards are a dedicated operational area,
+- equipment cards are reached from the common equipment workflow and are not a separate top-level workspace,
 - repair workflow remains a separate area and will be refined later,
 - authentication and role-based permissions must be planned from the start as an internal admin-managed account system.
+
+### Equipment vs SI workspace
+
+The common `Оборудование` page and the dedicated `Поверка СИ` page must remain separate workflows.
+
+Current expectation:
+- the `Оборудование` page is the common registry for all equipment,
+- the `Оборудование` page should show only basic operational information needed to browse and choose a record,
+- the most important column on the common equipment list is the current status,
+- clicking a record in `Оборудование` must open the detailed equipment card,
+- SI-specific detailed data should become visible inside the equipment card only for SI records,
+- the dedicated `Поверка СИ` page is the place for SI-specific tables, calculations, deadlines, remaining days, and verification-focused work.
 
 ### Authentication expectations
 
@@ -287,6 +299,13 @@ Rules:
 - backend must validate SI-specific data rules.
 - repair and movement workflow must remain understandable for both SI and non-SI equipment.
 
+Additional registry rule:
+- all equipment rows in the common registry must be clearly marked by category/type,
+- each equipment item belongs to exactly one category from `SI`, `IO`, `VO`, or `OTHER`,
+- `SI` is a separate category because it later participates in the Arshin-linked state workflow,
+- `OTHER` can be used for parts or standalone units such as a power supply block that still need their own repair lifecycle,
+- inventory number is not part of the required product model and must not be introduced into the registry UX.
+
 ---
 
 ## Navigation Paradigm
@@ -308,11 +327,16 @@ each core operational function has a clear entry point in the application.
 Primary functional areas currently expected:
 - dashboard / home,
 - equipment registry,
-- equipment cards,
 - SI verification,
 - event log,
 - repairs,
 - settings and reference data later.
+
+Shell expectations:
+- the left sidebar is the primary persistent navigation,
+- there is no duplicate top tab strip for the same sections,
+- the sidebar can collapse into an icon-only mode to increase working space,
+- the top bar should stay visually light and not compete with the registry workspace.
 
 All pages that primarily display lists must support:
 - search,
@@ -337,10 +361,32 @@ Example:
 
 Requirements:
 - folders and groups are created, edited, and stored in the database,
+- folders, groups, and equipment support create, edit, and delete operations,
 - equipment can be organized through this hierarchy,
 - the UI must support drilling down from folder to group to equipment,
+- the user should first choose a folder node,
+- creating a folder, group, or equipment item should happen through modal dialogs instead of large always-open forms,
+- destructive actions must require a clear confirmation question before execution,
+- after a folder is selected, the user should be able to either:
+  - show all groups inside that folder,
+  - or narrow the list to one specific group,
 - this structure should be inspired by proven patterns already used in `../metrologet`,
-- SI and non-SI equipment should coexist inside the same organizational structure.
+- SI and non-SI equipment should coexist inside the same organizational structure,
+- equipment must still belong to the selected folder even when no group is assigned,
+- the registry table should visually dominate the workspace and use most of the free width.
+
+The `Оборудование` page should follow a focused `metroloGet`-style browsing pattern:
+- first choose folder,
+- then optionally choose one group,
+- then work with the resulting list,
+- creation controls should stay secondary to the table itself,
+- edit and delete controls should exist but remain visually secondary to browsing,
+- avoid showing too many creation and editing controls at once.
+
+Additional shell and appearance expectations:
+- the application title in the top area should remain short: `metroLog`,
+- theme switching and font switching are part of the shell-level personalization,
+- default light palettes must avoid harsh glare on long working sessions.
 
 ---
 
@@ -364,9 +410,8 @@ Requirements:
 
 ## Equipment Card Expectations
 
-Equipment cards must be accessible in at least two ways:
-- by clicking an equipment record in the registry,
-- from a dedicated equipment cards section/workspace.
+Equipment cards must be accessible directly from the equipment registry
+without requiring a separate top-level cards section.
 
 Each card should answer:
 - what the device is,
@@ -669,3 +714,168 @@ A phase is complete only when:
 * obvious edge cases are handled,
 * related tests are added where applicable,
 * documentation/spec is updated if needed.
+
+
+
+
+
+на чем закончили, кончились кредиты на кодекс • Сделал.
+
+  Что поменял:
+
+  - Редактировать / Удалить в плотных местах заменены на иконки;
+  - в группах теперь больше нет двух текстовых мини-кнопок, только компактные кнопки с ручкой и крестиком;
+  - в таблице приборов тоже иконки;
+  - у папок в карточках тоже иконки;
+  - в карточке прибора удаление тоже переведено на иконку;
+  - слева в навигации вместо буквенных бейджей теперь NF-иконки.
+
+  Основные файлы:
+
+  - frontend/src/lib/nav.ts
+  - frontend/src/components/layout/Sidebar.tsx
+  - frontend/src/pages/EquipmentPage.tsx
+  - frontend/src/pages/EquipmentDetailsPage.tsx
+  - frontend/src/shared/styles.css
+
+  Технически:
+
+  - для иконок добавил отдельный класс .nf-icon, чтобы они не зависели от текущего выбранного UI-шрифта;
+  - action-кнопки теперь идут через единый стиль .icon-action-button.
+
+  Проверка:
+
+  - git diff --check чистый
+
+  Теперь пересобери frontend:
+
+  docker compose up --build -d
+  docker compose logs -f frontend
+
+  Если какие-то конкретные NF-иконки покажутся неудачными по смыслу, я следующим сообщением быстро заменю их точечно:
+
+  - Главная
+  - Оборудование
+  - Поверка СИ
+  - Ремонты
+  - Настройки
+  - Журнал
+  - Пользователи
+
+
+› еще у меня выбивается из темы, когда в папку захожу а там нет оборудования и вот это окно Под текущие фильтры приборы не найдены.
+
+  Измени фильтры или добавь первый прибор в выбранную папку. так же иконки не отображаются, просто ошибка у меня, как будто шрифт не может
+  рендериться правильно тут
+
+
+• Сейчас исправлю оба источника шума: пустое состояние в папке переведу на нормальный theme-aware блок без инородного фона, а иконки уберу
+  с зависимости от NF-шрифта и заменю на встроенные SVG, чтобы они рендерились стабильно у тебя в любом окружении.
+
+• Explored
+  └ Search f8fbfc|nf-icon|nav-icon-badge|icon-action-button|Под текущие фильтры приборы не найдены|Папок пока нет|equipment empty|icon in
+           EquipmentPage.tsx
+    Read nav.ts, Sidebar.tsx, EquipmentPage.tsx, styles.css
+
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+• Сделаю иконки аппаратно надёжными: убираю зависимость от символов шрифта и перевожу всё на маленькие inline SVG. Это гарантированно
+  снимет артефакты рендера и оставит тот же компактный вид без плясок вокруг font fallback.
+
+• Added frontend/src/components/Icon.tsx (+87 -0)
+     1 +type IconName =
+     2 +  | "home"
+     3 +  | "equipment"
+     4 +  | "verification"
+     5 +  | "repairs"
+     6 +  | "settings"
+     7 +  | "events"
+     8 +  | "users"
+     9 +  | "edit"
+    10 +  | "delete";
+    11 +
+    12 +type IconProps = {
+    13 +  name: IconName;
+    14 +  className?: string;
+    15 +};
+    16 +
+    17 +export function Icon({ name, className }: IconProps) {
+    18 +  const baseClassName = className ?? "h-5 w-5";
+    19 +
+    20 +  switch (name) {
+    21 +    case "home":
+    22 +      return (
+    23 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+    24 +          <path strokeLinecap="round" strokeLinejoin="round" d="M3 10.5 12 3l9 7.5" />
+    25 +          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 9.75V21h13.5V9.75" />
+    26 +        </svg>
+    27 +      );
+    28 +    case "equipment":
+    29 +      return (
+    30 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+    31 +          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 7.5h15v12h-15z" />
+    32 +          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5h7.5" />
+    33 +          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 12h7.5M8.25 15.75h4.5" />
+    34 +        </svg>
+    35 +      );
+    36 +    case "verification":
+    37 +      return (
+    38 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+    39 +          <path strokeLinecap="round" strokeLinejoin="round" d="M9 3h6" />
+    40 +          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 3v5.25L5.25 18a2.25 2.25 0 0 0 1.98 3.3h9.54a2.25 2.25 0 0 0
+        1.98-3.3L13.5 8.25V3" />
+    41 +          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 13.5h4.5" />
+    42 +        </svg>
+    43 +      );
+    44 +    case "repairs":
+    45 +      return (
+    46 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+    47 +          <path strokeLinecap="round" strokeLinejoin="round" d="M14.25 5.25a4.5 4.5 0 0 0-5.9 5.9L4.5 15v4.5H9l3.85-3.85a4.5 4.5 0
+        0 0 5.9-5.9l-2.7 2.7-2.55-.45-.45-2.55 2.7-2.7Z" />
+    48 +        </svg>
+    49 +      );
+    50 +    case "settings":
+    51 +      return (
+    52 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+    53 +          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317a1.724 1.724 0 0 1 3.35 0 1.724 1.724 0 0 0 2.573 1.06
+        6 1.724 1.724 0 0 1 2.36 2.36 1.724 1.724 0 0 0 1.065 2.573 1.724 1.724 0 0 1 0 3.35 1.724 1.724 0 0 0-1.066 2.573 1.724 1.724 0 0
+        1-2.36 2.36 1.724 1.724 0 0 0-2.573 1.065 1.724 1.724 0 0 1-3.35 0 1.724 1.724 0 0 0-2.573-1.066 1.724 1.724 0 0 1-2.36-2.36 1.724
+        1.724 0 0 0-1.065-2.573 1.724 1.724 0 0 1 0-3.35 1.724 1.724 0 0 0 1.066-2.573 1.724 1.724 0 0 1 2.36-2.36 1.724 1.724 0 0 0 2.573-
+        1.065Z" />
+    54 +          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.75A3.75 3.75 0 1 0 12 8.25a3.75 3.75 0 0 0 0 7.5Z" />
+    55 +        </svg>
+    56 +      );
+    57 +    case "events":
+    58 +      return (
+    59 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+    60 +          <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6l4.5 2.25" />
+    61 +          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-2.64-6.36" />
+    62 +        </svg>
+    63 +      );
+    64 +    case "users":
+    65 +      return (
+    66 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+    67 +          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+    68 +          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5a7.5 7.5 0 0 1 15 0" />
+    69 +        </svg>
+    70 +      );
+    71 +    case "edit":
+    72 +      return (
+    73 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+    74 +          <path strokeLinecap="round" strokeLinejoin="round" d="m16.86 3.49 3.65 3.65" />
+    75 +          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5 8.25 18.75l10.94-10.94a1.875 1.875 0 0 0-2.65-2.65L5.6 16
+        .1 4.5 19.5Z" />
+    76 +        </svg>
+    77 +      );
+    78 +    case "delete":
+    79 +      return (
+    80 +        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+    81 +          <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5h10.5" />
+    82 +          <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 3.75h4.5l.75 1.5H18" />
+    83 +          <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 7.5.75 11.25h6l.75-11.25" />
+    84 +        </svg>
+    85 +      );
+    86 +  }
+    87 +}
+
+

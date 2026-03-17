@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { loginUser } from "@/api/auth";
+import { PasswordInput } from "@/components/PasswordInput";
 import { useAuthStore } from "@/store/auth";
 
 export function LoginPage() {
@@ -55,17 +56,13 @@ export function LoginPage() {
             onChange={(event) => setEmail(event.target.value)}
           />
         </label>
-        <label className="block text-sm text-steel">
-          Пароль
-          <input
-            className="form-input"
-            type="password"
-            placeholder="••••••••"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-          />
-        </label>
+        <PasswordInput
+          autoComplete="current-password"
+          label="Пароль"
+          placeholder="••••••••"
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+        />
         {stateMessage ? <p className="text-sm text-signal-ok">{stateMessage}</p> : null}
         {error ? <p className="text-sm text-[#b04c43]">{error}</p> : null}
         <button className="btn-primary disabled:opacity-60" type="submit" disabled={isSubmitting}>

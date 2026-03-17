@@ -65,7 +65,9 @@ async def test_administrator_can_create_list_and_reset_users(
         "/api/v1/users",
         headers={"Authorization": f"Bearer {admin['access_token']}"},
         json={
-            "display_name": "Customer User",
+            "first_name": "Customer",
+            "last_name": "User",
+            "patronymic": "Test",
             "email": "customer@example.com",
             "role": "CUSTOMER",
             "is_active": True,
@@ -111,7 +113,9 @@ async def test_created_user_must_change_password_and_can_clear_flag(
         "/api/v1/users",
         headers={"Authorization": f"Bearer {admin['access_token']}"},
         json={
-            "display_name": "Operator User",
+            "first_name": "Operator",
+            "last_name": "User",
+            "patronymic": "Test",
             "email": "operator@example.com",
             "role": "MKAIR",
             "is_active": True,
@@ -189,7 +193,9 @@ async def test_customer_cannot_access_user_admin_routes(
         "/api/v1/users",
         headers={"Authorization": f"Bearer {admin['access_token']}"},
         json={
-            "display_name": "Customer User",
+            "first_name": "Customer",
+            "last_name": "User",
+            "patronymic": "Test",
             "email": "customer@example.com",
             "role": "CUSTOMER",
             "is_active": True,

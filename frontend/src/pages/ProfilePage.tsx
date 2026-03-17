@@ -1,12 +1,9 @@
 import { FormEvent, useState } from "react";
 
 import { changePassword, getCurrentUser, updateProfile } from "@/api/auth";
+import { PasswordInput } from "@/components/PasswordInput";
 import { PageHeader } from "@/components/layout/PageHeader";
-import {
-  blockPasswordClipboard,
-  isPasswordPolicyValid,
-  passwordPolicyMessage,
-} from "@/lib/password";
+import { isPasswordPolicyValid, passwordPolicyMessage } from "@/lib/password";
 import { roleLabels } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
 
@@ -115,7 +112,9 @@ export function ProfilePage() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
             <dl className="overflow-hidden rounded-2xl border border-line bg-white/85">
               {[
-                ["Пользователь", user.displayName],
+                ["Фамилия", user.lastName || "Не указана"],
+                ["Имя", user.firstName || "Не указано"],
+                ["Отчество", user.patronymic || "Не указано"],
                 ["Email", user.email],
                 ["Роль", roleLabels[user.role]],
                 ["Требуется смена пароля", user.mustChangePassword ? "Да" : "Нет"],
@@ -221,49 +220,28 @@ export function ProfilePage() {
                 </p>
                 </div>
 
-                <label className="block text-sm text-steel">
-                  Текущий пароль
-                  <input
-                    className="form-input"
-                    type="password"
-                    autoComplete="current-password"
-                    value={currentPassword}
-                    onChange={(event) => setCurrentPassword(event.target.value)}
-                    onCopy={blockPasswordClipboard}
-                    onCut={blockPasswordClipboard}
-                    onPaste={blockPasswordClipboard}
-                  />
-                </label>
+                <PasswordInput
+                  autoComplete="current-password"
+                  label="Текущий пароль"
+                  value={currentPassword}
+                  onChange={(event) => setCurrentPassword(event.target.value)}
+                />
 
-                <label className="block text-sm text-steel">
-                  Новый пароль
-                  <input
-                    className="form-input"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={6}
-                    value={newPassword}
-                    onChange={(event) => setNewPassword(event.target.value)}
-                    onCopy={blockPasswordClipboard}
-                    onCut={blockPasswordClipboard}
-                    onPaste={blockPasswordClipboard}
-                  />
-                </label>
+                <PasswordInput
+                  autoComplete="new-password"
+                  label="Новый пароль"
+                  minLength={6}
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                />
 
-                <label className="block text-sm text-steel">
-                  Подтверждение нового пароля
-                  <input
-                    className="form-input"
-                    type="password"
-                    autoComplete="new-password"
-                    minLength={6}
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    onCopy={blockPasswordClipboard}
-                    onCut={blockPasswordClipboard}
-                    onPaste={blockPasswordClipboard}
-                  />
-                </label>
+                <PasswordInput
+                  autoComplete="new-password"
+                  label="Подтверждение нового пароля"
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                />
 
                 <p className="text-xs text-steel">{passwordPolicyMessage}</p>
                 {error ? <p className="text-sm text-[#b04c43]">{error}</p> : null}

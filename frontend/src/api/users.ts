@@ -3,7 +3,9 @@ import { mapUser, type AuthUser, type UserRole } from "@/api/auth";
 
 type RawUser = {
   id: number;
-  display_name: string;
+  first_name: string;
+  last_name: string;
+  patronymic: string | null;
   email: string;
   role: UserRole;
   is_active: boolean;
@@ -23,14 +25,18 @@ type RawUserTemporaryPasswordResponse = {
 };
 
 export type CreateUserPayload = {
-  displayName: string;
+  firstName: string;
+  lastName: string;
+  patronymic: string;
   email: string;
   role: UserRole;
   isActive: boolean;
 };
 
 export type UpdateUserPayload = {
-  displayName?: string;
+  firstName?: string;
+  lastName?: string;
+  patronymic?: string;
   role?: UserRole;
   isActive?: boolean;
 };
@@ -77,7 +83,9 @@ export async function createUser(
     method: "POST",
     token,
     body: {
-      display_name: payload.displayName,
+      first_name: payload.firstName,
+      last_name: payload.lastName,
+      patronymic: payload.patronymic,
       email: payload.email,
       role: payload.role,
       is_active: payload.isActive,
@@ -98,7 +106,9 @@ export async function updateUser(
     method: "PATCH",
     token,
     body: {
-      display_name: payload.displayName,
+      first_name: payload.firstName,
+      last_name: payload.lastName,
+      patronymic: payload.patronymic,
       role: payload.role,
       is_active: payload.isActive,
     },

@@ -176,13 +176,24 @@ Fields:
 * name
 * modification
 * serial_number
-* inventory_number
+* folder_id
 * manufacture_year
 * status
-* equipment_group_id nullable
+* group_id nullable
 * current_location_manual
 * created_at
 * updated_at
+
+Registry behavior:
+
+* the common equipment registry must contain both SI and non-SI records in one structure,
+* every equipment row belongs to one explicit category from `SI`, `IO`, `VO`, or `OTHER`,
+* `SI` is separate because only it later participates in the Arshin workflow,
+* the common equipment list should expose only basic operational fields,
+* inventory number is not part of the backend equipment contract,
+* equipment must belong to a folder even when no group is assigned,
+* detailed SI verification payload must not overload the common equipment registry response,
+* SI-specific calculated verification data belongs primarily to dedicated SI verification endpoints and detailed card responses.
 
 ### SIVerification
 
@@ -348,6 +359,18 @@ Validation:
 * if equipment type is SI, verification block is allowed,
 * if equipment type is not SI, SI verification data must not be created unless explicitly supported later.
 
+### Rule 1.0 - Shared registry and dedicated SI workspace
+
+The backend must support two different read models:
+
+* a common equipment registry view for all equipment,
+* a dedicated SI verification view for SI-focused calculations and deadlines.
+
+Expected difference:
+
+* the common registry response stays lean and browsing-oriented,
+* the SI verification response may include calculated columns such as verification date, valid until, remaining days, overdue state, and similar derived SI values.
+
 ### Rule 1.1 - Shared organization hierarchy
 
 SI and non-SI equipment must be stored in the same folder/group hierarchy.
@@ -457,7 +480,7 @@ Until a more detailed RBAC model is introduced, use this baseline:
 * `ADMINISTRATOR` and `MKAIR` can update repair state dates,
 * `ADMINISTRATOR` and `MKAIR` can view the event log,
 * only `ADMINISTRATOR` can access user management and assign rights,
-* all roles can view equipment, repairs, SI pages, and equipment cards,
+* all roles can view equipment, repairs, SI pages, and equipment detail cards,
 * all roles can add equipment note entries.
 
 ### Rule 12 - List endpoints must be filterable
@@ -491,23 +514,17 @@ Supported query params:
 
 * folder_id
 * group_id
-* object_name
 * equipment_type
 * status
-* search
-* has_active_repair
-* overdue_only
-* verification_expiring_before
-* page
-* page_size
+* query
 
 Response should include:
 
 * common equipment fields,
-* current stage,
 * current location,
-* active repair summary,
-* verification summary if SI.
+* status,
+* clear equipment category marker,
+* only the minimum SI summary needed for registry browsing.
 
 ### `POST /api/v1/equipment`
 
@@ -530,8 +547,13 @@ Update equipment.
 
 ### `DELETE /api/v1/equipment/{id}`
 
-Soft delete or hard delete depends on project decision.
-Prefer soft delete later if audit needs grow.
+Delete equipment by id.
+
+Current behavior:
+
+* deletion is hard delete,
+* UI is expected to ask for explicit confirmation before calling the endpoint,
+* soft delete may be introduced later if audit requirements grow.
 
 ### `GET /api/v1/equipment/folders`
 
@@ -547,7 +569,13 @@ Update folder.
 
 ### `DELETE /api/v1/equipment/folders/{id}`
 
-Delete folder if allowed by business rules.
+Delete folder.
+
+Current behavior:
+
+* deleting a folder removes all equipment that belongs to that folder,
+* nested groups disappear with the folder,
+* UI is expected to warn clearly before executing this action.
 
 ### `GET /api/v1/equipment/groups`
 
@@ -563,7 +591,13 @@ Update group.
 
 ### `DELETE /api/v1/equipment/groups/{id}`
 
-Delete group if allowed by business rules.
+Delete group.
+
+Current behavior:
+
+* equipment is not deleted with the group,
+* equipment previously linked to that group becomes ungrouped inside the same folder,
+* UI is expected to ask for confirmation before the request.
 
 ---
 
@@ -790,6 +824,14 @@ Expected filters:
 * manual_review_required
 * search
 
+Response should include SI-specific calculated fields such as:
+
+* verification date,
+* valid until,
+* remaining days,
+* overdue state,
+* related equipment card context.
+
 ### `GET /api/v1/verification/si/{equipment_id}`
 
 Get SI verification details including equipment link context.
@@ -914,8 +956,9 @@ Responsibilities:
 
 ### Equipment structure service
 
-* create/update folders,
-* create/update groups,
+* create/update/delete folders,
+* create/update/delete groups,
+* create/update/delete equipment,
 * list hierarchy,
 * provide counters for navigation and drill-down.
 

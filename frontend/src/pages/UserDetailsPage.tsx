@@ -55,7 +55,9 @@ export function UserDetailsPage() {
         {userQuery.data ? (
           <dl className="overflow-hidden rounded-2xl border border-line bg-white/85">
             {[
-              ["Пользователь", userQuery.data.displayName],
+              ["Фамилия", userQuery.data.lastName || "Не указана"],
+              ["Имя", userQuery.data.firstName || "Не указано"],
+              ["Отчество", userQuery.data.patronymic || "Не указано"],
               ["Email", userQuery.data.email],
               ["Роль", roleLabels[userQuery.data.role]],
               ["Статус", userQuery.data.isActive ? "Активен" : "Отключен"],

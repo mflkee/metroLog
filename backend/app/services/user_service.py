@@ -21,7 +21,15 @@ class UserService:
         self.users = UserRepository(session)
 
     def ensure_bootstrap_admin(self) -> User | None:
-        display_name = settings.bootstrap_admin_display_name.strip()
+        first_name = _normalize_required_name(
+            settings.bootstrap_admin_first_name,
+            field_label="First name",
+        )
+        last_name = _normalize_required_name(
+            settings.bootstrap_admin_last_name,
+            field_label="Last name",
+        )
+        patronymic = _normalize_optional_name(settings.bootstrap_admin_patronymic)
         email = _normalize_email(settings.bootstrap_admin_email)
         password = settings.bootstrap_admin_password.strip()
         validate_password_policy(password)
@@ -37,7 +45,9 @@ class UserService:
             return user
 
         user = User(
-            display_name=display_name,
+            first_name=first_name,
+            last_name=last_name,
+            patronymic=patronymic,
             email=email,
             password_hash=hash_password(password),
             role=UserRole.ADMINISTRATOR,
@@ -63,14 +73,10 @@ class UserService:
         return user
 
     def create_user(self, payload: UserCreateRequest) -> tuple[User, str]:
-        display_name = payload.display_name.strip()
+        first_name = _normalize_required_name(payload.first_name, field_label="First name")
+        last_name = _normalize_required_name(payload.last_name, field_label="Last name")
+        patronymic = _normalize_optional_name(payload.patronymic)
         email = _normalize_email(payload.email)
-        if not display_name:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Display name must not be empty.",
-            )
-
         if self.users.get_by_email(email) is not None:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -85,7 +91,9 @@ class UserService:
         validate_password_policy(temporary_password)
 
         user = User(
-            display_name=display_name,
+            first_name=first_name,
+            last_name=last_name,
+            patronymic=patronymic,
             email=email,
             password_hash=hash_password(temporary_password),
             role=payload.role,
@@ -110,14 +118,14 @@ class UserService:
         next_active = payload.is_active if payload.is_active is not None else user.is_active
         self._validate_admin_guardrails(user=user, next_role=next_role, next_active=next_active)
 
-        if payload.display_name is not None:
-            display_name = payload.display_name.strip()
-            if not display_name:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Display name must not be empty.",
-                )
-            user.display_name = display_name
+        if payload.first_name is not None:
+            user.first_name = _normalize_required_name(payload.first_name, field_label="First name")
+
+        if payload.last_name is not None:
+            user.last_name = _normalize_required_name(payload.last_name, field_label="Last name")
+
+        if payload.patronymic is not None:
+            user.patronymic = _normalize_optional_name(payload.patronymic)
 
         if payload.role is not None:
             user.role = payload.role
@@ -182,5 +190,34 @@ def _normalize_email(email: str) -> str:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Email must be valid.",
+        )
+    return normalized
+
+
+def _normalize_required_name(value: str, *, field_label: str) -> str:
+    normalized = value.strip()
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{field_label} must not be empty.",
+        )
+    if len(normalized) > 255:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"{field_label} is too long. Maximum length is 255 characters.",
+        )
+    return normalized
+
+
+def _normalize_optional_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if len(normalized) > 255:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Patronymic is too long. Maximum length is 255 characters.",
         )
     return normalized

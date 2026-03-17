@@ -1,7 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 
 import { AccountMenu } from "@/components/layout/AccountMenu";
-import { SectionTabs } from "@/components/layout/SectionTabs";
 import { useAuthStore } from "@/store/auth";
 
 export function Topbar() {
@@ -18,18 +17,12 @@ export function Topbar() {
               foundation
             </span>
           </div>
-          <div className="flex items-center gap-4">
-            <Link className="text-lg font-semibold text-ink" to="/dashboard">
-              metroLog Workspace
-            </Link>
-            <p className="hidden text-sm text-steel md:block">
-              Общий навигационный каркас доступен на каждой внутренней странице.
-            </p>
-          </div>
+          <Link className="text-lg font-semibold text-ink" to="/dashboard">
+            metroLog
+          </Link>
         </div>
         <AccountMenu />
       </div>
-      <SectionTabs />
       {mustChangePassword ? (
         <div className="mt-4 rounded-2xl border border-signal-info bg-[#eaf4f8] px-4 py-3 text-sm text-ink">
           Временный пароль еще активен. Продолжение работы доступно только после смены пароля в профиле.

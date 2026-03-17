@@ -13,7 +13,7 @@ const roleOrder: UserRole[] = ["ADMINISTRATOR", "MKAIR", "CUSTOMER"];
 const defaultRole: UserRole = "CUSTOMER";
 
 type CredentialPacket = {
-  displayName: string;
+  fullName: string;
   email: string;
   temporaryPassword: string;
   reason: "create" | "reset";
@@ -23,7 +23,9 @@ export function AdminUsersPage() {
   const token = useAuthStore((state) => state.token);
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const [displayName, setDisplayName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [patronymic, setPatronymic] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<UserRole>(defaultRole);
   const [isActive, setIsActive] = useState(true);
@@ -38,7 +40,9 @@ export function AdminUsersPage() {
 
   const createUserMutation = useMutation({
     mutationFn: (payload: {
-      displayName: string;
+      firstName: string;
+      lastName: string;
+      patronymic: string;
       email: string;
       role: UserRole;
       isActive: boolean;
@@ -71,7 +75,7 @@ export function AdminUsersPage() {
   const sortedUsers = useMemo(
     () =>
       usersQuery.data
-        ? [...usersQuery.data].sort((left, right) => left.displayName.localeCompare(right.displayName))
+        ? [...usersQuery.data].sort((left, right) => left.fullName.localeCompare(right.fullName))
         : [],
     [usersQuery.data],
   );
@@ -100,18 +104,22 @@ export function AdminUsersPage() {
 
     try {
       const response = await createUserMutation.mutateAsync({
-        displayName,
+        firstName,
+        lastName,
+        patronymic,
         email,
         role,
         isActive,
       });
       setCredentialPacket({
-        displayName: response.user.displayName,
+        fullName: response.user.fullName,
         email: response.user.email,
         temporaryPassword: response.temporaryPassword,
         reason: "create",
       });
-      setDisplayName("");
+      setLastName("");
+      setFirstName("");
+      setPatronymic("");
       setEmail("");
       setRole(defaultRole);
       setIsActive(true);
@@ -120,14 +128,14 @@ export function AdminUsersPage() {
     }
   }
 
-  async function handleResetPassword(userId: number, userDisplayName: string, userEmail: string) {
+  async function handleResetPassword(userId: number, userFullName: string, userEmail: string) {
     setCredentialPacket(null);
     setCopyMessage(null);
 
     try {
       const response = await resetPasswordMutation.mutateAsync(userId);
       setCredentialPacket({
-        displayName: userDisplayName,
+        fullName: userFullName,
         email: userEmail,
         temporaryPassword: response.temporaryPassword,
         reason: "reset",
@@ -146,17 +154,39 @@ export function AdminUsersPage() {
 
       <div className="space-y-5 rounded-3xl border border-line bg-white p-5 shadow-panel">
         <form
-          className="grid gap-4 rounded-2xl border border-line bg-white/85 p-4 lg:grid-cols-[1.1fr_1.1fr_220px_auto]"
+          className="grid gap-4 rounded-2xl border border-line bg-white/85 p-4 lg:grid-cols-[1fr_1fr_1fr_1.2fr_220px_auto]"
           onSubmit={handleCreateUser}
         >
           <label className="block text-sm text-steel">
-            Имя пользователя
+            Фамилия
             <input
               className="form-input"
               type="text"
-              placeholder="Иван Иванов"
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
+              placeholder="Иванов"
+              value={lastName}
+              onChange={(event) => setLastName(event.target.value)}
+            />
+          </label>
+
+          <label className="block text-sm text-steel">
+            Имя
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Иван"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+            />
+          </label>
+
+          <label className="block text-sm text-steel">
+            Отчество
+            <input
+              className="form-input"
+              type="text"
+              placeholder="Иванович"
+              value={patronymic}
+              onChange={(event) => setPatronymic(event.target.value)}
             />
           </label>
 
@@ -215,7 +245,7 @@ export function AdminUsersPage() {
                     : "Временный пароль обновлен."}
                 </p>
                 <p className="text-sm text-steel">
-                  {credentialPacket.displayName} · {credentialPacket.email}
+                  {credentialPacket.fullName} · {credentialPacket.email}
                 </p>
                 <p className="font-mono text-sm text-ink">{credentialPacket.temporaryPassword}</p>
                 <p className="text-xs text-steel">
@@ -292,7 +322,7 @@ export function AdminUsersPage() {
                           className="text-lg font-semibold text-ink transition hover:text-signal-info"
                           to={currentUser?.id === user.id ? "/profile" : `/admin/users/${user.id}`}
                         >
-                          {user.displayName}
+                          {user.fullName}
                         </Link>
                         <span className="rounded-full bg-[#edf2f5] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-steel">
                           {roleLabels[user.role]}
@@ -371,7 +401,7 @@ export function AdminUsersPage() {
                         className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-steel transition hover:border-signal-info hover:text-ink disabled:opacity-60"
                         type="button"
                         disabled={isResettingPassword}
-                        onClick={() => handleResetPassword(user.id, user.displayName, user.email)}
+                        onClick={() => handleResetPassword(user.id, user.fullName, user.email)}
                       >
                         {isResettingPassword ? "Сбрасываем..." : "Сбросить пароль"}
                       </button>

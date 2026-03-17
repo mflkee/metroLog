@@ -14,7 +14,7 @@ export function AccountMenu() {
       <div className="flex items-center gap-3">
         {user ? (
           <div className="hidden text-right md:block">
-            <p className="text-sm font-semibold text-ink">{user.displayName}</p>
+            <p className="text-sm font-semibold text-ink">{user.fullName}</p>
             <p className="text-xs uppercase tracking-[0.18em] text-steel">
               {roleLabels[user.role]}
               {user.mustChangePassword ? " · смена пароля" : ""}

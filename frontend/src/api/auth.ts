@@ -4,7 +4,9 @@ export type UserRole = "ADMINISTRATOR" | "MKAIR" | "CUSTOMER";
 
 type RawUser = {
   id: number;
-  display_name: string;
+  first_name: string;
+  last_name: string;
+  patronymic: string | null;
   email: string;
   role: UserRole;
   is_active: boolean;
@@ -26,7 +28,10 @@ type RawAuthResponse = {
 
 export type AuthUser = {
   id: number;
-  displayName: string;
+  firstName: string;
+  lastName: string;
+  patronymic: string | null;
+  fullName: string;
   email: string;
   role: UserRole;
   isActive: boolean;
@@ -129,9 +134,16 @@ function mapAuthResponse(response: RawAuthResponse): AuthResponse {
 }
 
 export function mapUser(user: RawUser): AuthUser {
+  const fullName = [user.last_name, user.first_name, user.patronymic]
+    .filter((value) => typeof value === "string" && value.trim().length > 0)
+    .join(" ");
+
   return {
     id: user.id,
-    displayName: user.display_name,
+    firstName: user.first_name,
+    lastName: user.last_name,
+    patronymic: user.patronymic,
+    fullName,
     email: user.email,
     role: user.role,
     isActive: user.is_active,

@@ -11,7 +11,9 @@ class UserRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
-    display_name: str
+    first_name: str
+    last_name: str
+    patronymic: str | None
     email: str
     role: UserRole
     email_verified_at: datetime | None
@@ -31,7 +33,9 @@ class UserRoleUpdate(BaseModel):
 
 
 class UserCreateRequest(BaseModel):
-    display_name: str
+    first_name: str
+    last_name: str
+    patronymic: str | None = None
     email: str
     role: UserRole = UserRole.CUSTOMER
     is_active: bool = True
@@ -39,7 +43,9 @@ class UserCreateRequest(BaseModel):
 
 
 class UserUpdateRequest(BaseModel):
-    display_name: str | None = None
+    first_name: str | None = None
+    last_name: str | None = None
+    patronymic: str | None = None
     role: UserRole | None = None
     is_active: bool | None = None
 

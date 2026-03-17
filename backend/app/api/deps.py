@@ -59,3 +59,15 @@ async def require_admin(current_user: CurrentUser) -> User:
 
 
 AdminUser = Annotated[User, Depends(require_admin)]
+
+
+async def require_operator(current_user: CurrentUser) -> User:
+    if current_user.role not in {UserRole.ADMINISTRATOR, UserRole.MKAIR}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Operator role is required.",
+        )
+    return current_user
+
+
+OperatorUser = Annotated[User, Depends(require_operator)]

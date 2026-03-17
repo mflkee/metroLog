@@ -58,30 +58,15 @@ The MVP auth model is internal and administrator-driven.
 On startup the backend ensures that at least one administrator exists using these settings:
 
 ```bash
-BOOTSTRAP_ADMIN_DISPLAY_NAME=Bootstrap Administrator
+BOOTSTRAP_ADMIN_FIRST_NAME=Bootstrap
+BOOTSTRAP_ADMIN_LAST_NAME=Administrator
+BOOTSTRAP_ADMIN_PATRONYMIC=
 BOOTSTRAP_ADMIN_EMAIL=admin@metrolog.local
 BOOTSTRAP_ADMIN_PASSWORD=ChangeMe123
 ```
 
 If no administrator exists, this account is created automatically and is forced to change its
 password on first login.
-
-### Email delivery
-
-By default the project uses `EMAIL_DELIVERY_MODE=console`.
-Email delivery is optional and not required for the current MVP auth flow.
-
-To send real email, set:
-
-```bash
-EMAIL_DELIVERY_MODE=smtp
-SMTP_HOST=...
-SMTP_PORT=587
-SMTP_USERNAME=...
-SMTP_PASSWORD=...
-SMTP_SENDER=...
-SMTP_USE_TLS=true
-```
 
 ### API access in browser
 

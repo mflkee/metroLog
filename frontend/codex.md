@@ -160,17 +160,37 @@ Equipment registry.
 
 Must include:
 
-* folder list or tree,
+* folder-first navigation,
+* folder cards on the first level,
 * group list inside selected folder,
+* ability to show all groups in the selected folder or one specific group,
 * table view,
 * filters,
 * search,
-* sorting,
-* quick actions,
 * navigation to equipment details.
 
 The main organizational flow should be:
 folder -> group -> equipment list.
+
+Additional UX expectations:
+
+* the page should behave closer to `metroloGet` and not like one overloaded admin screen,
+* the user first chooses a folder node,
+* after the user enters a folder, the main focus should be the equipment table,
+* then optionally narrows to one specific group,
+* groups are optional for placing equipment inside a folder,
+* then works with the resulting equipment list,
+* the list should show only basic operational information,
+* the most important field in the registry is the current status,
+* every row should have a clear type/category marker,
+* clicking a row should open the detailed equipment card,
+* creation actions for folders, groups, and equipment should use modal dialogs,
+* editing actions for folders, groups, and equipment should use compact secondary controls,
+* deleting folders, groups, and equipment should require a confirmation dialog,
+* creation buttons should stay visually secondary and should not dominate the screen.
+
+The common registry should not be the main place for SI-specific calculations.
+Those belong to the dedicated `/verification/si` workspace.
 
 ### `/equipment/:id`
 
@@ -191,6 +211,11 @@ If the equipment is SI, the card should also support:
 * detailed Arshin fetch by `vri_id`,
 * display of etalon-related details when available.
 
+Navigation rule:
+
+* opening a device from `/equipment` must lead to `/equipment/:id`,
+* SI-specific fields appear on the card only when the selected record is SI.
+
 Notes behavior:
 
 * note entries must show author name,
@@ -198,24 +223,13 @@ Notes behavior:
 * adding a note must be available to all users,
 * notes should behave like an operational log on the card, not a hidden textarea.
 
-### `/equipment-cards`
-
-Dedicated equipment card access page.
-
-Must include:
-
-* search by key identifiers,
-* quick access to detailed cards,
-* support for both SI and non-SI equipment,
-* emphasis on detailed inspection rather than mass editing.
-
 ### `/verification/si`
 
 Dedicated SI verification page or focused workspace.
 
 Must include:
 
-* SI verification list or work queue,
+* SI-only verification table or work queue,
 * verification details,
 * Arshin sync actions,
 * filters for expiration and sync state,
@@ -223,6 +237,14 @@ Must include:
 * manual review workflow for problematic records,
 * link to the related equipment card,
 * external Arshin link when available.
+
+This page should be the place for SI-specific calculated columns, for example:
+
+* verification date,
+* valid until,
+* remaining days,
+* overdue state,
+* other derived SI values similar to the `metroloGet` approach.
 
 ### `/repairs`
 
@@ -344,9 +366,10 @@ Suggested components:
 * `Sidebar`
 * `Topbar`
 * `PageHeader`
-* `SectionTabs`
 * `AccountMenu`
 * `AuthLayout`
+* `Modal`
+* `ThemeSwitcher`
 
 ### Dashboard
 
@@ -476,7 +499,6 @@ Base fields for all equipment:
 * name
 * modification
 * serial number
-* inventory number
 * manufacture year
 * status
 * notes
@@ -771,11 +793,22 @@ Keep large amounts of equipment navigable.
 
 * create folders,
 * edit folders,
+* delete folders,
 * create groups inside folders,
 * edit groups,
+* delete groups,
+* create equipment,
+* edit equipment,
+* delete equipment,
 * browse equipment by selected folder and group,
 * support search and filtering in list views,
 * support patterns similar to `../metrologet` without copying its UI directly.
+
+Extra behavior:
+
+* deleting a folder must explicitly warn that nested groups and equipment may also be removed,
+* deleting a group should be confirmed and should be understandable from the UI,
+* action labels should stay compact and not overload the registry table.
 
 ---
 
@@ -810,6 +843,20 @@ Important colors should primarily communicate:
 * warning,
 * overdue,
 * completed state.
+
+Additional shell styling rules:
+
+* the left sidebar is the only primary section navigation,
+* the sidebar must support a collapsed icon-only mode,
+* the sidebar collapse control should live inside the sidebar itself,
+* the top bar title should stay short: `metroLog`,
+* the shell should support both theme selection and font selection.
+
+Theme tuning rules:
+
+* the default white theme must be softer and less glaring than a pure bright white workspace,
+* the blueberry theme should keep a desaturated background rather than an aggressive saturated blue fill,
+* the old-book theme should remain darker and denser than the current soft beige direction.
 
 Do not overload the interface with too many accent colors.
 
@@ -903,7 +950,7 @@ Even if not a full accessibility project, follow basic rules:
 * better skeleton states,
 * better empty states,
 * mutation feedback,
-* confirmation dialogs where useful,
+* confirmation dialogs for destructive actions,
 * responsive polishing,
 * clear page-level navigation between functional areas.
 
@@ -956,7 +1003,7 @@ Initial page/action expectations:
 * SI verification visible to all roles, sync/update actions for `ADMINISTRATOR` and `MKAIR`,
 * repairs visible to all roles, repair date editing for `ADMINISTRATOR` and `MKAIR`,
 * event log visible to `ADMINISTRATOR` and `MKAIR`,
-* equipment cards visible to all roles,
+* equipment details card reachable to all roles from the equipment registry,
 * note adding on equipment cards available to all roles,
 * user management page visible only to `ADMINISTRATOR`,
 * role and permission assignment available only to `ADMINISTRATOR`.

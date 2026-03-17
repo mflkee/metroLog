@@ -83,6 +83,7 @@ Current functional access expectations:
 - Event log page: visible to `ADMINISTRATOR` and `MKAIR`
 - Equipment card page: visible to all users
 - Equipment card note additions: allowed for all users
+- User management page: visible only to `ADMINISTRATOR`, with rights assignment controls
 
 These permissions should be treated as the current baseline
 until replaced by a more detailed RBAC matrix later.
@@ -241,8 +242,9 @@ Rules for using references:
 6. Event log / timeline
 7. Repair workflow
 8. Reference data and settings
-9. Authentication and authorization (later phase)
-10. Notifications and reports (later phase)
+9. User administration and permissions
+10. Authentication and authorization (later phase)
+11. Notifications and reports (later phase)
 
 ---
 
@@ -545,6 +547,7 @@ System is stable enough for controlled production adoption.
 Later phase, not part of initial MVP:
 - authentication,
 - roles and permissions,
+- administrator user-management panel,
 - attachments,
 - Excel import/export,
 - notifications,

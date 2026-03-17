@@ -421,6 +421,7 @@ Until a more detailed RBAC model is introduced, use this baseline:
 * `ADMINISTRATOR` and `MKAIR` can run SI sync/update actions,
 * `ADMINISTRATOR` and `MKAIR` can update repair state dates,
 * `ADMINISTRATOR` and `MKAIR` can view the event log,
+* only `ADMINISTRATOR` can access user management and assign rights,
 * all roles can view equipment, repairs, SI pages, and equipment cards,
 * all roles can add equipment note entries.
 
@@ -635,6 +636,38 @@ Optional note edit endpoint if editing is permitted later.
 
 ---
 
+## User Management Endpoints
+
+### `GET /api/v1/users`
+
+Admin-only user list.
+
+Expected filters:
+
+* search
+* role
+* is_active
+* page
+* page_size
+
+### `GET /api/v1/users/{id}`
+
+Admin-only user details.
+
+### `PATCH /api/v1/users/{id}`
+
+Admin-only update endpoint for user state and permissions.
+
+### `POST /api/v1/users/{id}/roles`
+
+Admin-only role assignment endpoint.
+
+### `DELETE /api/v1/users/{id}/roles/{role}`
+
+Admin-only role removal endpoint if supported by the chosen model.
+
+---
+
 ## Arshin Endpoints
 
 ### `POST /api/v1/arshin/search`
@@ -721,6 +754,7 @@ Suggested service modules:
 * `equipment_service.py`
 * `equipment_structure_service.py`
 * `equipment_note_service.py`
+* `user_service.py`
 * `repair_service.py`
 * `verification_service.py`
 * `dashboard_service.py`
@@ -742,6 +776,14 @@ Responsibilities:
 * validate author metadata,
 * return note history in correct order,
 * create note-related event log rows.
+
+### User service
+
+* list users,
+* read user details,
+* assign roles,
+* update permission-related state,
+* enforce admin-only access to user management.
 
 ### Repair service
 
@@ -948,7 +990,8 @@ Future auth expectations:
 
 * support users with different roles and page/action permissions,
 * keep service boundaries suitable for later permission checks,
-* avoid designing routes that assume a single unrestricted user type.
+* avoid designing routes that assume a single unrestricted user type,
+* support an admin-only user management interface for assigning and reviewing rights.
 
 Initial target roles:
 

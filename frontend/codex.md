@@ -269,6 +269,18 @@ Later phases may also add:
 
 These pages should stay function-specific rather than being merged into generic admin screens.
 
+### `/admin/users`
+
+Administrator-only page for user management and permission assignment.
+
+Must include:
+
+* user list,
+* search and filters,
+* current role visibility,
+* role editing controls,
+* simple permission-management workflow.
+
 ### `/login`
 
 Simple login page.
@@ -361,6 +373,13 @@ Suggested components:
 * `TimelineItem`
 * `EventLogTable`
 * `EventLogFilters`
+
+### Users
+
+* `UserTable`
+* `UserFilters`
+* `RoleBadge`
+* `PermissionEditor`
 
 ---
 
@@ -860,6 +879,17 @@ Even if not a full accessibility project, follow basic rules:
 
 ---
 
+## Stage 7 - Auth and User Administration
+
+* login and registration integration,
+* profile page wiring,
+* protected routes,
+* administrator-only user management page,
+* user list and filters,
+* role assignment controls.
+
+---
+
 ## Authentication and Permissions
 
 Authentication is a later phase,
@@ -868,6 +898,7 @@ but the frontend should be ready for:
 * user login,
 * user registration,
 * profile page,
+* admin-only user management page,
 * role-based page visibility,
 * role-based action visibility,
 * protected routes for operational sections.
@@ -887,7 +918,9 @@ Initial page/action expectations:
 * repairs visible to all roles, repair date editing for `ADMINISTRATOR` and `MKAIR`,
 * event log visible to `ADMINISTRATOR` and `MKAIR`,
 * equipment cards visible to all roles,
-* note adding on equipment cards available to all roles.
+* note adding on equipment cards available to all roles,
+* user management page visible only to `ADMINISTRATOR`,
+* role and permission assignment available only to `ADMINISTRATOR`.
 
 ---
 

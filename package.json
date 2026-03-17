@@ -1,8 +1,15 @@
 {
-  "name": "metrolog",
-  "version": "1.0.0",
-  "main": "index.js",
+  "name": "metro-log",
+  "private": true,
+  "version": "0.1.0",
   "scripts": {
-    "start": "node index.js"
+    "dev:backend": "env UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
+    "test:backend": "env UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend pytest",
+    "lint:backend": "env UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend ruff check .",
+    "format:backend": "env UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend ruff format .",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "test:frontend": "npm --prefix frontend run test -- --run",
+    "lint:frontend": "npm --prefix frontend run lint"
   }
 }

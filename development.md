@@ -8,10 +8,10 @@ It should stay short and reflect only the current task state.
 Phase 0 - Project Foundation
 
 ## Current Iteration
-Stabilize the main specification files before implementation starts.
+Stage 0 foundation completed: project skeleton and infrastructure are in place.
 
 ## Status
-In progress
+Completed
 
 ## Completed
 - Added root project specification to `codex.md`.
@@ -32,16 +32,21 @@ In progress
 - Added simple auth and account expectations: login, registration, and profile pages should stay minimal.
 - Parsed the Excalidraw draft in the root PDF and extracted the initial role/access model.
 - Reworked equipment notes in the spec into note entries with mandatory author name and timestamp.
+- Created Stage 0 backend skeleton with FastAPI app, config, DB session, Alembic setup, and health endpoints.
+- Created Stage 0 frontend skeleton with Vite-style structure, shared AppShell, routes, and minimal auth/profile pages.
+- Added root project files: `.env.example`, `docker-compose.yml`, `.gitignore`, and `README.md`.
+- Added backend and frontend package manifests plus base lint/test configuration.
+- Verified backend static checks with `ruff check`.
+- Verified backend smoke-tests with `pytest`.
+- Installed frontend dependencies and verified `eslint`, `vitest`, and `vite build`.
 
 ## Next
-- Keep refining `codex.md`, `backend/codex.md`, `frontend/codex.md`, and `development.md`.
-- Clarify stack and functional expectations from the user before scaffolding begins.
-- Keep extracting requirements from the MVP workbook where useful.
-- Keep repairs deliberately under-specified until that area is discussed separately.
-- Keep only the agreed repair list behavior for now: active/archive plus search/filter.
-- Keep the dashboard concept minimalistic and operational, not marketing-oriented.
-- Keep the initial permission model simple: `ADMINISTRATOR`, `MKAIR`, `CUSTOMER`.
-- Start Phase 0 project scaffold for backend, frontend, and infrastructure after the specification stabilizes.
+- Stage 1: minimal auth and roles foundation.
+- Add backend user model, role enum, and initial auth routes.
+- Add frontend auth state and connect login/register/profile pages to the backend contract.
+- Add administrator-only user management page and backend rights-assignment endpoints.
+- Keep permission model simple: `ADMINISTRATOR`, `MKAIR`, `CUSTOMER`.
+- Revisit Docker startup when Docker is available in the environment.
 
 ## Working Rule
 Update this file at the end of each iteration with:

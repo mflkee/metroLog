@@ -106,7 +106,7 @@ The shell should provide:
 - consistent placement of menu and page title,
 - easy movement between sections from any section.
 
-Login and registration screens should stay minimal and separate from the internal shell.
+Login should stay minimal and separate from the internal shell.
 
 ---
 
@@ -279,6 +279,11 @@ Must include:
 * search and filters,
 * current role visibility,
 * role editing controls,
+* create-user action,
+* reset-password action,
+* active/inactive state controls,
+* visibility of whether the user must change password on next login,
+* temporary-password reveal/copy block shown only to the administrator who created or reset the user,
 * simple permission-management workflow.
 
 ### `/login`
@@ -289,18 +294,7 @@ Must include:
 
 * minimal form,
 * clear submit action,
-* link to registration,
 * no unnecessary marketing content.
-
-### `/register`
-
-Simple registration page.
-
-Must include:
-
-* minimal form,
-* clear submit action,
-* link to login.
 
 ### `/profile`
 
@@ -310,7 +304,12 @@ Must include:
 
 * basic account info,
 * role or permission visibility when relevant,
+* password change form,
+* visual handling for first-login forced password change state,
 * account actions kept simple.
+
+There is no public self-service registration page in MVP.
+User accounts are created by administrators from `/admin/users`.
 
 ---
 
@@ -380,6 +379,9 @@ Suggested components:
 * `UserFilters`
 * `RoleBadge`
 * `PermissionEditor`
+* `CreateUserDialog`
+* `TemporaryPasswordDialog`
+* `ForcePasswordChangeGate`
 
 ---
 
@@ -881,12 +883,15 @@ Even if not a full accessibility project, follow basic rules:
 
 ## Stage 7 - Auth and User Administration
 
-* login and registration integration,
+* login integration,
 * profile page wiring,
 * protected routes,
 * administrator-only user management page,
 * user list and filters,
-* role assignment controls.
+* role assignment controls,
+* admin-created users,
+* temporary password issuance,
+* forced password change on first login.
 
 ---
 
@@ -896,12 +901,18 @@ Authentication is a later phase,
 but the frontend should be ready for:
 
 * user login,
-* user registration,
 * profile page,
 * admin-only user management page,
 * role-based page visibility,
 * role-based action visibility,
 * protected routes for operational sections.
+
+MVP auth assumptions:
+
+* users are created by administrators,
+* no public registration UI is exposed,
+* new users receive a temporary password from the administrator,
+* first login routes the user into mandatory password change before normal work.
 
 Do not assume all users will have the same access level.
 

@@ -5,13 +5,13 @@ This file is the working buffer for Codex-driven development.
 It should stay short and reflect only the current task state.
 
 ## Current Phase
-Phase 0 - Project Foundation
+Phase 1 - Minimal Auth and Roles
 
 ## Current Iteration
-Stage 0 foundation completed: project skeleton and infrastructure are in place.
+Stage 1 auth model revised: internal admin-created users with temporary passwords and forced password change must replace the earlier open email-registration approach.
 
 ## Status
-Completed
+In progress
 
 ## Completed
 - Added root project specification to `codex.md`.
@@ -42,13 +42,32 @@ Completed
 - Verified backend static checks with `ruff check`.
 - Verified backend smoke-tests with `pytest`.
 - Installed frontend dependencies and verified `eslint`, `vitest`, and `vite build`.
+- Added Stage 1 backend user model, role enum, password hashing, token handling, auth routes, admin user routes, and Alembic migration.
+- Added backend tests for registration, login/me, admin role updates, access restrictions, and last-admin protection.
+- Added frontend auth API layer, persisted auth store, session bootstrap, protected routes, and admin-only user management page.
+- Connected login, registration, profile, navigation visibility, and logout behavior to the real backend auth contract.
+- Verified backend checks with `ruff check` and full `pytest`.
+- Verified frontend checks with `eslint`, `vitest`, and `vite build`.
+- Added spec requirements for password confirmation, profile password change, and future email-based verification/reset flows.
+- Added confirm-password validation on registration, blocked clipboard actions on password fields, and password change from the profile page.
+- Added backend password-change endpoint and tests for successful password update plus invalid current password.
+- Added email-verification and password-reset code flow with backend tokens, guest pages, and console/SMTP delivery modes.
+- Added new auth pages: verify email, forgot password, and reset password.
+- Updated Docker/env setup so containers read `.env` and can be configured for SMTP delivery.
+- Tightened Docker startup so images install dependencies at build time and containers boot directly into migrations and app startup.
+- Fixed Alembic revision id length so PostgreSQL can update `alembic_version` during Stage 1 migrations.
+- Switched frontend API access to same-origin `/api/v1` with Vite proxy support for Docker and public-domain access.
+- Added explicit password policy enforcement: minimum 6 characters, with both letters and digits, on backend and frontend.
+- Improved auth UX for network failures and preserved registration draft fields across reloads without storing passwords.
+- Re-verified backend and frontend checks after the auth extension.
+- Revised the product specification away from open self-registration and toward admin-created internal users with temporary passwords and first-login password change.
+- Marked the existing email-registration implementation as transitional and no longer the target MVP auth behavior.
 
 ## Next
-- Stage 1: minimal auth and roles foundation.
-- Add backend user model, role enum, and initial auth routes.
-- Add frontend auth state and connect login/register/profile pages to the backend contract.
-- Add administrator-only user management page and backend rights-assignment endpoints.
 - Keep permission model simple: `ADMINISTRATOR`, `MKAIR`, `CUSTOMER`.
+- Refactor Stage 1 implementation to remove public registration from MVP flow.
+- Add bootstrap-admin, create-user, reset-temporary-password, and must-change-password behavior to the real auth implementation.
+- Prepare Stage 2: folders, groups, and equipment registry foundation.
 - Revisit Docker startup when Docker is available in the environment.
 
 ## Working Rule

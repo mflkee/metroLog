@@ -1,8 +1,12 @@
 import { NavLink } from "react-router-dom";
 
-import { navigationItems } from "@/lib/nav";
+import { getNavigationItems } from "@/lib/nav";
+import { useAuthStore } from "@/store/auth";
 
 export function SectionTabs() {
+  const userRole = useAuthStore((state) => state.user?.role);
+  const navigationItems = getNavigationItems(userRole);
+
   return (
     <div className="mt-4 flex flex-wrap gap-2">
       {navigationItems.map((item) => (
@@ -24,4 +28,3 @@ export function SectionTabs() {
     </div>
   );
 }
-

@@ -1,18 +1,23 @@
 import { createBrowserRouter, Navigate } from "react-router-dom";
 
+import { RequireAuth, RequireGuest, RequireRoles } from "@/app/RouteGuards";
 import { ShellLayout } from "@/app/ShellLayout";
 import { AuthLayout } from "@/components/layout/AuthLayout";
+import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { EquipmentCardsPage } from "@/pages/EquipmentCardsPage";
 import { EquipmentDetailsPage } from "@/pages/EquipmentDetailsPage";
 import { EquipmentPage } from "@/pages/EquipmentPage";
 import { EventsPage } from "@/pages/EventsPage";
+import { ForgotPasswordPage } from "@/pages/ForgotPasswordPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { RegisterPage } from "@/pages/RegisterPage";
 import { RepairsPage } from "@/pages/RepairsPage";
+import { ResetPasswordPage } from "@/pages/ResetPasswordPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { VerifyEmailPage } from "@/pages/VerifyEmailPage";
 import { VerificationPage } from "@/pages/VerificationPage";
 
 export const router = createBrowserRouter([
@@ -21,24 +26,44 @@ export const router = createBrowserRouter([
     element: <Navigate to="/dashboard" replace />,
   },
   {
-    element: <AuthLayout />,
+    element: <RequireGuest />,
     children: [
-      { path: "/login", element: <LoginPage /> },
-      { path: "/register", element: <RegisterPage /> },
+      {
+        element: <AuthLayout />,
+        children: [
+          { path: "/login", element: <LoginPage /> },
+          { path: "/register", element: <RegisterPage /> },
+          { path: "/verify-email", element: <VerifyEmailPage /> },
+          { path: "/forgot-password", element: <ForgotPasswordPage /> },
+          { path: "/reset-password", element: <ResetPasswordPage /> },
+        ],
+      },
     ],
   },
   {
-    element: <ShellLayout />,
+    element: <RequireAuth />,
     children: [
-      { path: "/dashboard", element: <DashboardPage /> },
-      { path: "/equipment", element: <EquipmentPage /> },
-      { path: "/equipment/:equipmentId", element: <EquipmentDetailsPage /> },
-      { path: "/equipment-cards", element: <EquipmentCardsPage /> },
-      { path: "/verification/si", element: <VerificationPage /> },
-      { path: "/repairs", element: <RepairsPage /> },
-      { path: "/events", element: <EventsPage /> },
-      { path: "/settings", element: <SettingsPage /> },
-      { path: "/profile", element: <ProfilePage /> },
+      {
+        element: <ShellLayout />,
+        children: [
+          { path: "/dashboard", element: <DashboardPage /> },
+          { path: "/equipment", element: <EquipmentPage /> },
+          { path: "/equipment/:equipmentId", element: <EquipmentDetailsPage /> },
+          { path: "/equipment-cards", element: <EquipmentCardsPage /> },
+          { path: "/verification/si", element: <VerificationPage /> },
+          { path: "/repairs", element: <RepairsPage /> },
+          { path: "/settings", element: <SettingsPage /> },
+          { path: "/profile", element: <ProfilePage /> },
+          {
+            element: <RequireRoles allowedRoles={["ADMINISTRATOR", "MKAIR"]} />,
+            children: [{ path: "/events", element: <EventsPage /> }],
+          },
+          {
+            element: <RequireRoles allowedRoles={["ADMINISTRATOR"]} />,
+            children: [{ path: "/admin/users", element: <AdminUsersPage /> }],
+          },
+        ],
+      },
     ],
   },
   {

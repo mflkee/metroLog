@@ -8,12 +8,12 @@ router = APIRouter()
 
 
 @router.get("/health", response_model=HealthStatus)
-def healthcheck() -> HealthStatus:
+async def healthcheck() -> HealthStatus:
     return HealthStatus(status="ok", service="backend", environment=settings.app_env)
 
 
 @router.get("/health/ready", response_model=ReadinessStatus)
-def readiness_check() -> ReadinessStatus:
+async def readiness_check() -> ReadinessStatus:
     database_ok = check_database_connection()
     if not database_ok:
         raise HTTPException(

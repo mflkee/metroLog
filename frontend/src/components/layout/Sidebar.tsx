@@ -1,8 +1,12 @@
 import { NavLink } from "react-router-dom";
 
-import { navigationItems } from "@/lib/nav";
+import { getNavigationItems } from "@/lib/nav";
+import { useAuthStore } from "@/store/auth";
 
 export function Sidebar() {
+  const userRole = useAuthStore((state) => state.user?.role);
+  const navigationItems = getNavigationItems(userRole);
+
   return (
     <aside className="border-b border-line bg-white/85 px-4 py-6 shadow-panel backdrop-blur lg:border-b-0 lg:border-r">
       <div className="mb-8 space-y-2">
@@ -37,4 +41,3 @@ export function Sidebar() {
     </aside>
   );
 }
-

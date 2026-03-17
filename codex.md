@@ -55,7 +55,23 @@ Current high-level product expectations:
 - event log is a dedicated operational area,
 - equipment cards are a dedicated operational area,
 - repair workflow remains a separate area and will be refined later,
-- authentication and role-based permissions must be planned from the start, even if implemented later.
+- authentication and role-based permissions must be planned from the start as an internal admin-managed account system.
+
+### Authentication expectations
+
+The target auth flow should behave like an internal business application,
+not like a public self-service registration system.
+
+Required auth behavior:
+- there is no open public registration in the MVP,
+- one bootstrap administrator must exist for initial system access,
+- administrators create user accounts from the user-management page,
+- user creation must support assigning role and issuing a temporary password,
+- first login with a temporary password must require immediate password change,
+- password fields may enforce no copy/paste if this remains a product policy,
+- profile page must support direct password change,
+- administrators must be able to reset a user's password by issuing a new temporary password,
+- email or Telegram delivery for credentials/recovery may be added later, but is not required for MVP.
 
 ### Application frame expectations
 
@@ -66,7 +82,7 @@ Expected behavior:
 - navigation between sections must be available from every main page,
 - the shell should feel similar to Excel sheet navigation, but in a cleaner web form,
 - profile access should always be available from the shared frame,
-- login and registration screens should stay simple and utilitarian,
+- login screen should stay simple and utilitarian,
 - the product should not prioritize a marketing-style landing page.
 
 ### Initial user roles from the Excalidraw draft
@@ -243,7 +259,7 @@ Rules for using references:
 7. Repair workflow
 8. Reference data and settings
 9. User administration and permissions
-10. Authentication and authorization (later phase)
+10. Authentication and authorization
 11. Notifications and reports (later phase)
 
 ---

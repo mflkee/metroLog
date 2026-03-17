@@ -143,6 +143,23 @@ Fields:
 * created_at
 * updated_at optional
 
+### User
+
+Internal authenticated user managed by administrators.
+
+Fields:
+
+* id
+* display_name
+* email
+* password_hash
+* role
+* is_active
+* must_change_password
+* password_changed_at optional
+* created_at
+* updated_at
+
 ### Equipment
 
 Stores common equipment data.
@@ -264,6 +281,20 @@ Initial planned values:
 * ADMINISTRATOR
 * MKAIR
 * CUSTOMER
+
+### Auth-related entities planned next
+
+The auth subsystem should support an internal admin-managed account lifecycle.
+
+Required capabilities:
+
+* bootstrap administrator creation,
+* admin-created users,
+* temporary password issuance,
+* forced password change on first login,
+* change-password action for authenticated users,
+* admin-triggered password reset that issues a new temporary password,
+* optional later delivery channels for credentials or recovery, such as email or Telegram.
 
 ### RepairStage
 
@@ -654,9 +685,38 @@ Expected filters:
 
 Admin-only user details.
 
+### `POST /api/v1/users`
+
+Admin-only user creation endpoint.
+
+Must support:
+
+* display name,
+* login email or username depending on chosen auth identifier,
+* initial role,
+* temporary password generation or explicit temporary password input,
+* `must_change_password` flag set to true.
+
 ### `PATCH /api/v1/users/{id}`
 
 Admin-only update endpoint for user state and permissions.
+
+Must support:
+
+* display name updates,
+* role changes,
+* activation/deactivation,
+* optional profile metadata updates.
+
+### `POST /api/v1/users/{id}/reset-password`
+
+Admin-only password reset endpoint.
+
+Must:
+
+* issue a new temporary password,
+* set `must_change_password` to true,
+* return the temporary password payload only to the administrator performing the action.
 
 ### `POST /api/v1/users/{id}/roles`
 
@@ -779,10 +839,13 @@ Responsibilities:
 
 ### User service
 
+* create users with temporary passwords,
 * list users,
 * read user details,
 * assign roles,
 * update permission-related state,
+* reset passwords by issuing new temporary passwords,
+* enforce first-login password change behavior,
 * enforce admin-only access to user management.
 
 ### Repair service
@@ -978,20 +1041,16 @@ Do not expose raw traceback to frontend.
 
 ## Security and Future-readiness
 
-MVP may start without full auth,
-but backend structure should not block future addition of:
+MVP auth is internal and administrator-driven.
 
-* authentication,
-* RBAC,
-* audit enhancements,
-* user-based actions.
-
-Future auth expectations:
+Required architectural expectations:
 
 * support users with different roles and page/action permissions,
 * keep service boundaries suitable for later permission checks,
 * avoid designing routes that assume a single unrestricted user type,
-* support an admin-only user management interface for assigning and reviewing rights.
+* support an admin-only user management interface for assigning and reviewing rights,
+* support a bootstrap administrator setup path,
+* support `must_change_password` or equivalent first-login enforcement.
 
 Initial target roles:
 

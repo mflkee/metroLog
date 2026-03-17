@@ -13,3 +13,6 @@ NAMING_CONVENTION = {
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
+
+from app.models.auth_code import AuthCode  # noqa: E402,F401
+from app.models.user import User  # noqa: E402,F401

@@ -46,7 +46,6 @@ class EquipmentService:
             name=name,
             description=description,
             sort_order=payload.sort_order,
-            color=payload.color,
         )
         self.folders.add(folder)
         self.session.commit()
@@ -76,9 +75,6 @@ class EquipmentService:
 
         if "sort_order" in payload.model_fields_set:
             folder.sort_order = payload.sort_order
-
-        if "color" in payload.model_fields_set:
-            folder.color = payload.color
 
         self.session.commit()
         self.session.refresh(folder)

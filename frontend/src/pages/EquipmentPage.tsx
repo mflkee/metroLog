@@ -29,57 +29,10 @@ const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION",
 const subtleButtonClass =
   "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
 
-type FolderColor =
-  | "white" | "gray-100" | "gray-200" | "gray-300" | "gray-800" | "gray-900"
-  | "red" | "orange" | "amber" | "yellow" | "lime"
-  | "green" | "emerald" | "teal" | "cyan" | "blue" | "indigo" | "violet";
-
-const folderColors: Record<FolderColor, string> = {
-  // Neutral colors
-  "white": "var(--folder-white)",
-  "gray-100": "var(--folder-gray-100)",
-  "gray-200": "var(--folder-gray-200)",
-  "gray-300": "var(--folder-gray-300)",
-  "gray-800": "var(--folder-gray-800)",
-  "gray-900": "var(--folder-gray-900)",
-  // Warm colors
-  "red": "var(--folder-red)",
-  "orange": "var(--folder-orange)",
-  "amber": "var(--folder-amber)",
-  "yellow": "var(--folder-yellow)",
-  "lime": "var(--folder-lime)",
-  // Cool colors
-  "green": "var(--folder-green)",
-  "emerald": "var(--folder-emerald)",
-  "teal": "var(--folder-teal)",
-  "cyan": "var(--folder-cyan)",
-  "blue": "var(--folder-blue)",
-  "indigo": "var(--folder-indigo)",
-  "violet": "var(--folder-violet)",
-};
-
-// Dark folder colors that need white text (on all themes)
-const darkFolderColors: FolderColor[] = ["gray-800", "gray-900"];
-
-function getFolderTextColor(color: FolderColor | null): string {
-  if (color && darkFolderColors.includes(color)) {
-    return "text-white";
-  }
-  return "text-[#1a1a1a]";
-}
-
-function getFolderDescriptionColor(color: FolderColor | null): string {
-  if (color && darkFolderColors.includes(color)) {
-    return "text-gray-300";
-  }
-  return "text-[#4a4a4a]";
-}
-
 type FolderFormState = {
   name: string;
   description: string;
   sortOrder: number;
-  color: FolderColor;
 };
 
 type EquipmentFormState = {
@@ -101,14 +54,12 @@ type DeleteTarget =
 type ActiveModal =
   | null
   | { kind: "folder"; mode: "create" | "edit"; folderId?: number }
-  | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number }
-  | { kind: "folderColor"; folderId: number };
+  | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number };
 
 const defaultFolderForm: FolderFormState = {
   name: "",
   description: "",
   sortOrder: 0,
-  color: "gray-100",
 };
 
 const defaultEquipmentForm: EquipmentFormState = {
@@ -173,7 +124,6 @@ export function EquipmentPage() {
         name: folderForm.name,
         description: folderForm.description,
         sortOrder: folderForm.sortOrder,
-        color: folderForm.color,
       }),
     onSuccess: async (folder) => {
       closeFolderModal();
@@ -191,7 +141,6 @@ export function EquipmentPage() {
         name: folderForm.name,
         description: folderForm.description,
         sortOrder: folderForm.sortOrder,
-        color: folderForm.color,
       });
     },
     onSuccess: async () => {
@@ -322,7 +271,6 @@ export function EquipmentPage() {
       name: folder.name,
       description: folder.description ?? "",
       sortOrder: folder.sortOrder,
-      color: (folder.color as FolderColor) || "gray-100",
     });
     setActiveModal({ kind: "folder", mode: "edit", folderId: folder.id });
   }
@@ -391,37 +339,7 @@ export function EquipmentPage() {
             </div>
 
             {canManage ? (
-              <div className="flex items-center gap-3">
-                <button
-                  aria-label="Редактировать папку"
-                  className="icon-action-button"
-                  title="Редактировать папку"
-                  type="button"
-                  onClick={() => openEditFolderModal(selectedFolder)}
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                  </svg>
-                </button>
-                <button
-                  aria-label="Удалить папку"
-                  className="icon-action-button"
-                  title="Удалить папку"
-                  type="button"
-                  onClick={() =>
-                    setDeleteTarget({
-                      kind: "folder",
-                      id: selectedFolder.id,
-                      title: "Удалить папку",
-                      message:
-                        "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
-                    })
-                  }
-                >
-                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                  </svg>
-                </button>
+              <div className="flex flex-wrap gap-3">
                 <button className={subtleButtonClass} type="button" onClick={openCreateEquipmentModal}>
                   Новый прибор
                 </button>
@@ -567,22 +485,10 @@ export function EquipmentPage() {
             {folders.map((folder) => (
               <div
                 key={folder.id}
-                className="relative rounded-[26px] border border-line p-5 transition hover:border-signal-info"
-                style={{ backgroundColor: folderColors[(folder.color as FolderColor) || "slate"] }}
+                className="rounded-[26px] border border-line bg-white/85 p-5 transition hover:border-signal-info hover:bg-white"
               >
                 {canManage ? (
-                  <div className="absolute right-4 top-4 flex gap-2">
-                    <button
-                      aria-label={`Выбрать цвет папки ${folder.name}`}
-                      className="icon-action-button"
-                      title="Выбрать цвет папки"
-                      type="button"
-                      onClick={() => setActiveModal({ kind: "folderColor", folderId: folder.id })}
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.629c5.056-3.278 5.056-8.622 5.056-8.622s-5.366 0-8.622 5.056a15.99 15.99 0 0 0-1.629 3.388Z" />
-                      </svg>
-                    </button>
+                  <div className="mb-4 flex justify-end gap-2">
                     <button
                       aria-label={`Редактировать папку ${folder.name}`}
                       className="icon-action-button"
@@ -616,8 +522,8 @@ export function EquipmentPage() {
                   </div>
                 ) : null}
                 <button className="block w-full text-left" type="button" onClick={() => setSelectedFolderId(folder.id)}>
-                  <div className={`text-lg font-semibold ${getFolderTextColor(folder.color as FolderColor)}`}>{folder.name}</div>
-                  <p className={`mt-2 text-sm ${getFolderDescriptionColor(folder.color as FolderColor)}`}>
+                  <div className="text-lg font-semibold text-ink">{folder.name}</div>
+                  <p className="mt-2 text-sm text-steel">
                     {folder.description || "Открой папку, чтобы работать с приборами."}
                   </p>
                 </button>
@@ -660,24 +566,6 @@ export function EquipmentPage() {
               }
             />
           </label>
-          <label className="block text-sm text-steel">
-            Цвет папки
-            <div className="mt-2 grid grid-cols-6 gap-2">
-              {(Object.keys(folderColors) as FolderColor[]).map((color) => (
-                <button
-                  key={color}
-                  aria-label={`Выбрать цвет ${color}`}
-                  className={[
-                    "h-8 w-full rounded border transition hover:scale-105",
-                    folderForm.color === color ? "border-ink ring-2 ring-signal-info" : "border-line",
-                  ].join(" ")}
-                  style={{ backgroundColor: folderColors[color] }}
-                  type="button"
-                  onClick={() => setFolderForm((current) => ({ ...current, color }))}
-                />
-              ))}
-            </div>
-          </label>
           {(createFolderMutation.isError || updateFolderMutation.isError) ? (
             <p className="text-sm text-[#b04c43]">
               {getMutationErrorMessage(createFolderMutation.error ?? updateFolderMutation.error, "Не удалось сохранить папку.")}
@@ -698,41 +586,6 @@ export function EquipmentPage() {
           </div>
         </form>
       </Modal>
-
-      {activeModal?.kind === "folderColor" ? (
-        <Modal
-          description="Выбери цвет для папки."
-          open={true}
-          title="Цвет папки"
-          onClose={() => setActiveModal(null)}
-        >
-          <div className="grid grid-cols-6 gap-2">
-            {(Object.keys(folderColors) as FolderColor[]).map((color) => (
-              <button
-                key={color}
-                aria-label={`Выбрать цвет ${color}`}
-                className="h-8 w-full rounded border border-line transition hover:scale-105"
-                style={{ backgroundColor: folderColors[color] }}
-                type="button"
-                onClick={async () => {
-                  const response = await fetch(`/api/v1/equipment/folders/${activeModal.folderId}`, {
-                    method: "PATCH",
-                    headers: {
-                      "Content-Type": "application/json",
-                      Authorization: `Bearer ${token}`,
-                    },
-                    body: JSON.stringify({ color }),
-                  });
-                  if (response.ok) {
-                    await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
-                  }
-                  setActiveModal(null);
-                }}
-              />
-            ))}
-          </div>
-        </Modal>
-      ) : null}
 
       <Modal
         description={

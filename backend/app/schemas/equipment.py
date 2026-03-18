@@ -14,7 +14,6 @@ class EquipmentFolderRead(BaseModel):
     name: str
     description: str | None
     sort_order: int
-    color: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -23,14 +22,12 @@ class EquipmentFolderCreateRequest(BaseModel):
     name: str
     description: str | None = None
     sort_order: int = 0
-    color: str | None = None
 
 
 class EquipmentFolderUpdateRequest(BaseModel):
     name: str | None = None
     description: str | None = None
     sort_order: int | None = None
-    color: str | None = None
 
 
 class EquipmentGroupRead(BaseModel):

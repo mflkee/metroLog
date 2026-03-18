@@ -8,7 +8,6 @@ type RawEquipmentFolder = {
   name: string;
   description: string | null;
   sort_order: number;
-  color: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -44,7 +43,6 @@ export type EquipmentFolder = {
   name: string;
   description: string | null;
   sortOrder: number;
-  color: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -79,7 +77,6 @@ export type CreateEquipmentFolderPayload = {
   name: string;
   description: string;
   sortOrder: number;
-  color: string;
 };
 
 export type CreateEquipmentPayload = {
@@ -124,7 +121,6 @@ export async function createEquipmentFolder(
       name: payload.name,
       description: payload.description,
       sort_order: payload.sortOrder,
-      color: payload.color,
     },
   });
   return mapEquipmentFolder(response);
@@ -142,7 +138,6 @@ export async function updateEquipmentFolder(
       name: payload.name,
       description: payload.description,
       sort_order: payload.sortOrder,
-      color: payload.color,
     },
   });
   return mapEquipmentFolder(response);
@@ -277,7 +272,6 @@ function mapEquipmentFolder(folder: RawEquipmentFolder): EquipmentFolder {
     name: folder.name,
     description: folder.description,
     sortOrder: folder.sort_order,
-    color: folder.color,
     createdAt: folder.created_at,
     updatedAt: folder.updated_at,
   };

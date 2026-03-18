@@ -24,6 +24,25 @@
   --button-primary-text: #ffffff;
   --input-bg: #f6f8fa;
   --panel-shadow-value: 0 3px 6px rgba(140, 149, 159, 0.15);
+  /* Folder colors - Light theme */
+  --folder-white: #ffffff;
+  --folder-gray-100: #f6f8fa;
+  --folder-gray-200: #eaeef2;
+  --folder-gray-300: #d0d7de;
+  --folder-gray-800: #8c959f;
+  --folder-gray-900: #6e7781;
+  --folder-red: #ff8182;
+  --folder-orange: #fb8f44;
+  --folder-amber: #f4c842;
+  --folder-yellow: #f8e36a;
+  --folder-lime: #bce663;
+  --folder-green: #4ac26b;
+  --folder-emerald: #46d4a8;
+  --folder-teal: #4dd0cf;
+  --folder-cyan: #55d0f0;
+  --folder-blue: #54aeff;
+  --folder-indigo: #7e9bff;
+  --folder-violet: #b891ff;
   color-scheme: light;
   background:
     radial-gradient(circle at top left, var(--bg-glow), transparent 34%),
@@ -48,6 +67,25 @@
   --button-primary-text: #ffffff;
   --input-bg: #0d1117;
   --panel-shadow-value: 0 8px 24px rgba(1, 4, 9, 0.4);
+  /* Folder colors - Dark theme */
+  --folder-white: #2a313c;
+  --folder-gray-100: #1f262e;
+  --folder-gray-200: #161b22;
+  --folder-gray-300: #0d1117;
+  --folder-gray-800: #373e47;
+  --folder-gray-900: #424a53;
+  --folder-red: #ff6b6b;
+  --folder-orange: #e07a3e;
+  --folder-amber: #d4b34a;
+  --folder-yellow: #c9b84d;
+  --folder-lime: #95c94d;
+  --folder-green: #3fb950;
+  --folder-emerald: #3fb97a;
+  --folder-teal: #3fb9a8;
+  --folder-cyan: #3fb9d4;
+  --folder-blue: #388bfd;
+  --folder-indigo: #5e6ad2;
+  --folder-violet: #9e6ad2;
   color-scheme: dark;
 }
 
@@ -68,6 +106,25 @@
   --button-primary-text: #ffffff;
   --input-bg: #e2e2e2;
   --panel-shadow-value: 0 18px 44px rgba(34, 34, 34, 0.1);
+  /* Folder colors - Gray theme */
+  --folder-white: #f5f5f5;
+  --folder-gray-100: #e8e8e8;
+  --folder-gray-200: #dbdbdb;
+  --folder-gray-300: #cccccc;
+  --folder-gray-800: #6e6e6e;
+  --folder-gray-900: #525252;
+  --folder-red: #e06e6e;
+  --folder-orange: #e0946e;
+  --folder-amber: #e0c06e;
+  --folder-yellow: #e0d86e;
+  --folder-lime: #b8e06e;
+  --folder-green: #6ee06e;
+  --folder-emerald: #6ee0a8;
+  --folder-teal: #6ee0d4;
+  --folder-cyan: #6ecbe0;
+  --folder-blue: #6e9ae0;
+  --folder-indigo: #8a6ee0;
+  --folder-violet: #b86ee0;
   color-scheme: light;
 }
 
@@ -88,6 +145,25 @@
   --button-primary-text: #1a1b26;
   --input-bg: #1a1b26;
   --panel-shadow-value: 0 8px 24px rgba(0, 0, 0, 0.3);
+  /* Folder colors - Tokyo Night theme */
+  --folder-white: #2f3549;
+  --folder-gray-100: #24283b;
+  --folder-gray-200: #1f2335;
+  --folder-gray-300: #1a1b26;
+  --folder-gray-800: #414868;
+  --folder-gray-900: #565f89;
+  --folder-red: #f7768e;
+  --folder-orange: #ff9e64;
+  --folder-amber: #e0af68;
+  --folder-yellow: #e9d07a;
+  --folder-lime: #9ece6a;
+  --folder-green: #73daca;
+  --folder-emerald: #5ad4be;
+  --folder-teal: #7dcfff;
+  --folder-cyan: #7dcfff;
+  --folder-blue: #7aa2f7;
+  --folder-indigo: #5d57f7;
+  --folder-violet: #bb9af7;
   color-scheme: dark;
 }
 
@@ -108,6 +184,25 @@
   --button-primary-text: #282828;
   --input-bg: #282828;
   --panel-shadow-value: 0 8px 24px rgba(0, 0, 0, 0.4);
+  /* Folder colors - Gruvbox theme */
+  --folder-white: #3c3836;
+  --folder-gray-100: #32302f;
+  --folder-gray-200: #282828;
+  --folder-gray-300: #1d2021;
+  --folder-gray-800: #665c54;
+  --folder-gray-900: #7c6f64;
+  --folder-red: #fb4934;
+  --folder-orange: #fe8019;
+  --folder-amber: #fabd2f;
+  --folder-yellow: #f9d55b;
+  --folder-lime: #b8bb26;
+  --folder-green: #b8bb26;
+  --folder-emerald: #8ec07c;
+  --folder-teal: #8ec07c;
+  --folder-cyan: #689d6a;
+  --folder-blue: #458588;
+  --folder-indigo: #83a598;
+  --folder-violet: #d3869b;
   color-scheme: dark;
 }
 

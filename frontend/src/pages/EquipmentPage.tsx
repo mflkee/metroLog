@@ -36,26 +36,26 @@ type FolderColor =
 
 const folderColors: Record<FolderColor, string> = {
   // Neutral colors
-  "white": "#ffffff",
-  "gray-100": "#f3f4f6",
-  "gray-200": "#e5e7eb",
-  "gray-300": "#d1d5db",
-  "gray-800": "#374151",
-  "gray-900": "#1f2937",
+  "white": "var(--folder-white)",
+  "gray-100": "var(--folder-gray-100)",
+  "gray-200": "var(--folder-gray-200)",
+  "gray-300": "var(--folder-gray-300)",
+  "gray-800": "var(--folder-gray-800)",
+  "gray-900": "var(--folder-gray-900)",
   // Warm colors
-  "red": "#fca5a5",
-  "orange": "#fdba74",
-  "amber": "#fcd34d",
-  "yellow": "#fef08a",
-  "lime": "#bef264",
+  "red": "var(--folder-red)",
+  "orange": "var(--folder-orange)",
+  "amber": "var(--folder-amber)",
+  "yellow": "var(--folder-yellow)",
+  "lime": "var(--folder-lime)",
   // Cool colors
-  "green": "#86efac",
-  "emerald": "#6ee7b7",
-  "teal": "#5eead4",
-  "cyan": "#67e8f9",
-  "blue": "#93c5fd",
-  "indigo": "#a5b4fc",
-  "violet": "#c4b5fd",
+  "green": "var(--folder-green)",
+  "emerald": "var(--folder-emerald)",
+  "teal": "var(--folder-teal)",
+  "cyan": "var(--folder-cyan)",
+  "blue": "var(--folder-blue)",
+  "indigo": "var(--folder-indigo)",
+  "violet": "var(--folder-violet)",
 };
 
 type FolderFormState = {

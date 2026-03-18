@@ -1,7 +1,7 @@
 """add color to equipment_folders
 
 Revision ID: 0009
-Revises: 0008
+Revises: 0008_equipment_categories
 Create Date: 2026-03-18
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '0009'
-down_revision = '0008'
+down_revision = '0008_equipment_categories'
 branch_labels = None
 depends_on = None
 

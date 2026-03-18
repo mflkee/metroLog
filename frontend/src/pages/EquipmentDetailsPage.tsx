@@ -44,6 +44,7 @@ export function EquipmentDetailsPage() {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<EquipmentFormState | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
 
   const equipmentQuery = useQuery({
@@ -189,24 +190,33 @@ export function EquipmentDetailsPage() {
 
       {equipmentQuery.data && form ? (
         <>
-          <div className="mb-4 flex flex-wrap items-center gap-3">
-            <Link
-              className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
-              to={`/equipment?folderId=${equipmentQuery.data.folderId}`}
-            >
-              Назад к оборудованию
-            </Link>
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex flex-wrap items-center gap-3">
+              <Link
+                className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
+                to={`/equipment?folderId=${equipmentQuery.data.folderId}`}
+              >
+                Назад к оборудованию
+              </Link>
+              {currentFolder ? (
+                <span className="inline-block rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
+                  Папка: {currentFolder.name}
+                </span>
+              ) : null}
+              {currentGroup ? (
+                <span className="inline-block rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
+                  Группа: {currentGroup.name}
+                </span>
+              ) : null}
+            </div>
             {canManage ? (
-              <div className="ml-auto flex gap-3">
+              <div className="flex gap-3">
                 <button
                   aria-label="Редактировать прибор"
                   className="icon-action-button"
                   title="Редактировать прибор"
                   type="button"
-                  onClick={() => {
-                    const editSection = document.getElementById("edit-section");
-                    editSection?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
+                  onClick={() => setIsEditing(true)}
                 >
                   <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
@@ -226,16 +236,6 @@ export function EquipmentDetailsPage() {
               </div>
             ) : null}
           </div>
-          {currentFolder ? (
-            <span className="inline-block rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
-              Папка: {currentFolder.name}
-            </span>
-          ) : null}
-          {currentGroup ? (
-            <span className="inline-block rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
-              Группа: {currentGroup.name}
-            </span>
-          ) : null}
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_380px]">
             <div className="space-y-4">
@@ -274,204 +274,6 @@ export function EquipmentDetailsPage() {
                     Для средств измерения здесь появятся данные Аршина, сроки поверки и расчетные показатели.
                   </p>
                 </section>
-              ) : null}
-
-              {canManage ? (
-                <form
-                  id="edit-section"
-                  className="space-y-4 rounded-3xl border border-line bg-white p-5 shadow-panel"
-                  onSubmit={(event) => void handleSubmit(event)}
-                >
-                  <div>
-                    <h3 className="text-lg font-semibold text-ink">Редактирование</h3>
-                    <p className="mt-1 text-sm text-steel">
-                      Общая карточка редактирует только базовые поля. SI-специфика будет жить отдельным слоем.
-                    </p>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <label className="block text-sm text-steel">
-                      Папка
-                      <select
-                        className="form-input"
-                        value={form.folderId}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current ? { ...current, folderId: event.target.value, groupId: "" } : current,
-                          )
-                        }
-                      >
-                        <option value="">Выбери папку</option>
-                        {folders.map((folder) => (
-                          <option key={folder.id} value={folder.id}>
-                            {folder.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Группа
-                      <select
-                        className="form-input"
-                        value={form.groupId}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current ? { ...current, groupId: event.target.value } : current,
-                          )
-                        }
-                      >
-                        <option value="">Без группы</option>
-                        {selectedFolderGroups.map((group) => (
-                          <option key={group.id} value={group.id}>
-                            {group.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Категория
-                      <select
-                        className="form-input"
-                        value={form.equipmentType}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current
-                              ? { ...current, equipmentType: event.target.value as EquipmentType }
-                              : current,
-                          )
-                        }
-                      >
-                        {equipmentTypeOptions.map((type) => (
-                          <option key={type} value={type}>
-                            {equipmentTypeLabels[type]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Статус
-                      <select
-                        className="form-input"
-                        value={form.status}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current
-                              ? { ...current, status: event.target.value as EquipmentStatus }
-                              : current,
-                          )
-                        }
-                      >
-                        {equipmentStatusOptions.map((status) => (
-                          <option key={status} value={status}>
-                            {equipmentStatusLabels[status]}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Объект
-                      <input
-                        className="form-input"
-                        type="text"
-                        value={form.objectName}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current ? { ...current, objectName: event.target.value } : current,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Наименование
-                      <input
-                        className="form-input"
-                        type="text"
-                        value={form.name}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current ? { ...current, name: event.target.value } : current,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Модификация
-                      <input
-                        className="form-input"
-                        type="text"
-                        value={form.modification}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current ? { ...current, modification: event.target.value } : current,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Серийный номер
-                      <input
-                        className="form-input"
-                        type="text"
-                        value={form.serialNumber}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current ? { ...current, serialNumber: event.target.value } : current,
-                          )
-                        }
-                      />
-                    </label>
-                    <label className="block text-sm text-steel">
-                      Год выпуска
-                      <input
-                        className="form-input"
-                        type="number"
-                        value={form.manufactureYear}
-                        onChange={(event) =>
-                          setForm((current) =>
-                            current ? { ...current, manufactureYear: event.target.value } : current,
-                          )
-                        }
-                      />
-                    </label>
-                  </div>
-                  <label className="block text-sm text-steel">
-                    Текущее местоположение
-                    <input
-                      className="form-input"
-                      type="text"
-                      value={form.currentLocationManual}
-                      onChange={(event) =>
-                        setForm((current) =>
-                          current ? { ...current, currentLocationManual: event.target.value } : current,
-                        )
-                      }
-                    />
-                  </label>
-                  {updateEquipmentMutation.isError ? (
-                    <p className="text-sm text-[#b04c43]">
-                      {updateEquipmentMutation.error instanceof Error
-                        ? updateEquipmentMutation.error.message
-                        : "Не удалось сохранить изменения."}
-                    </p>
-                  ) : null}
-                  <button
-                    className="btn-primary disabled:opacity-60"
-                    disabled={updateEquipmentMutation.isPending}
-                    type="submit"
-                  >
-                    {updateEquipmentMutation.isPending ? "Сохраняем..." : "Сохранить изменения"}
-                  </button>
-                  <div className="pt-2">
-                    <button
-                      aria-label="Удалить прибор"
-                      className="icon-action-button"
-                      title="Удалить прибор"
-                      type="button"
-                      onClick={() => setConfirmDeleteOpen(true)}
-                    >
-                      <span className="nf-icon text-base leading-none">󰅖</span>
-                    </button>
-                  </div>
-                </form>
               ) : null}
             </div>
 
@@ -512,6 +314,192 @@ export function EquipmentDetailsPage() {
             </aside>
           </div>
         </>
+      ) : null}
+
+      {isEditing && form ? (
+        <Modal
+          description="Измени базовые данные прибора. SI-специфика будет редактироваться отдельным слоем."
+          open={isEditing}
+          title="Редактировать прибор"
+          onClose={() => setIsEditing(false)}
+        >
+          <form className="space-y-4" onSubmit={(event) => void handleSubmit(event)}>
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="block text-sm text-steel">
+                Папка
+                <select
+                  className="form-input"
+                  value={form.folderId}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current ? { ...current, folderId: event.target.value, groupId: "" } : current,
+                    )
+                  }
+                >
+                  <option value="">Выбери папку</option>
+                  {folders.map((folder) => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-steel">
+                Группа
+                <select
+                  className="form-input"
+                  value={form.groupId}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current ? { ...current, groupId: event.target.value } : current,
+                    )
+                  }
+                >
+                  <option value="">Без группы</option>
+                  {selectedFolderGroups.map((group) => (
+                    <option key={group.id} value={group.id}>
+                      {group.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-steel">
+                Категория
+                <select
+                  className="form-input"
+                  value={form.equipmentType}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current
+                        ? { ...current, equipmentType: event.target.value as EquipmentType }
+                        : current,
+                    )
+                  }
+                >
+                  {equipmentTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {equipmentTypeLabels[type]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-steel">
+                Статус
+                <select
+                  className="form-input"
+                  value={form.status}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current
+                        ? { ...current, status: event.target.value as EquipmentStatus }
+                        : current,
+                    )
+                  }
+                >
+                  {equipmentStatusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {equipmentStatusLabels[status]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-sm text-steel">
+                Объект
+                <input
+                  className="form-input"
+                  type="text"
+                  value={form.objectName}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current ? { ...current, objectName: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-sm text-steel">
+                Наименование
+                <input
+                  className="form-input"
+                  type="text"
+                  value={form.name}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current ? { ...current, name: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-sm text-steel">
+                Модификация
+                <input
+                  className="form-input"
+                  type="text"
+                  value={form.modification}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current ? { ...current, modification: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-sm text-steel">
+                Серийный номер
+                <input
+                  className="form-input"
+                  type="text"
+                  value={form.serialNumber}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current ? { ...current, serialNumber: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+              <label className="block text-sm text-steel">
+                Год выпуска
+                <input
+                  className="form-input"
+                  type="number"
+                  value={form.manufactureYear}
+                  onChange={(event) =>
+                    setForm((current) =>
+                      current ? { ...current, manufactureYear: event.target.value } : current,
+                    )
+                  }
+                />
+              </label>
+            </div>
+            <label className="block text-sm text-steel">
+              Текущее местоположение
+              <input
+                className="form-input"
+                type="text"
+                value={form.currentLocationManual}
+                onChange={(event) =>
+                  setForm((current) =>
+                    current ? { ...current, currentLocationManual: event.target.value } : current,
+                  )
+                }
+              />
+            </label>
+            {updateEquipmentMutation.isError ? (
+              <p className="text-sm text-[#b04c43]">
+                {updateEquipmentMutation.error instanceof Error
+                  ? updateEquipmentMutation.error.message
+                  : "Не удалось сохранить изменения."}
+              </p>
+            ) : null}
+            <div className="flex justify-end">
+              <button
+                className="btn-primary disabled:opacity-60"
+                disabled={updateEquipmentMutation.isPending}
+                type="submit"
+              >
+                {updateEquipmentMutation.isPending ? "Сохраняем..." : "Сохранить изменения"}
+              </button>
+            </div>
+          </form>
+        </Modal>
       ) : null}
 
       <Modal

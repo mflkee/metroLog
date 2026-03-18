@@ -30,27 +30,22 @@ const subtleButtonClass =
   "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
 
 type FolderColor =
-  | "slate" | "gray" | "zinc" | "neutral" | "stone"
   | "red" | "orange" | "amber" | "yellow" | "lime"
-  | "green" | "emerald" | "teal" | "cyan" | "sky" | "indigo";
+  | "green" | "emerald" | "teal" | "sky" | "blue" | "indigo" | "violet";
 
 const folderColors: Record<FolderColor, string> = {
-  slate: "#f1f5f9",
-  gray: "#f3f4f6",
-  zinc: "#f4f4f5",
-  neutral: "#f5f5f5",
-  stone: "#f5f5f4",
-  red: "#fef2f2",
-  orange: "#fff7ed",
-  amber: "#fffbeb",
-  yellow: "#fefce8",
-  lime: "#f7fee7",
-  green: "#f0fdf4",
-  emerald: "#ecfdf5",
-  teal: "#f0fdfa",
-  cyan: "#ecfeff",
-  sky: "#f0f9ff",
-  indigo: "#eef2ff",
+  red: "#fecaca",
+  orange: "#fed7aa",
+  amber: "#fde68a",
+  yellow: "#fef08a",
+  lime: "#d9f99d",
+  green: "#bbf7d0",
+  emerald: "#a7f3d0",
+  teal: "#99f6e4",
+  sky: "#bae6fd",
+  blue: "#bfdbfe",
+  indigo: "#c7d2fe",
+  violet: "#e9d5ff",
 };
 
 type FolderFormState = {
@@ -86,7 +81,7 @@ const defaultFolderForm: FolderFormState = {
   name: "",
   description: "",
   sortOrder: 0,
-  color: "slate",
+  color: "blue",
 };
 
 const defaultEquipmentForm: EquipmentFormState = {
@@ -283,7 +278,7 @@ export function EquipmentPage() {
       name: folder.name,
       description: folder.description ?? "",
       sortOrder: folder.sortOrder,
-      color: (folder.color as FolderColor) || "slate",
+      color: (folder.color as FolderColor) || "blue",
     });
     setActiveModal({ kind: "folder", mode: "edit", folderId: folder.id });
   }

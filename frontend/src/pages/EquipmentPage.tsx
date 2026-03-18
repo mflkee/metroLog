@@ -29,10 +29,35 @@ const equipmentStatusOptions: EquipmentStatus[] = ["ACTIVE", "IN_REPAIR", "ARCHI
 const subtleButtonClass =
   "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
 
+type FolderColor =
+  | "slate" | "gray" | "zinc" | "neutral" | "stone"
+  | "red" | "orange" | "amber" | "yellow" | "lime"
+  | "green" | "emerald" | "teal" | "cyan" | "sky" | "indigo";
+
+const folderColors: Record<FolderColor, string> = {
+  slate: "#f1f5f9",
+  gray: "#f3f4f6",
+  zinc: "#f4f4f5",
+  neutral: "#f5f5f5",
+  stone: "#f5f5f4",
+  red: "#fef2f2",
+  orange: "#fff7ed",
+  amber: "#fffbeb",
+  yellow: "#fefce8",
+  lime: "#f7fee7",
+  green: "#f0fdf4",
+  emerald: "#ecfdf5",
+  teal: "#f0fdfa",
+  cyan: "#ecfeff",
+  sky: "#f0f9ff",
+  indigo: "#eef2ff",
+};
+
 type FolderFormState = {
   name: string;
   description: string;
   sortOrder: number;
+  color: FolderColor;
 };
 
 type EquipmentFormState = {
@@ -54,12 +79,14 @@ type DeleteTarget =
 type ActiveModal =
   | null
   | { kind: "folder"; mode: "create" | "edit"; folderId?: number }
-  | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number };
+  | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number }
+  | { kind: "folderColor"; folderId: number };
 
 const defaultFolderForm: FolderFormState = {
   name: "",
   description: "",
   sortOrder: 0,
+  color: "slate",
 };
 
 const defaultEquipmentForm: EquipmentFormState = {
@@ -124,6 +151,7 @@ export function EquipmentPage() {
         name: folderForm.name,
         description: folderForm.description,
         sortOrder: folderForm.sortOrder,
+        color: folderForm.color,
       }),
     onSuccess: async (folder) => {
       closeFolderModal();
@@ -141,6 +169,7 @@ export function EquipmentPage() {
         name: folderForm.name,
         description: folderForm.description,
         sortOrder: folderForm.sortOrder,
+        color: folderForm.color,
       });
     },
     onSuccess: async () => {
@@ -254,6 +283,7 @@ export function EquipmentPage() {
       name: folder.name,
       description: folder.description ?? "",
       sortOrder: folder.sortOrder,
+      color: (folder.color as FolderColor) || "slate",
     });
     setActiveModal({ kind: "folder", mode: "edit", folderId: folder.id });
   }
@@ -498,10 +528,22 @@ export function EquipmentPage() {
             {folders.map((folder) => (
               <div
                 key={folder.id}
-                className="relative rounded-[26px] border border-line bg-white/85 p-5 transition hover:border-signal-info hover:bg-white"
+                className="relative rounded-[26px] border border-line p-5 transition hover:border-signal-info"
+                style={{ backgroundColor: folderColors[(folder.color as FolderColor) || "slate"] }}
               >
                 {canManage ? (
                   <div className="absolute right-4 top-4 flex gap-2">
+                    <button
+                      aria-label={`Выбрать цвет папки ${folder.name}`}
+                      className="icon-action-button"
+                      title="Выбрать цвет папки"
+                      type="button"
+                      onClick={() => setActiveModal({ kind: "folderColor", folderId: folder.id })}
+                    >
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0 0 15 0m-15 0c0-1.657 0-3 0-3s1.343 0 3 0 3 1.343 3 3m6 0c0 1.657 0 3 0 3s-1.343 0-3 0-3-1.343-3-3m0 0c0-1.657 0-3 0-3s1.343 0 3 0 3 1.343 3 3m-6 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                      </svg>
+                    </button>
                     <button
                       aria-label={`Редактировать папку ${folder.name}`}
                       className="icon-action-button"
@@ -579,6 +621,24 @@ export function EquipmentPage() {
               }
             />
           </label>
+          <label className="block text-sm text-steel">
+            Цвет папки
+            <div className="mt-2 grid grid-cols-8 gap-2">
+              {(Object.keys(folderColors) as FolderColor[]).map((color) => (
+                <button
+                  key={color}
+                  aria-label={`Выбрать цвет ${color}`}
+                  className={[
+                    "h-10 w-full rounded-lg border transition hover:scale-105",
+                    folderForm.color === color ? "border-ink ring-2 ring-signal-info" : "border-line",
+                  ].join(" ")}
+                  style={{ backgroundColor: folderColors[color] }}
+                  type="button"
+                  onClick={() => setFolderForm((current) => ({ ...current, color }))}
+                />
+              ))}
+            </div>
+          </label>
           {(createFolderMutation.isError || updateFolderMutation.isError) ? (
             <p className="text-sm text-[#b04c43]">
               {getMutationErrorMessage(createFolderMutation.error ?? updateFolderMutation.error, "Не удалось сохранить папку.")}
@@ -599,6 +659,43 @@ export function EquipmentPage() {
           </div>
         </form>
       </Modal>
+
+      {activeModal?.kind === "folderColor" ? (
+        <Modal
+          description="Выбери цвет для папки. Цвет помогает визуально различать папки."
+          open={true}
+          title="Цвет папки"
+          onClose={() => setActiveModal(null)}
+        >
+          <div className="grid grid-cols-4 gap-3">
+            {(Object.keys(folderColors) as FolderColor[]).map((color) => (
+              <button
+                key={color}
+                aria-label={`Выбрать цвет ${color}`}
+                className="flex h-14 w-full flex-col items-center justify-center rounded-xl border border-line transition hover:scale-105"
+                style={{ backgroundColor: folderColors[color] }}
+                type="button"
+                onClick={async () => {
+                  const response = await fetch(`/api/v1/equipment/folders/${activeModal.folderId}`, {
+                    method: "PATCH",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ color }),
+                  });
+                  if (response.ok) {
+                    await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
+                  }
+                  setActiveModal(null);
+                }}
+              >
+                <span className="mt-1 text-xs font-medium capitalize text-steel">{color}</span>
+              </button>
+            ))}
+          </div>
+        </Modal>
+      ) : null}
 
       <Modal
         description={

@@ -536,7 +536,7 @@ export function EquipmentPage() {
                       onClick={() => setActiveModal({ kind: "folderColor", folderId: folder.id })}
                     >
                       <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12a7.5 7.5 0 0 0 15 0m-15 0c0-1.657 0-3 0-3s1.343 0 3 0 3 1.343 3 3m6 0c0 1.657 0 3 0 3s-1.343 0-3 0-3-1.343-3-3m0 0c0-1.657 0-3 0-3s1.343 0 3 0 3 1.343 3 3m-6 0a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 0 0-5.78 1.128 2.25 2.25 0 0 1-2.4 2.245 4.5 4.5 0 0 0 8.4-2.245c0-.399-.078-.78-.22-1.128Zm0 0a15.998 15.998 0 0 0 3.388-1.629c5.056-3.278 5.056-8.622 5.056-8.622s-5.366 0-8.622 5.056a15.99 15.99 0 0 0-1.629 3.388Z" />
                       </svg>
                     </button>
                     <button

@@ -25,7 +25,7 @@ import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuthStore } from "@/store/auth";
 
 const equipmentTypeOptions: EquipmentType[] = ["SI", "IO", "VO", "OTHER"];
-const equipmentStatusOptions: EquipmentStatus[] = ["ACTIVE", "IN_REPAIR", "ARCHIVED"];
+const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "ARCHIVED"];
 const subtleButtonClass =
   "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
 
@@ -119,7 +119,7 @@ const defaultEquipmentForm: EquipmentFormState = {
   modification: "",
   serialNumber: "",
   manufactureYear: "",
-  status: "ACTIVE",
+  status: "IN_WORK",
   currentLocationManual: "",
 };
 
@@ -256,6 +256,23 @@ export function EquipmentPage() {
 
   const folders = foldersQuery.data ?? [];
   const equipmentItems = equipmentQuery.data ?? [];
+
+  // Get unique object names and locations from current folder for autocomplete
+  const existingObjectNames = useMemo(() => {
+    const names = new Set<string>();
+    equipmentItems.forEach((item) => {
+      if (item.objectName) names.add(item.objectName);
+    });
+    return Array.from(names).sort();
+  }, [equipmentItems]);
+
+  const existingLocations = useMemo(() => {
+    const locations = new Set<string>();
+    equipmentItems.forEach((item) => {
+      if (item.currentLocationManual) locations.add(item.currentLocationManual);
+    });
+    return Array.from(locations).sort();
+  }, [equipmentItems]);
 
   useEffect(() => {
     if (selectedFolderId === null) {
@@ -763,7 +780,13 @@ export function EquipmentPage() {
                 onChange={(event) =>
                   setEquipmentForm((current) => ({ ...current, objectName: event.target.value }))
                 }
+                list="object-names"
               />
+              <datalist id="object-names">
+                {existingObjectNames.map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
             </label>
             <label className="block text-sm text-steel">
               Наименование
@@ -844,7 +867,13 @@ export function EquipmentPage() {
                   currentLocationManual: event.target.value,
                 }))
               }
+              list="locations"
             />
+            <datalist id="locations">
+              {existingLocations.map((location) => (
+                <option key={location} value={location} />
+              ))}
+            </datalist>
           </label>
           {(createEquipmentMutation.isError || updateEquipmentMutation.isError) ? (
             <p className="text-sm text-[#b04c43]">

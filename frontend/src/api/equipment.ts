@@ -1,7 +1,7 @@
 import { apiRequest } from "@/api/client";
 
 export type EquipmentType = "SI" | "IO" | "VO" | "OTHER";
-export type EquipmentStatus = "ACTIVE" | "IN_REPAIR" | "ARCHIVED";
+export type EquipmentStatus = "IN_WORK" | "IN_VERIFICATION" | "IN_REPAIR" | "ARCHIVED";
 
 type RawEquipmentFolder = {
   id: number;
@@ -265,7 +265,8 @@ export const equipmentTypeLabels: Record<EquipmentType, string> = {
 };
 
 export const equipmentStatusLabels: Record<EquipmentStatus, string> = {
-  ACTIVE: "Активно",
+  IN_WORK: "В работе",
+  IN_VERIFICATION: "В поверке",
   IN_REPAIR: "В ремонте",
   ARCHIVED: "Архив",
 };

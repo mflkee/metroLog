@@ -308,6 +308,38 @@ Additional registry rule:
 
 ---
 
+## SI Verification Future Plans (Later Phase)
+
+The SI verification workspace (`Поверка СИ`) should follow a similar pattern to the repairs page:
+
+### SI Verification List Page
+- Display active SI equipment currently in verification
+- Show verification deadlines and remaining days
+- Support filtering by verification status
+- Archive completed verifications
+
+### Equipment Card for SI in Verification
+When viewing an SI equipment item that is currently in verification, the card should show:
+1. **Basic equipment data** - name, type, serial number, etc.
+2. **Comments/Notes frame** - general notes about the equipment
+3. **Verification dialog frame** (only if in verification) - a conversation-style thread where:
+   - Users can add comments with timestamps
+   - Attach files, photos, documents (verification certificates, photos of equipment, etc.)
+   - All attachments are stored and organized by date
+
+### Archive System
+- When verification is completed, all data (comments, attachments, verification results) is packaged into an archive
+- Archive is stored as a ZIP file on a separate disk/storage
+- Users can download the ZIP archive from the "Archived Verifications" section
+- Clients can extract the ZIP to view all files and documentation offline
+
+### Technical Notes
+- The "Repairs" and "Verification" pages are essentially lists showing equipment in those states
+- They display different data but follow the same architectural pattern
+- Archive functionality enables long-term storage and client distribution of completed verification records
+
+---
+
 ## Navigation Paradigm
 
 Use the principle:

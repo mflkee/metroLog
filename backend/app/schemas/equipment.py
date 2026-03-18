@@ -72,7 +72,7 @@ class EquipmentCreateRequest(BaseModel):
     modification: str | None = None
     serial_number: str | None = None
     manufacture_year: int | None = None
-    status: EquipmentStatus = EquipmentStatus.ACTIVE
+    status: EquipmentStatus = EquipmentStatus.IN_WORK
     current_location_manual: str | None = None
 
 

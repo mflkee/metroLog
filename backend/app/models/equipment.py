@@ -17,7 +17,8 @@ class EquipmentType(StrEnum):
 
 
 class EquipmentStatus(StrEnum):
-    ACTIVE = "ACTIVE"
+    IN_WORK = "IN_WORK"
+    IN_VERIFICATION = "IN_VERIFICATION"
     IN_REPAIR = "IN_REPAIR"
     ARCHIVED = "ARCHIVED"
 
@@ -98,7 +99,7 @@ class Equipment(Base):
     status: Mapped[EquipmentStatus] = mapped_column(
         Enum(EquipmentStatus, native_enum=False, length=32),
         nullable=False,
-        default=EquipmentStatus.ACTIVE,
+        default=EquipmentStatus.IN_WORK,
     )
     current_location_manual: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(

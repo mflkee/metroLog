@@ -357,30 +357,17 @@ body {
 
 .sidebar-toggle {
   display: inline-flex;
-  flex-direction: column;
-  gap: 5px;
   border: 0;
   background: transparent;
-  padding: 8px 6px;
+  padding: 6px;
   cursor: pointer;
+  color: var(--text-primary);
+  transition: color 0.18s ease;
 }
 
-.sidebar-toggle__line {
-  display: block;
-  width: 24px;
-  height: 2px;
-  border-radius: 999px;
-  background: var(--text-primary);
-  transform-origin: center;
-  transition:
-    transform 0.18s ease,
-    background-color 0.18s ease;
-}
-
-.sidebar-toggle:hover .sidebar-toggle__line,
-.sidebar-toggle:focus-visible .sidebar-toggle__line {
-  transform: scaleX(1.16) scaleY(1.18);
-  background: var(--accent);
+.sidebar-toggle:hover,
+.sidebar-toggle:focus-visible {
+  color: var(--accent);
 }
 
 .sidebar-toggle:focus-visible {

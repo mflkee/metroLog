@@ -582,8 +582,8 @@ export function EquipmentPage() {
                   </div>
                 ) : null}
                 <button className="block w-full text-left" type="button" onClick={() => setSelectedFolderId(folder.id)}>
-                  <div className="text-lg font-semibold text-ink">{folder.name}</div>
-                  <p className="mt-2 text-sm text-steel">
+                  <div className="text-lg font-semibold text-[#1a1a1a]">{folder.name}</div>
+                  <p className="mt-2 text-sm text-[#4a4a4a]">
                     {folder.description || "Открой папку, чтобы работать с приборами."}
                   </p>
                 </button>

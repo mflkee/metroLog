@@ -1,4 +1,4 @@
-type IconName =
+export type IconName =
   | "home"
   | "equipment"
   | "verification"

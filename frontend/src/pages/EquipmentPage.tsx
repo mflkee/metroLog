@@ -1,5 +1,5 @@
 import { type FormEvent, useDeferredValue, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -78,7 +78,11 @@ export function EquipmentPage() {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
-  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [searchParams] = useSearchParams();
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(() => {
+    const folderIdFromUrl = searchParams.get("folderId");
+    return folderIdFromUrl ? Number(folderIdFromUrl) : null;
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | "ALL">("ALL");
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
@@ -236,6 +240,8 @@ export function EquipmentPage() {
     setSearchQuery("");
     setStatusFilter("ALL");
     setTypeFilter("ALL");
+    searchParams.delete("folderId");
+    window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
   }
 
   function openCreateFolderModal() {
@@ -255,21 +261,6 @@ export function EquipmentPage() {
   function openCreateEquipmentModal() {
     setEquipmentForm(defaultEquipmentForm);
     setActiveModal({ kind: "equipment", mode: "create" });
-  }
-
-  function openEditEquipmentModal(item: EquipmentItem) {
-    setEquipmentForm({
-      groupId: "",
-      objectName: item.objectName,
-      equipmentType: item.equipmentType,
-      name: item.name,
-      modification: item.modification ?? "",
-      serialNumber: item.serialNumber ?? "",
-      manufactureYear: item.manufactureYear ? String(item.manufactureYear) : "",
-      status: item.status,
-      currentLocationManual: item.currentLocationManual ?? "",
-    });
-    setActiveModal({ kind: "equipment", mode: "edit", equipmentId: item.id });
   }
 
   async function handleFolderSubmit(event: FormEvent<HTMLFormElement>) {
@@ -450,28 +441,17 @@ export function EquipmentPage() {
                       <th className="px-3 py-2">Прибор</th>
                       <th className="px-3 py-2">Категория</th>
                       <th className="px-3 py-2">Статус</th>
-                      <th className="px-3 py-2">Группа</th>
                       <th className="px-3 py-2">Серийный</th>
+                      <th className="px-3 py-2">Год выпуска</th>
                       <th className="px-3 py-2">Объект</th>
                       <th className="px-3 py-2">Локация</th>
-                      {canManage ? <th className="px-3 py-2">Действия</th> : null}
                     </tr>
                   </thead>
                   <tbody>
                     {equipmentItems.map((item) => (
                       <EquipmentRow
                         key={item.id}
-                        canManage={canManage}
                         item={item}
-                        onDelete={() =>
-                          setDeleteTarget({
-                            kind: "equipment",
-                            id: item.id,
-                            title: "Удалить прибор",
-                            message: "Удалить этот прибор из реестра? Действие потребует подтверждения.",
-                          })
-                        }
-                        onEdit={() => openEditEquipmentModal(item)}
                       />
                     ))}
                   </tbody>
@@ -811,14 +791,8 @@ export function EquipmentPage() {
 
 function EquipmentRow({
   item,
-  canManage,
-  onEdit,
-  onDelete,
 }: {
   item: EquipmentItem;
-  canManage: boolean;
-  onEdit: () => void;
-  onDelete: () => void;
 }) {
   return (
     <tr className="rounded-2xl border border-line bg-white/85 text-sm text-ink shadow-panel">
@@ -835,36 +809,9 @@ function EquipmentRow({
       </td>
       <td className="px-3 py-3 align-top">{equipmentStatusLabels[item.status]}</td>
       <td className="px-3 py-3 align-top">{item.serialNumber || "—"}</td>
+      <td className="px-3 py-3 align-top">{item.manufactureYear || "—"}</td>
       <td className="px-3 py-3 align-top">{item.objectName}</td>
-      <td className="px-3 py-3 align-top">{item.currentLocationManual || "Не указано"}</td>
-      {canManage ? (
-        <td className="rounded-r-2xl px-3 py-3 align-top">
-          <div className="flex flex-wrap gap-2">
-            <button
-              aria-label={`Редактировать прибор ${item.name}`}
-              className="icon-action-button"
-              title="Редактировать прибор"
-              type="button"
-              onClick={onEdit}
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-              </svg>
-            </button>
-            <button
-              aria-label={`Удалить прибор ${item.name}`}
-              className="icon-action-button"
-              title="Удалить прибор"
-              type="button"
-              onClick={onDelete}
-            >
-              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-              </svg>
-            </button>
-          </div>
-        </td>
-      ) : null}
+      <td className="px-3 py-3 align-top rounded-r-2xl">{item.currentLocationManual || "Не указано"}</td>
     </tr>
   );
 }

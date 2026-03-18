@@ -171,43 +171,72 @@ export function EquipmentDetailsPage() {
         description="Карточка прибора с общей эксплуатационной информацией. SI-специфичные данные будут расширяться отдельно."
       />
 
-      <div className="space-y-4">
-        <div className="flex flex-wrap gap-3">
-          <Link
-            className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
-            to="/equipment"
-          >
-            Назад к оборудованию
-          </Link>
+      {equipmentQuery.isLoading ? (
+        <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
+          <p className="text-sm text-steel">Загружаем карточку прибора...</p>
+        </div>
+      ) : null}
+
+      {equipmentQuery.isError ? (
+        <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
+          <p className="text-sm text-[#b04c43]">
+            {equipmentQuery.error instanceof Error
+              ? equipmentQuery.error.message
+              : "Не удалось загрузить карточку прибора."}
+          </p>
+        </div>
+      ) : null}
+
+      {equipmentQuery.data && form ? (
+        <>
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <Link
+              className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
+              to={`/equipment?folderId=${equipmentQuery.data.folderId}`}
+            >
+              Назад к оборудованию
+            </Link>
+            {canManage ? (
+              <div className="ml-auto flex gap-3">
+                <button
+                  aria-label="Редактировать прибор"
+                  className="icon-action-button"
+                  title="Редактировать прибор"
+                  type="button"
+                  onClick={() => {
+                    const editSection = document.getElementById("edit-section");
+                    editSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  }}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                  </svg>
+                </button>
+                <button
+                  aria-label="Удалить прибор"
+                  className="icon-action-button"
+                  title="Удалить прибор"
+                  type="button"
+                  onClick={() => setConfirmDeleteOpen(true)}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                </button>
+              </div>
+            ) : null}
+          </div>
           {currentFolder ? (
-            <span className="rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
+            <span className="inline-block rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
               Папка: {currentFolder.name}
             </span>
           ) : null}
           {currentGroup ? (
-            <span className="rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
+            <span className="inline-block rounded-full bg-[#edf2f5] px-4 py-2 text-sm text-steel">
               Группа: {currentGroup.name}
             </span>
           ) : null}
-        </div>
 
-        {equipmentQuery.isLoading ? (
-          <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
-            <p className="text-sm text-steel">Загружаем карточку прибора...</p>
-          </div>
-        ) : null}
-
-        {equipmentQuery.isError ? (
-          <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
-            <p className="text-sm text-[#b04c43]">
-              {equipmentQuery.error instanceof Error
-                ? equipmentQuery.error.message
-                : "Не удалось загрузить карточку прибора."}
-            </p>
-          </div>
-        ) : null}
-
-        {equipmentQuery.data && form ? (
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.18fr)_380px]">
             <div className="space-y-4">
               <dl className="overflow-hidden rounded-3xl border border-line bg-white shadow-panel">
@@ -249,6 +278,7 @@ export function EquipmentDetailsPage() {
 
               {canManage ? (
                 <form
+                  id="edit-section"
                   className="space-y-4 rounded-3xl border border-line bg-white p-5 shadow-panel"
                   onSubmit={(event) => void handleSubmit(event)}
                 >
@@ -481,8 +511,8 @@ export function EquipmentDetailsPage() {
               </section>
             </aside>
           </div>
-        ) : null}
-      </div>
+        </>
+      ) : null}
 
       <Modal
         description="Удалить этот прибор из реестра? Действие потребует подтверждения."

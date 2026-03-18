@@ -2,38 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@font-face {
-  font-family: "Hack NF";
-  src: url("/fonts/HackNerdFont-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Adwaita Mono NF";
-  src: url("/fonts/AdwaitaMonoNerdFont-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "3270 NF";
-  src: url("/fonts/3270NerdFont-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
-@font-face {
-  font-family: "Lilex NF";
-  src: url("/fonts/LilexNerdFont-Regular.ttf") format("truetype");
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-}
-
 :root {
   --app-font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   --app-font-letter-spacing: 0;
@@ -250,12 +218,6 @@ body {
   cursor: pointer;
 }
 
-.nf-icon {
-  font-family: "Hack NF", "Adwaita Mono NF", "3270 NF", monospace;
-  font-style: normal;
-  font-weight: 400;
-}
-
 .nav-icon-badge {
   display: flex;
   height: 44px;
@@ -283,7 +245,6 @@ body {
   transition:
     border-color 0.18s ease,
     color 0.18s ease,
-    transform 0.18s ease,
     background-color 0.18s ease;
 }
 
@@ -292,7 +253,6 @@ body {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--text-primary);
-  transform: translateY(-1px);
 }
 
 .icon-action-button--tiny {

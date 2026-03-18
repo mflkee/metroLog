@@ -45,9 +45,15 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  const payload = contentType.includes("application/json")
-    ? await response.json()
-    : await response.text();
+  
+  if (response.status === 204 || !contentType.includes("application/json")) {
+    if (!response.ok) {
+      throw new ApiError(response.status, "Request failed.");
+    }
+    return {} as T;
+  }
+  
+  const payload = await response.json();
 
   if (!response.ok) {
     throw new ApiError(response.status, getErrorMessage(payload));

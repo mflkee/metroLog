@@ -1,5 +1,6 @@
 import { NavLink } from "react-router-dom";
 
+import { Icon, type IconName } from "@/components/Icon";
 import { getNavigationItems } from "@/lib/nav";
 import { useAuthStore } from "@/store/auth";
 
@@ -19,7 +20,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
         collapsed ? "px-3 lg:px-2.5" : "px-4 lg:px-4",
       ].join(" ")}
     >
-      <div className={["mb-6 flex", collapsed ? "lg:justify-center" : "justify-start"].join(" ")}>
+      <div className={["mb-6 flex", collapsed ? "lg:justify-center" : "justify-end"].join(" ")}>
         <button
           aria-label={collapsed ? "Развернуть левое меню" : "Свернуть левое меню"}
           className="sidebar-toggle"
@@ -50,7 +51,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
           >
             <div className={["flex items-center gap-3", collapsed ? "lg:justify-center" : ""].join(" ")}>
               <div className="nav-icon-badge">
-                <span className="nf-icon text-lg leading-none">{item.icon}</span>
+                <Icon name={item.icon as IconName} />
               </div>
               <div className={collapsed ? "block lg:hidden" : "block"}>
                 <div className="text-sm font-semibold">{item.label}</div>

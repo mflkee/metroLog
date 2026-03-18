@@ -12,7 +12,6 @@ import {
   equipmentTypeLabels,
   fetchEquipment,
   fetchEquipmentFolders,
-  fetchEquipmentGroups,
   updateEquipment,
   updateEquipmentFolder,
   type EquipmentFolder,
@@ -80,7 +79,6 @@ export function EquipmentPage() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
-  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | "ALL">("ALL");
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
@@ -97,17 +95,10 @@ export function EquipmentPage() {
     enabled: Boolean(token),
   });
 
-  const groupsQuery = useQuery({
-    queryKey: ["equipment-groups", selectedFolderId ?? "none"],
-    queryFn: () => fetchEquipmentGroups(token ?? "", selectedFolderId),
-    enabled: Boolean(token) && selectedFolderId !== null,
-  });
-
   const equipmentQuery = useQuery({
     queryKey: [
       "equipment-items",
       selectedFolderId ?? "none",
-      selectedGroupId ?? "all",
       deferredSearchQuery,
       statusFilter,
       typeFilter,
@@ -115,7 +106,7 @@ export function EquipmentPage() {
     queryFn: () =>
       fetchEquipment(token ?? "", {
         folderId: selectedFolderId,
-        groupId: selectedGroupId,
+        groupId: null,
         query: deferredSearchQuery,
         status: statusFilter === "ALL" ? null : statusFilter,
         equipmentType: typeFilter === "ALL" ? null : typeFilter,
@@ -133,7 +124,6 @@ export function EquipmentPage() {
     onSuccess: async (folder) => {
       closeFolderModal();
       setSelectedFolderId(folder.id);
-      setSelectedGroupId(null);
       await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
     },
   });
@@ -160,11 +150,9 @@ export function EquipmentPage() {
     onSuccess: async (_, folderId) => {
       if (selectedFolderId === folderId) {
         setSelectedFolderId(null);
-        setSelectedGroupId(null);
       }
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-groups"] });
       await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
     },
   });
@@ -212,38 +200,21 @@ export function EquipmentPage() {
   });
 
   const folders = foldersQuery.data ?? [];
-  const groups = groupsQuery.data ?? [];
   const equipmentItems = equipmentQuery.data ?? [];
 
   useEffect(() => {
     if (selectedFolderId === null) {
-      setSelectedGroupId(null);
       return;
     }
 
     if (!folders.some((folder) => folder.id === selectedFolderId)) {
       setSelectedFolderId(null);
-      setSelectedGroupId(null);
     }
   }, [folders, selectedFolderId]);
-
-  useEffect(() => {
-    if (selectedGroupId === null) {
-      return;
-    }
-    if (!groups.some((group) => group.id === selectedGroupId)) {
-      setSelectedGroupId(null);
-    }
-  }, [groups, selectedGroupId]);
 
   const selectedFolder = useMemo(
     () => folders.find((folder) => folder.id === selectedFolderId) ?? null,
     [folders, selectedFolderId],
-  );
-
-  const groupNameById = useMemo(
-    () => new Map<number, string>(groups.map((group) => [group.id, group.name] as const)),
-    [groups],
   );
 
   if (!token) {
@@ -256,16 +227,12 @@ export function EquipmentPage() {
   }
 
   function closeEquipmentModal() {
-    setEquipmentForm({
-      ...defaultEquipmentForm,
-      groupId: selectedGroupId ? String(selectedGroupId) : "",
-    });
+    setEquipmentForm(defaultEquipmentForm);
     setActiveModal(null);
   }
 
   function leaveFolderWorkspace() {
     setSelectedFolderId(null);
-    setSelectedGroupId(null);
     setSearchQuery("");
     setStatusFilter("ALL");
     setTypeFilter("ALL");
@@ -286,16 +253,13 @@ export function EquipmentPage() {
   }
 
   function openCreateEquipmentModal() {
-    setEquipmentForm({
-      ...defaultEquipmentForm,
-      groupId: selectedGroupId ? String(selectedGroupId) : "",
-    });
+    setEquipmentForm(defaultEquipmentForm);
     setActiveModal({ kind: "equipment", mode: "create" });
   }
 
   function openEditEquipmentModal(item: EquipmentItem) {
     setEquipmentForm({
-      groupId: item.groupId ? String(item.groupId) : "",
+      groupId: "",
       objectName: item.objectName,
       equipmentType: item.equipmentType,
       name: item.name,
@@ -348,7 +312,7 @@ export function EquipmentPage() {
     <section className="space-y-4">
       <PageHeader
         title="Оборудование"
-        description="Общий реестр оборудования: сначала папка, затем группы и уже внутри рабочая таблица приборов."
+        description="Общий реестр оборудования: сначала папка, затем рабочая таблица приборов."
       />
 
       {selectedFolder ? (
@@ -367,7 +331,7 @@ export function EquipmentPage() {
             </div>
 
             {canManage ? (
-              <div className="flex flex-wrap gap-3">
+              <div className="flex items-center gap-3">
                 <button
                   aria-label="Редактировать папку"
                   className="icon-action-button"
@@ -375,7 +339,9 @@ export function EquipmentPage() {
                   type="button"
                   onClick={() => openEditFolderModal(selectedFolder)}
                 >
-                  <span className="nf-icon text-base leading-none">󰏫</span>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                  </svg>
                 </button>
                 <button
                   aria-label="Удалить папку"
@@ -388,11 +354,13 @@ export function EquipmentPage() {
                       id: selectedFolder.id,
                       title: "Удалить папку",
                       message:
-                        "Удалить эту папку? Все группы и приборы внутри нее тоже будут удалены.",
+                        "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
                     })
                   }
                 >
-                  <span className="nf-icon text-base leading-none">󰅖</span>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
                 </button>
                 <button className={subtleButtonClass} type="button" onClick={openCreateEquipmentModal}>
                   Новый прибор
@@ -400,65 +368,6 @@ export function EquipmentPage() {
               </div>
             ) : null}
           </div>
-
-          <section className="space-y-3">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
-                <h3 className="text-base font-semibold text-ink">Группы внутри папки</h3>
-                <p className="mt-1 text-sm text-steel">
-                  Можно смотреть все приборы сразу или сузиться до одной группы.
-                </p>
-              </div>
-              <span className="rounded-full bg-[#edf2f5] px-3 py-1 text-xs font-semibold text-steel">
-                {groups.length} групп
-              </span>
-            </div>
-
-            {groupsQuery.isLoading ? <p className="text-sm text-steel">Загружаем группы...</p> : null}
-            {groupsQuery.isError ? (
-              <p className="text-sm text-[#b04c43]">
-                {groupsQuery.error instanceof Error
-                  ? groupsQuery.error.message
-                  : "Не удалось загрузить группы."}
-              </p>
-            ) : null}
-
-            <div className="flex flex-wrap gap-2">
-              <button
-                className={[
-                  "rounded-full border px-4 py-2 text-sm transition",
-                  selectedGroupId === null
-                    ? "border-signal-info bg-[#eaf4f8] text-ink"
-                    : "border-line text-steel hover:border-signal-info hover:text-ink",
-                ].join(" ")}
-                type="button"
-                onClick={() => setSelectedGroupId(null)}
-              >
-                Все группы
-              </button>
-              {groups.map((group) => (
-                <button
-                  key={group.id}
-                  className={[
-                    "rounded-full border px-4 py-2 text-sm transition",
-                    selectedGroupId === group.id
-                      ? "border-signal-info bg-[#eaf4f8] text-ink"
-                      : "border-line text-steel hover:border-signal-info hover:text-ink",
-                  ].join(" ")}
-                  type="button"
-                  onClick={() => setSelectedGroupId(group.id)}
-                >
-                  {group.name}
-                </button>
-              ))}
-            </div>
-
-            {!groupsQuery.isLoading && !groups.length ? (
-              <p className="text-sm text-steel">
-                Группы в этой папке пока не созданы. Это не мешает вести приборы напрямую внутри папки.
-              </p>
-            ) : null}
-          </section>
 
           <section className="space-y-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -525,7 +434,7 @@ export function EquipmentPage() {
             ) : null}
 
             {!equipmentQuery.isLoading && !equipmentItems.length ? (
-              <div className="rounded-3xl border border-dashed border-line bg-[#f8fbfc] px-5 py-10 text-center">
+              <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
                 <p className="text-base font-semibold text-ink">Под текущие фильтры приборы не найдены.</p>
                 <p className="mt-2 text-sm text-steel">
                   Измени фильтры или добавь первый прибор в выбранную папку.
@@ -553,7 +462,6 @@ export function EquipmentPage() {
                       <EquipmentRow
                         key={item.id}
                         canManage={canManage}
-                        groupName={item.groupId ? groupNameById.get(item.groupId) ?? "Без группы" : "Без группы"}
                         item={item}
                         onDelete={() =>
                           setDeleteTarget({
@@ -578,7 +486,7 @@ export function EquipmentPage() {
             <div>
               <h2 className="text-2xl font-semibold text-ink">Папки оборудования</h2>
               <p className="mt-1 text-sm text-steel">
-                Сначала выбирается рабочая папка, а уже внутри открывается таблица приборов и группы.
+                Сначала выбирается рабочая папка, а уже внутри открывается таблица приборов.
               </p>
             </div>
             {canManage ? (
@@ -598,10 +506,10 @@ export function EquipmentPage() {
           ) : null}
 
           {!foldersQuery.isLoading && !folders.length ? (
-            <div className="rounded-3xl border border-dashed border-line bg-[#f8fbfc] px-5 py-10 text-center">
+            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
               <p className="text-base font-semibold text-ink">Папок пока нет.</p>
               <p className="mt-2 text-sm text-steel">
-                Создай первую папку, чтобы собрать внутри группы и общий список приборов.
+                Создай первую папку, чтобы собрать внутри общий список приборов.
               </p>
             </div>
           ) : null}
@@ -610,16 +518,10 @@ export function EquipmentPage() {
             {folders.map((folder) => (
               <div
                 key={folder.id}
-                className="rounded-[26px] border border-line bg-white/85 p-5 transition hover:border-signal-info hover:bg-white"
+                className="relative rounded-[26px] border border-line bg-white/85 p-5 transition hover:border-signal-info hover:bg-white"
               >
-                <button className="block w-full text-left" type="button" onClick={() => setSelectedFolderId(folder.id)}>
-                  <div className="text-lg font-semibold text-ink">{folder.name}</div>
-                  <p className="mt-2 text-sm text-steel">
-                    {folder.description || "Открой папку, чтобы работать с группами и приборами."}
-                  </p>
-                </button>
                 {canManage ? (
-                  <div className="mt-4 flex flex-wrap gap-2">
+                  <div className="absolute right-4 top-4 flex gap-2">
                     <button
                       aria-label={`Редактировать папку ${folder.name}`}
                       className="icon-action-button"
@@ -627,7 +529,9 @@ export function EquipmentPage() {
                       type="button"
                       onClick={() => openEditFolderModal(folder)}
                     >
-                      <span className="nf-icon text-base leading-none">󰏫</span>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                      </svg>
                     </button>
                     <button
                       aria-label={`Удалить папку ${folder.name}`}
@@ -640,14 +544,22 @@ export function EquipmentPage() {
                           id: folder.id,
                           title: "Удалить папку",
                           message:
-                            "Удалить эту папку? Все группы и приборы внутри нее тоже будут удалены.",
+                            "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
                         })
                       }
                     >
-                      <span className="nf-icon text-base leading-none">󰅖</span>
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                      </svg>
                     </button>
                   </div>
                 ) : null}
+                <button className="block w-full text-left" type="button" onClick={() => setSelectedFolderId(folder.id)}>
+                  <div className="text-lg font-semibold text-ink">{folder.name}</div>
+                  <p className="mt-2 text-sm text-steel">
+                    {folder.description || "Открой папку, чтобы работать с приборами."}
+                  </p>
+                </button>
               </div>
             ))}
           </div>
@@ -713,7 +625,7 @@ export function EquipmentPage() {
           activeModal?.kind === "equipment" && activeModal.mode === "edit"
             ? "Измени базовые данные прибора прямо из реестра."
             : selectedFolder
-              ? `Прибор будет добавлен в папку «${selectedFolder.name}». Группа указывается только при необходимости.`
+              ? `Прибор будет добавлен в папку «${selectedFolder.name}».`
               : "Сначала выбери папку."
         }
         open={activeModal?.kind === "equipment"}
@@ -726,23 +638,6 @@ export function EquipmentPage() {
       >
         <form className="space-y-4" onSubmit={(event) => void handleEquipmentSubmit(event)}>
           <div className="grid gap-3 md:grid-cols-2">
-            <label className="block text-sm text-steel">
-              Группа
-              <select
-                className="form-input"
-                value={equipmentForm.groupId}
-                onChange={(event) =>
-                  setEquipmentForm((current) => ({ ...current, groupId: event.target.value }))
-                }
-              >
-                <option value="">Без группы</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={group.id}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-            </label>
             <label className="block text-sm text-steel">
               Категория
               <select
@@ -916,13 +811,11 @@ export function EquipmentPage() {
 
 function EquipmentRow({
   item,
-  groupName,
   canManage,
   onEdit,
   onDelete,
 }: {
   item: EquipmentItem;
-  groupName: string;
   canManage: boolean;
   onEdit: () => void;
   onDelete: () => void;
@@ -941,7 +834,6 @@ function EquipmentRow({
         </span>
       </td>
       <td className="px-3 py-3 align-top">{equipmentStatusLabels[item.status]}</td>
-      <td className="px-3 py-3 align-top">{groupName}</td>
       <td className="px-3 py-3 align-top">{item.serialNumber || "—"}</td>
       <td className="px-3 py-3 align-top">{item.objectName}</td>
       <td className="px-3 py-3 align-top">{item.currentLocationManual || "Не указано"}</td>
@@ -955,7 +847,9 @@ function EquipmentRow({
               type="button"
               onClick={onEdit}
             >
-              <span className="nf-icon text-base leading-none">󰏫</span>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+              </svg>
             </button>
             <button
               aria-label={`Удалить прибор ${item.name}`}
@@ -964,7 +858,9 @@ function EquipmentRow({
               type="button"
               onClick={onDelete}
             >
-              <span className="nf-icon text-base leading-none">󰅖</span>
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
             </button>
           </div>
         </td>

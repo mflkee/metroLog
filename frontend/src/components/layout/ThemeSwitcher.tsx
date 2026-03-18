@@ -1,20 +1,10 @@
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { fontOptions, themeOptions, useThemeStore, type FontName } from "@/store/theme";
-
-const fontPreviewFamily: Record<FontName, string> = {
-  "ibm-plex": '"IBM Plex Sans", "Segoe UI", sans-serif',
-  lilex: '"Lilex NF", "IBM Plex Sans", "Segoe UI", sans-serif',
-  hack: '"Hack NF", "IBM Plex Sans", "Segoe UI", monospace',
-  "adwaita-mono": '"Adwaita Mono NF", "IBM Plex Sans", "Segoe UI", monospace',
-  "ibm-3270": '"3270 NF", "IBM Plex Sans", "Segoe UI", monospace',
-};
+import { themeOptions, useThemeStore } from "@/store/theme";
 
 export function ThemeSwitcher() {
   const theme = useThemeStore((state) => state.theme);
-  const font = useThemeStore((state) => state.font);
   const setTheme = useThemeStore((state) => state.setTheme);
-  const setFont = useThemeStore((state) => state.setFont);
 
   return (
     <div className="theme-switcher">
@@ -29,18 +19,6 @@ export function ThemeSwitcher() {
         selectedValue={theme}
         onSelect={(value) => setTheme(value as typeof theme)}
       />
-      <Picker
-        activeLabel={(fontOptions.find((option) => option.value === font) ?? fontOptions[0]).label}
-        label="Шрифт"
-        options={fontOptions.map((option) => ({
-          value: option.value,
-          label: option.label,
-          preview: "Абв 123",
-          previewStyle: { fontFamily: fontPreviewFamily[option.value] },
-        }))}
-        selectedValue={font}
-        onSelect={(value) => setFont(value as typeof font)}
-      />
     </div>
   );
 }
@@ -53,7 +31,6 @@ type PickerProps = {
     value: string;
     label: string;
     preview?: string;
-    previewStyle?: CSSProperties;
   }>;
   onSelect: (value: string) => void;
 };
@@ -127,9 +104,7 @@ function Picker({ label, activeLabel, selectedValue, options, onSelect }: Picker
                 <span className="theme-menu__option-main">
                   <span>{option.label}</span>
                   {option.preview ? (
-                    <span className="theme-menu__preview" style={option.previewStyle}>
-                      {option.preview}
-                    </span>
+                    <span className="theme-menu__preview">{option.preview}</span>
                   ) : null}
                 </span>
                 {selectedValue === option.value ? (

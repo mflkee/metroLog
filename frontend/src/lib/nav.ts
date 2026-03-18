@@ -8,27 +8,27 @@ export type NavigationItem = {
 };
 
 const baseNavigationItems: NavigationItem[] = [
-  { icon: "󰋜", label: "Главная", description: "Оперативный обзор", to: "/dashboard" },
-  { icon: "󰉋", label: "Оборудование", description: "Папки, группы, реестр", to: "/equipment" },
+  { icon: "home", label: "Главная", description: "Оперативный обзор", to: "/dashboard" },
+  { icon: "equipment", label: "Оборудование", description: "Папки, группы, реестр", to: "/equipment" },
   {
-    icon: "󰭹",
+    icon: "verification",
     label: "Поверка СИ",
     description: "Синхронизация и ручная проверка",
     to: "/verification/si",
   },
-  { icon: "󰛔", label: "Ремонты", description: "Активные и архивные", to: "/repairs" },
-  { icon: "󰒓", label: "Настройки", description: "Справочники и система", to: "/settings" },
+  { icon: "repairs", label: "Ремонты", description: "Активные и архивные", to: "/repairs" },
+  { icon: "settings", label: "Настройки", description: "Справочники и система", to: "/settings" },
 ];
 
 const eventsNavigationItem: NavigationItem = {
-  icon: "󰋚",
+  icon: "events",
   label: "Журнал",
   description: "История изменений",
   to: "/events",
 };
 
 const adminUsersNavigationItem: NavigationItem = {
-  icon: "󰀄",
+  icon: "users",
   label: "Пользователи",
   description: "Роли и права доступа",
   to: "/admin/users",

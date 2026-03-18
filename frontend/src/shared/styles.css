@@ -8,22 +8,22 @@
   --app-font-word-spacing: 0;
   --app-font-size-scale: 1;
   font-family: var(--app-font-family);
-  --bg-layer-1: #edf3f5;
-  --bg-layer-2: #dde7eb;
-  --bg-glow: rgba(45, 111, 142, 0.07);
-  --text-primary: #12212b;
-  --text-muted: #5f707b;
-  --border-color: #cad6dc;
+  --bg-layer-1: #f6f8fa;
+  --bg-layer-2: #eaeef2;
+  --bg-glow: rgba(84, 118, 152, 0.08);
+  --text-primary: #24292f;
+  --text-muted: #57606a;
+  --border-color: #d0d7de;
   --panel-bg: #ffffff;
   --panel-ghost: rgba(255, 255, 255, 0.9);
-  --panel-hover: #ffffff;
-  --accent: #2d6f8e;
-  --accent-soft: #e5eff4;
-  --success: #2f6b48;
-  --button-primary-bg: #12212b;
+  --panel-hover: #f3f4f6;
+  --accent: #0969da;
+  --accent-soft: #ddf4ff;
+  --success: #1a7f37;
+  --button-primary-bg: #2da44e;
   --button-primary-text: #ffffff;
-  --input-bg: #f3f8fa;
-  --panel-shadow-value: 0 16px 38px rgba(10, 28, 43, 0.05);
+  --input-bg: #f6f8fa;
+  --panel-shadow-value: 0 3px 6px rgba(140, 149, 159, 0.15);
   color-scheme: light;
   background:
     radial-gradient(circle at top left, var(--bg-glow), transparent 34%),
@@ -32,22 +32,22 @@
 }
 
 :root[data-theme="dark"] {
-  --bg-layer-1: #09131c;
-  --bg-layer-2: #12202b;
-  --bg-glow: rgba(84, 135, 170, 0.24);
-  --text-primary: #edf5f8;
-  --text-muted: #99aeb9;
-  --border-color: #274152;
-  --panel-bg: #132430;
-  --panel-ghost: rgba(19, 36, 48, 0.9);
-  --panel-hover: #1a2f3d;
-  --accent: #78b3d2;
-  --accent-soft: rgba(120, 179, 210, 0.18);
-  --success: #76c28f;
-  --button-primary-bg: #78b3d2;
-  --button-primary-text: #071017;
-  --input-bg: #10202a;
-  --panel-shadow-value: 0 18px 44px rgba(0, 0, 0, 0.28);
+  --bg-layer-1: #0d1117;
+  --bg-layer-2: #161b22;
+  --bg-glow: rgba(88, 166, 255, 0.12);
+  --text-primary: #c9d1d9;
+  --text-muted: #8b949e;
+  --border-color: #30363d;
+  --panel-bg: #161b22;
+  --panel-ghost: rgba(22, 27, 34, 0.9);
+  --panel-hover: #21262d;
+  --accent: #58a6ff;
+  --accent-soft: rgba(88, 166, 255, 0.15);
+  --success: #3fb950;
+  --button-primary-bg: #238636;
+  --button-primary-text: #ffffff;
+  --input-bg: #0d1117;
+  --panel-shadow-value: 0 8px 24px rgba(1, 4, 9, 0.4);
   color-scheme: dark;
 }
 
@@ -71,44 +71,44 @@
   color-scheme: light;
 }
 
-:root[data-theme="blueberry"] {
-  --bg-layer-1: #52608c;
-  --bg-layer-2: #6c789d;
-  --bg-glow: rgba(214, 219, 255, 0.14);
-  --text-primary: #f4f6ff;
-  --text-muted: #dce1f4;
-  --border-color: #8e99ba;
-  --panel-bg: #4d5b85;
-  --panel-ghost: rgba(77, 91, 133, 0.84);
-  --panel-hover: #596890;
-  --accent: #edf1ff;
-  --accent-soft: rgba(228, 234, 255, 0.14);
-  --success: #c7e4d8;
-  --button-primary-bg: #edf1ff;
-  --button-primary-text: #2c3655;
-  --input-bg: #5c6a92;
-  --panel-shadow-value: 0 20px 46px rgba(26, 31, 60, 0.22);
+:root[data-theme="tokyo-night"] {
+  --bg-layer-1: #1a1b26;
+  --bg-layer-2: #16161e;
+  --bg-glow: rgba(125, 207, 255, 0.08);
+  --text-primary: #a9b1d6;
+  --text-muted: #565f89;
+  --border-color: #414868;
+  --panel-bg: #24283b;
+  --panel-ghost: rgba(36, 40, 59, 0.9);
+  --panel-hover: #2f3549;
+  --accent: #7aa2f7;
+  --accent-soft: rgba(122, 162, 247, 0.12);
+  --success: #9ece6a;
+  --button-primary-bg: #9ece6a;
+  --button-primary-text: #1a1b26;
+  --input-bg: #1a1b26;
+  --panel-shadow-value: 0 8px 24px rgba(0, 0, 0, 0.3);
   color-scheme: dark;
 }
 
-:root[data-theme="old-book"] {
-  --bg-layer-1: #d8c198;
-  --bg-layer-2: #c5aa7c;
-  --bg-glow: rgba(126, 91, 41, 0.16);
-  --text-primary: #332719;
-  --text-muted: #66543b;
-  --border-color: #b49463;
-  --panel-bg: #dbc39a;
-  --panel-ghost: rgba(219, 195, 154, 0.9);
-  --panel-hover: #e4cfa8;
-  --accent: #8d6330;
-  --accent-soft: rgba(141, 99, 48, 0.14);
-  --success: #576341;
-  --button-primary-bg: #4f3c26;
-  --button-primary-text: #fff7ea;
-  --input-bg: #ceb486;
-  --panel-shadow-value: 0 18px 38px rgba(72, 52, 24, 0.16);
-  color-scheme: light;
+:root[data-theme="gruvbox"] {
+  --bg-layer-1: #282828;
+  --bg-layer-2: #1d2021;
+  --bg-glow: rgba(250, 189, 47, 0.08);
+  --text-primary: #ebdbb2;
+  --text-muted: #928374;
+  --border-color: #504945;
+  --panel-bg: #3c3836;
+  --panel-ghost: rgba(60, 56, 54, 0.9);
+  --panel-hover: #473f3a;
+  --accent: #fabd2f;
+  --accent-soft: rgba(250, 189, 47, 0.12);
+  --success: #b8bb26;
+  --button-primary-bg: #b8bb26;
+  --button-primary-text: #282828;
+  --input-bg: #282828;
+  --panel-shadow-value: 0 8px 24px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
 }
 
 :root[data-font="ibm-plex"] {

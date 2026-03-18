@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ThemeName = "white" | "dark" | "gray" | "blueberry" | "old-book";
+export type ThemeName = "light" | "dark" | "gray" | "tokyo-night" | "gruvbox";
 
 type ThemeOption = {
   value: ThemeName;
@@ -13,14 +13,14 @@ type ThemeState = {
 };
 
 const THEME_STORAGE_KEY = "metrolog.theme";
-const DEFAULT_THEME: ThemeName = "white";
+const DEFAULT_THEME: ThemeName = "light";
 
 export const themeOptions: ThemeOption[] = [
-  { value: "white", label: "Белая" },
+  { value: "light", label: "Светлая" },
   { value: "dark", label: "Темная" },
   { value: "gray", label: "Серая" },
-  { value: "blueberry", label: "Голубика" },
-  { value: "old-book", label: "Старая книга" },
+  { value: "tokyo-night", label: "Tokyo Night" },
+  { value: "gruvbox", label: "Gruvbox" },
 ];
 
 function getStoredTheme(): ThemeName {
@@ -30,11 +30,11 @@ function getStoredTheme(): ThemeName {
 
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
   if (
-    storedTheme === "white" ||
+    storedTheme === "light" ||
     storedTheme === "dark" ||
     storedTheme === "gray" ||
-    storedTheme === "blueberry" ||
-    storedTheme === "old-book"
+    storedTheme === "tokyo-night" ||
+    storedTheme === "gruvbox"
   ) {
     return storedTheme;
   }

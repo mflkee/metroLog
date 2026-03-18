@@ -30,22 +30,32 @@ const subtleButtonClass =
   "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
 
 type FolderColor =
+  | "white" | "gray-100" | "gray-200" | "gray-300" | "gray-800" | "gray-900"
   | "red" | "orange" | "amber" | "yellow" | "lime"
-  | "green" | "emerald" | "teal" | "sky" | "blue" | "indigo" | "violet";
+  | "green" | "emerald" | "teal" | "cyan" | "blue" | "indigo" | "violet";
 
 const folderColors: Record<FolderColor, string> = {
-  red: "#fecaca",
-  orange: "#fed7aa",
-  amber: "#fde68a",
-  yellow: "#fef08a",
-  lime: "#d9f99d",
-  green: "#bbf7d0",
-  emerald: "#a7f3d0",
-  teal: "#99f6e4",
-  sky: "#bae6fd",
-  blue: "#bfdbfe",
-  indigo: "#c7d2fe",
-  violet: "#e9d5ff",
+  // Neutral colors
+  "white": "#ffffff",
+  "gray-100": "#f3f4f6",
+  "gray-200": "#e5e7eb",
+  "gray-300": "#d1d5db",
+  "gray-800": "#374151",
+  "gray-900": "#1f2937",
+  // Warm colors
+  "red": "#fca5a5",
+  "orange": "#fdba74",
+  "amber": "#fcd34d",
+  "yellow": "#fef08a",
+  "lime": "#bef264",
+  // Cool colors
+  "green": "#86efac",
+  "emerald": "#6ee7b7",
+  "teal": "#5eead4",
+  "cyan": "#67e8f9",
+  "blue": "#93c5fd",
+  "indigo": "#a5b4fc",
+  "violet": "#c4b5fd",
 };
 
 type FolderFormState = {
@@ -81,7 +91,7 @@ const defaultFolderForm: FolderFormState = {
   name: "",
   description: "",
   sortOrder: 0,
-  color: "blue",
+  color: "gray-100",
 };
 
 const defaultEquipmentForm: EquipmentFormState = {
@@ -278,7 +288,7 @@ export function EquipmentPage() {
       name: folder.name,
       description: folder.description ?? "",
       sortOrder: folder.sortOrder,
-      color: (folder.color as FolderColor) || "blue",
+      color: (folder.color as FolderColor) || "gray-100",
     });
     setActiveModal({ kind: "folder", mode: "edit", folderId: folder.id });
   }
@@ -618,13 +628,13 @@ export function EquipmentPage() {
           </label>
           <label className="block text-sm text-steel">
             Цвет папки
-            <div className="mt-2 grid grid-cols-8 gap-2">
+            <div className="mt-2 grid grid-cols-6 gap-2">
               {(Object.keys(folderColors) as FolderColor[]).map((color) => (
                 <button
                   key={color}
                   aria-label={`Выбрать цвет ${color}`}
                   className={[
-                    "h-10 w-full rounded-lg border transition hover:scale-105",
+                    "h-8 w-full rounded border transition hover:scale-105",
                     folderForm.color === color ? "border-ink ring-2 ring-signal-info" : "border-line",
                   ].join(" ")}
                   style={{ backgroundColor: folderColors[color] }}
@@ -657,17 +667,17 @@ export function EquipmentPage() {
 
       {activeModal?.kind === "folderColor" ? (
         <Modal
-          description="Выбери цвет для папки. Цвет помогает визуально различать папки."
+          description="Выбери цвет для папки."
           open={true}
           title="Цвет папки"
           onClose={() => setActiveModal(null)}
         >
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-6 gap-2">
             {(Object.keys(folderColors) as FolderColor[]).map((color) => (
               <button
                 key={color}
                 aria-label={`Выбрать цвет ${color}`}
-                className="flex h-14 w-full flex-col items-center justify-center rounded-xl border border-line transition hover:scale-105"
+                className="h-8 w-full rounded border border-line transition hover:scale-105"
                 style={{ backgroundColor: folderColors[color] }}
                 type="button"
                 onClick={async () => {
@@ -684,9 +694,7 @@ export function EquipmentPage() {
                   }
                   setActiveModal(null);
                 }}
-              >
-                <span className="mt-1 text-xs font-medium capitalize text-steel">{color}</span>
-              </button>
+              />
             ))}
           </div>
         </Modal>

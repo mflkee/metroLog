@@ -43,6 +43,9 @@
   --folder-blue: #54aeff;
   --folder-indigo: #7e9bff;
   --folder-violet: #b891ff;
+  /* Folder text colors for Light theme - dark text */
+  --folder-text-primary: #1a1a1a;
+  --folder-text-secondary: #4a4a4a;
   color-scheme: light;
   background:
     radial-gradient(circle at top left, var(--bg-glow), transparent 34%),
@@ -86,6 +89,9 @@
   --folder-blue: #388bfd;
   --folder-indigo: #5e6ad2;
   --folder-violet: #9e6ad2;
+  /* Folder text colors for Dark theme - light text on dark backgrounds */
+  --folder-text-primary: #f0f0f0;
+  --folder-text-secondary: #c0c0c0;
   color-scheme: dark;
 }
 
@@ -125,6 +131,9 @@
   --folder-blue: #6e9ae0;
   --folder-indigo: #8a6ee0;
   --folder-violet: #b86ee0;
+  /* Folder text colors for Gray theme - dark text on light backgrounds */
+  --folder-text-primary: #1a1a1a;
+  --folder-text-secondary: #4a4a4a;
   color-scheme: light;
 }
 
@@ -164,6 +173,9 @@
   --folder-blue: #7aa2f7;
   --folder-indigo: #5d57f7;
   --folder-violet: #bb9af7;
+  /* Folder text colors for Tokyo Night - white text on most colors */
+  --folder-text-primary: #e8e8e8;
+  --folder-text-secondary: #b8b8d8;
   color-scheme: dark;
 }
 
@@ -203,6 +215,9 @@
   --folder-blue: #458588;
   --folder-indigo: #83a598;
   --folder-violet: #d3869b;
+  /* Folder text colors for Gruvbox - light text on most colors */
+  --folder-text-primary: #ebdbb2;
+  --folder-text-secondary: #d5c4a1;
   color-scheme: dark;
 }
 

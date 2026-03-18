@@ -58,20 +58,14 @@ const folderColors: Record<FolderColor, string> = {
   "violet": "var(--folder-violet)",
 };
 
-const darkFolderColors: FolderColor[] = ["gray-800", "gray-900"];
-
 function getFolderTextColor(color: FolderColor | null): string {
-  if (color && darkFolderColors.includes(color)) {
-    return "text-white";
-  }
-  return "text-[#1a1a1a]";
+  // Use CSS variable that changes per theme
+  return "text-[var(--folder-text-primary)]";
 }
 
 function getFolderDescriptionColor(color: FolderColor | null): string {
-  if (color && darkFolderColors.includes(color)) {
-    return "text-gray-300";
-  }
-  return "text-[#4a4a4a]";
+  // Use CSS variable that changes per theme
+  return "text-[var(--folder-text-secondary)]";
 }
 
 type FolderFormState = {

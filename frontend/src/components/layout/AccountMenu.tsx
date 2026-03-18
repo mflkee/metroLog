@@ -29,7 +29,7 @@ export function AccountMenu() {
         </Link>
         {user ? (
           <button
-            className="rounded-full bg-ink px-3 py-1.5 text-sm font-medium text-white"
+            className="rounded-full bg-[#dc3545] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#c82333]"
             type="button"
             onClick={clearSession}
           >

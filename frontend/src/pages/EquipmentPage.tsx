@@ -58,6 +58,22 @@ const folderColors: Record<FolderColor, string> = {
   "violet": "var(--folder-violet)",
 };
 
+const darkFolderColors: FolderColor[] = ["gray-800", "gray-900"];
+
+function getFolderTextColor(color: FolderColor | null): string {
+  if (color && darkFolderColors.includes(color)) {
+    return "text-white";
+  }
+  return "text-[#1a1a1a]";
+}
+
+function getFolderDescriptionColor(color: FolderColor | null): string {
+  if (color && darkFolderColors.includes(color)) {
+    return "text-gray-300";
+  }
+  return "text-[#4a4a4a]";
+}
+
 type FolderFormState = {
   name: string;
   description: string;
@@ -582,8 +598,8 @@ export function EquipmentPage() {
                   </div>
                 ) : null}
                 <button className="block w-full text-left" type="button" onClick={() => setSelectedFolderId(folder.id)}>
-                  <div className="text-lg font-semibold text-[#1a1a1a]">{folder.name}</div>
-                  <p className="mt-2 text-sm text-[#4a4a4a]">
+                  <div className={`text-lg font-semibold ${getFolderTextColor(folder.color as FolderColor)}`}>{folder.name}</div>
+                  <p className={`mt-2 text-sm ${getFolderDescriptionColor(folder.color as FolderColor)}`}>
                     {folder.description || "Открой папку, чтобы работать с приборами."}
                   </p>
                 </button>

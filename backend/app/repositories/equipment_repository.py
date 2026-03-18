@@ -3,7 +3,13 @@ from __future__ import annotations
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.orm import Session
 
-from app.models.equipment import Equipment, EquipmentFolder, EquipmentGroup, EquipmentStatus, EquipmentType
+from app.models.equipment import (
+    Equipment,
+    EquipmentFolder,
+    EquipmentGroup,
+    EquipmentStatus,
+    EquipmentType,
+)
 
 
 class EquipmentFolderRepository:

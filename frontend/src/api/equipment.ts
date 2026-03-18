@@ -79,13 +79,6 @@ export type CreateEquipmentFolderPayload = {
   sortOrder: number;
 };
 
-export type CreateEquipmentGroupPayload = {
-  folderId: number;
-  name: string;
-  description: string;
-  sortOrder: number;
-};
-
 export type CreateEquipmentPayload = {
   folderId: number;
   groupId: number | null;
@@ -167,48 +160,6 @@ export async function fetchEquipmentGroups(
     token,
   });
   return response.map(mapEquipmentGroup);
-}
-
-export async function createEquipmentGroup(
-  token: string,
-  payload: CreateEquipmentGroupPayload,
-): Promise<EquipmentGroup> {
-  const response = await apiRequest<RawEquipmentGroup>("/equipment/groups", {
-    method: "POST",
-    token,
-    body: {
-      folder_id: payload.folderId,
-      name: payload.name,
-      description: payload.description,
-      sort_order: payload.sortOrder,
-    },
-  });
-  return mapEquipmentGroup(response);
-}
-
-export async function updateEquipmentGroup(
-  token: string,
-  groupId: number,
-  payload: CreateEquipmentGroupPayload,
-): Promise<EquipmentGroup> {
-  const response = await apiRequest<RawEquipmentGroup>(`/equipment/groups/${groupId}`, {
-    method: "PATCH",
-    token,
-    body: {
-      folder_id: payload.folderId,
-      name: payload.name,
-      description: payload.description,
-      sort_order: payload.sortOrder,
-    },
-  });
-  return mapEquipmentGroup(response);
-}
-
-export async function deleteEquipmentGroup(token: string, groupId: number): Promise<void> {
-  await apiRequest(`/equipment/groups/${groupId}`, {
-    method: "DELETE",
-    token,
-  });
 }
 
 export async function fetchEquipment(

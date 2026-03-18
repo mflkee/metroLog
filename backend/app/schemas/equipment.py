@@ -42,20 +42,6 @@ class EquipmentGroupRead(BaseModel):
     updated_at: datetime
 
 
-class EquipmentGroupCreateRequest(BaseModel):
-    folder_id: int
-    name: str
-    description: str | None = None
-    sort_order: int = 0
-
-
-class EquipmentGroupUpdateRequest(BaseModel):
-    folder_id: int | None = None
-    name: str | None = None
-    description: str | None = None
-    sort_order: int | None = None
-
-
 class EquipmentRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

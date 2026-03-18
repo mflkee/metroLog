@@ -3,7 +3,13 @@ from __future__ import annotations
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.models.equipment import Equipment, EquipmentFolder, EquipmentGroup, EquipmentStatus, EquipmentType
+from app.models.equipment import (
+    Equipment,
+    EquipmentFolder,
+    EquipmentGroup,
+    EquipmentStatus,
+    EquipmentType,
+)
 from app.repositories.equipment_repository import (
     EquipmentFolderRepository,
     EquipmentGroupRepository,
@@ -13,8 +19,6 @@ from app.schemas.equipment import (
     EquipmentCreateRequest,
     EquipmentFolderCreateRequest,
     EquipmentFolderUpdateRequest,
-    EquipmentGroupCreateRequest,
-    EquipmentGroupUpdateRequest,
     EquipmentUpdateRequest,
 )
 
@@ -86,73 +90,6 @@ class EquipmentService:
         if folder_id is not None:
             self._get_folder(folder_id)
         return self.groups.list_by_folder(folder_id=folder_id)
-
-    def create_group(self, payload: EquipmentGroupCreateRequest) -> EquipmentGroup:
-        self._get_folder(payload.folder_id)
-        name = _normalize_required_text(payload.name, field_label="Group name")
-        description = _normalize_optional_text(payload.description)
-        existing = self.groups.get_by_name_in_folder(folder_id=payload.folder_id, name=name)
-        if existing is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A group with this name already exists in the folder.",
-            )
-
-        group = EquipmentGroup(
-            folder_id=payload.folder_id,
-            name=name,
-            description=description,
-            sort_order=payload.sort_order,
-        )
-        self.groups.add(group)
-        self.session.commit()
-        self.session.refresh(group)
-        return group
-
-    def update_group(
-        self,
-        *,
-        group_id: int,
-        payload: EquipmentGroupUpdateRequest,
-    ) -> EquipmentGroup:
-        group = self._get_group(group_id)
-        next_folder_id = group.folder_id
-
-        if "folder_id" in payload.model_fields_set:
-            if payload.folder_id is None:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail="Group folder_id must not be empty.",
-                )
-            next_folder_id = payload.folder_id
-            self._get_folder(payload.folder_id)
-            group.folder_id = payload.folder_id
-
-        if "name" in payload.model_fields_set:
-            name = _normalize_required_text(payload.name, field_label="Group name")
-            existing = self.groups.get_by_name_in_folder(folder_id=next_folder_id, name=name)
-            if existing is not None and existing.id != group.id:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="A group with this name already exists in the folder.",
-                )
-            group.name = name
-
-        if "description" in payload.model_fields_set:
-            group.description = _normalize_optional_text(payload.description)
-
-        if "sort_order" in payload.model_fields_set:
-            group.sort_order = payload.sort_order
-
-        self.session.commit()
-        self.session.refresh(group)
-        return group
-
-    def delete_group(self, *, group_id: int) -> None:
-        group = self._get_group(group_id)
-        self.equipment.clear_group_for_group_id(group_id=group.id)
-        self.groups.delete(group)
-        self.session.commit()
 
     def list_equipment(
         self,

@@ -7,9 +7,7 @@ from app.schemas.equipment import (
     EquipmentFolderCreateRequest,
     EquipmentFolderRead,
     EquipmentFolderUpdateRequest,
-    EquipmentGroupCreateRequest,
     EquipmentGroupRead,
-    EquipmentGroupUpdateRequest,
     EquipmentRead,
     EquipmentUpdateRequest,
 )
@@ -65,36 +63,6 @@ async def list_groups(
 ) -> list[EquipmentGroupRead]:
     groups = EquipmentService(db).list_groups(folder_id=folder_id)
     return [EquipmentGroupRead.model_validate(group) for group in groups]
-
-
-@router.post("/groups", response_model=EquipmentGroupRead, status_code=201)
-async def create_group(
-    payload: EquipmentGroupCreateRequest,
-    _: OperatorUser,
-    db: DbSession,
-) -> EquipmentGroupRead:
-    group = EquipmentService(db).create_group(payload)
-    return EquipmentGroupRead.model_validate(group)
-
-
-@router.patch("/groups/{group_id}", response_model=EquipmentGroupRead)
-async def update_group(
-    group_id: int,
-    payload: EquipmentGroupUpdateRequest,
-    _: OperatorUser,
-    db: DbSession,
-) -> EquipmentGroupRead:
-    group = EquipmentService(db).update_group(group_id=group_id, payload=payload)
-    return EquipmentGroupRead.model_validate(group)
-
-
-@router.delete("/groups/{group_id}", status_code=204)
-async def delete_group(
-    group_id: int,
-    _: OperatorUser,
-    db: DbSession,
-) -> None:
-    EquipmentService(db).delete_group(group_id=group_id)
 
 
 @router.get("", response_model=list[EquipmentRead])

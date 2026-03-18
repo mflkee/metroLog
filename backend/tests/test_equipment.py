@@ -53,25 +53,12 @@ async def test_operator_can_create_filter_and_update_registry_entities(
     assert folder_response.status_code == 201
     folder = folder_response.json()
 
-    group_response = await client.post(
-        "/api/v1/equipment/groups",
-        headers=headers,
-        json={
-            "folder_id": folder["id"],
-            "name": "Весы",
-            "description": "Группа весов",
-            "sort_order": 20,
-        },
-    )
-    assert group_response.status_code == 201
-    group = group_response.json()
-
     equipment_response = await client.post(
         "/api/v1/equipment",
         headers=headers,
         json={
             "folder_id": folder["id"],
-            "group_id": group["id"],
+            "group_id": None,
             "object_name": "Химическая лаборатория",
             "equipment_type": "SI",
             "name": "Весы лабораторные",
@@ -107,7 +94,7 @@ async def test_operator_can_create_filter_and_update_registry_entities(
         headers=headers,
     )
     assert groups_list.status_code == 200
-    assert len(groups_list.json()) == 1
+    assert len(groups_list.json()) == 0
 
     equipment_list = await client.get(
         f"/api/v1/equipment?folder_id={folder['id']}",
@@ -115,13 +102,6 @@ async def test_operator_can_create_filter_and_update_registry_entities(
     )
     assert equipment_list.status_code == 200
     assert len(equipment_list.json()) == 2
-
-    group_filtered_list = await client.get(
-        f"/api/v1/equipment?folder_id={folder['id']}&group_id={group['id']}",
-        headers=headers,
-    )
-    assert group_filtered_list.status_code == 200
-    assert len(group_filtered_list.json()) == 1
 
     search_response = await client.get(
         "/api/v1/equipment?query=AX-200",
@@ -160,19 +140,6 @@ async def test_operator_can_create_filter_and_update_registry_entities(
     )
     assert detail_response.status_code == 200
     assert detail_response.json()["folder_id"] == folder["id"]
-
-    delete_group_response = await client.delete(
-        f"/api/v1/equipment/groups/{group['id']}",
-        headers=headers,
-    )
-    assert delete_group_response.status_code == 204
-
-    equipment_after_group_delete = await client.get(
-        f"/api/v1/equipment/{equipment['id']}",
-        headers=headers,
-    )
-    assert equipment_after_group_delete.status_code == 200
-    assert equipment_after_group_delete.json()["group_id"] is None
 
     delete_equipment_response = await client.delete(
         f"/api/v1/equipment/{equipment['id']}",

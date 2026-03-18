@@ -6,10 +6,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   createEquipment,
   createEquipmentFolder,
-  createEquipmentGroup,
   deleteEquipment,
   deleteEquipmentFolder,
-  deleteEquipmentGroup,
   equipmentStatusLabels,
   equipmentTypeLabels,
   fetchEquipment,
@@ -17,9 +15,7 @@ import {
   fetchEquipmentGroups,
   updateEquipment,
   updateEquipmentFolder,
-  updateEquipmentGroup,
   type EquipmentFolder,
-  type EquipmentGroup,
   type EquipmentItem,
   type EquipmentStatus,
   type EquipmentType,
@@ -40,12 +36,6 @@ type FolderFormState = {
   sortOrder: number;
 };
 
-type GroupFormState = {
-  name: string;
-  description: string;
-  sortOrder: number;
-};
-
 type EquipmentFormState = {
   groupId: string;
   objectName: string;
@@ -60,22 +50,14 @@ type EquipmentFormState = {
 
 type DeleteTarget =
   | { kind: "folder"; id: number; title: string; message: string }
-  | { kind: "group"; id: number; title: string; message: string }
   | { kind: "equipment"; id: number; title: string; message: string };
 
 type ActiveModal =
   | null
   | { kind: "folder"; mode: "create" | "edit"; folderId?: number }
-  | { kind: "group"; mode: "create" | "edit"; groupId?: number }
   | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number };
 
 const defaultFolderForm: FolderFormState = {
-  name: "",
-  description: "",
-  sortOrder: 0,
-};
-
-const defaultGroupForm: GroupFormState = {
   name: "",
   description: "",
   sortOrder: 0,
@@ -103,7 +85,6 @@ export function EquipmentPage() {
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | "ALL">("ALL");
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
   const [folderForm, setFolderForm] = useState<FolderFormState>(defaultFolderForm);
-  const [groupForm, setGroupForm] = useState<GroupFormState>(defaultGroupForm);
   const [equipmentForm, setEquipmentForm] = useState<EquipmentFormState>(defaultEquipmentForm);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
@@ -183,53 +164,6 @@ export function EquipmentPage() {
       }
       setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-groups"] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
-    },
-  });
-
-  const createGroupMutation = useMutation({
-    mutationFn: () =>
-      createEquipmentGroup(token ?? "", {
-        folderId: selectedFolderId ?? 0,
-        name: groupForm.name,
-        description: groupForm.description,
-        sortOrder: groupForm.sortOrder,
-      }),
-    onSuccess: async (group) => {
-      closeGroupModal();
-      setSelectedGroupId(group.id);
-      await queryClient.invalidateQueries({ queryKey: ["equipment-groups"] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
-    },
-  });
-
-  const updateGroupMutation = useMutation({
-    mutationFn: () => {
-      if (activeModal?.kind !== "group" || activeModal.mode !== "edit" || !activeModal.groupId) {
-        throw new Error("Группа для редактирования не выбрана.");
-      }
-      return updateEquipmentGroup(token ?? "", activeModal.groupId, {
-        folderId: selectedFolderId ?? 0,
-        name: groupForm.name,
-        description: groupForm.description,
-        sortOrder: groupForm.sortOrder,
-      });
-    },
-    onSuccess: async () => {
-      closeGroupModal();
-      await queryClient.invalidateQueries({ queryKey: ["equipment-groups"] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
-    },
-  });
-
-  const deleteGroupMutation = useMutation({
-    mutationFn: (groupId: number) => deleteEquipmentGroup(token ?? "", groupId),
-    onSuccess: async (_, groupId) => {
-      if (selectedGroupId === groupId) {
-        setSelectedGroupId(null);
-      }
-      setDeleteTarget(null);
       await queryClient.invalidateQueries({ queryKey: ["equipment-groups"] });
       await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
     },
@@ -321,11 +255,6 @@ export function EquipmentPage() {
     setActiveModal(null);
   }
 
-  function closeGroupModal() {
-    setGroupForm(defaultGroupForm);
-    setActiveModal(null);
-  }
-
   function closeEquipmentModal() {
     setEquipmentForm({
       ...defaultEquipmentForm,
@@ -354,20 +283,6 @@ export function EquipmentPage() {
       sortOrder: folder.sortOrder,
     });
     setActiveModal({ kind: "folder", mode: "edit", folderId: folder.id });
-  }
-
-  function openCreateGroupModal() {
-    setGroupForm(defaultGroupForm);
-    setActiveModal({ kind: "group", mode: "create" });
-  }
-
-  function openEditGroupModal(group: EquipmentGroup) {
-    setGroupForm({
-      name: group.name,
-      description: group.description ?? "",
-      sortOrder: group.sortOrder,
-    });
-    setActiveModal({ kind: "group", mode: "edit", groupId: group.id });
   }
 
   function openCreateEquipmentModal() {
@@ -405,18 +320,6 @@ export function EquipmentPage() {
     await updateFolderMutation.mutateAsync();
   }
 
-  async function handleGroupSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!selectedFolderId || activeModal?.kind !== "group") {
-      return;
-    }
-    if (activeModal.mode === "create") {
-      await createGroupMutation.mutateAsync();
-      return;
-    }
-    await updateGroupMutation.mutateAsync();
-  }
-
   async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selectedFolderId || activeModal?.kind !== "equipment") {
@@ -436,10 +339,6 @@ export function EquipmentPage() {
 
     if (deleteTarget.kind === "folder") {
       await deleteFolderMutation.mutateAsync(deleteTarget.id);
-      return;
-    }
-    if (deleteTarget.kind === "group") {
-      await deleteGroupMutation.mutateAsync(deleteTarget.id);
       return;
     }
     await deleteEquipmentMutation.mutateAsync(deleteTarget.id);
@@ -495,9 +394,6 @@ export function EquipmentPage() {
                 >
                   <span className="nf-icon text-base leading-none">󰅖</span>
                 </button>
-                <button className={subtleButtonClass} type="button" onClick={openCreateGroupModal}>
-                  Новая группа
-                </button>
                 <button className={subtleButtonClass} type="button" onClick={openCreateEquipmentModal}>
                   Новый прибор
                 </button>
@@ -541,53 +437,19 @@ export function EquipmentPage() {
                 Все группы
               </button>
               {groups.map((group) => (
-                <div
+                <button
                   key={group.id}
                   className={[
-                    "flex items-center gap-2 rounded-full border pr-2 transition",
+                    "rounded-full border px-4 py-2 text-sm transition",
                     selectedGroupId === group.id
                       ? "border-signal-info bg-[#eaf4f8] text-ink"
-                      : "border-line text-steel",
+                      : "border-line text-steel hover:border-signal-info hover:text-ink",
                   ].join(" ")}
+                  type="button"
+                  onClick={() => setSelectedGroupId(group.id)}
                 >
-                  <button
-                    className="rounded-full px-4 py-2 text-sm transition hover:text-ink"
-                    type="button"
-                    onClick={() => setSelectedGroupId(group.id)}
-                  >
-                    {group.name}
-                  </button>
-                  {canManage ? (
-                    <>
-                      <button
-                        aria-label={`Редактировать группу ${group.name}`}
-                        className="icon-action-button icon-action-button--tiny"
-                        title="Редактировать группу"
-                        type="button"
-                        onClick={() => openEditGroupModal(group)}
-                      >
-                        <span className="nf-icon text-sm leading-none">󰏫</span>
-                      </button>
-                      <button
-                        aria-label={`Удалить группу ${group.name}`}
-                        className="icon-action-button icon-action-button--tiny"
-                        title="Удалить группу"
-                        type="button"
-                        onClick={() =>
-                          setDeleteTarget({
-                            kind: "group",
-                            id: group.id,
-                            title: "Удалить группу",
-                            message:
-                              "Удалить эту группу? Приборы останутся в папке, но будут отвязаны от группы.",
-                          })
-                        }
-                      >
-                        <span className="nf-icon text-sm leading-none">󰅖</span>
-                      </button>
-                    </>
-                  ) : null}
-                </div>
+                  {group.name}
+                </button>
               ))}
             </div>
 
@@ -848,62 +710,6 @@ export function EquipmentPage() {
 
       <Modal
         description={
-          activeModal?.kind === "group" && activeModal.mode === "edit"
-            ? "Группа редактируется внутри выбранной папки."
-            : selectedFolder
-              ? `Группа будет добавлена в папку «${selectedFolder.name}».`
-              : "Сначала выбери папку."
-        }
-        open={activeModal?.kind === "group"}
-        title={activeModal?.kind === "group" && activeModal.mode === "edit" ? "Редактировать группу" : "Новая группа"}
-        onClose={closeGroupModal}
-      >
-        <form className="space-y-4" onSubmit={(event) => void handleGroupSubmit(event)}>
-          <label className="block text-sm text-steel">
-            Название группы
-            <input
-              className="form-input"
-              type="text"
-              value={groupForm.name}
-              onChange={(event) =>
-                setGroupForm((current) => ({ ...current, name: event.target.value }))
-              }
-            />
-          </label>
-          <label className="block text-sm text-steel">
-            Описание
-            <input
-              className="form-input"
-              type="text"
-              value={groupForm.description}
-              onChange={(event) =>
-                setGroupForm((current) => ({ ...current, description: event.target.value }))
-              }
-            />
-          </label>
-          {(createGroupMutation.isError || updateGroupMutation.isError) ? (
-            <p className="text-sm text-[#b04c43]">
-              {getMutationErrorMessage(createGroupMutation.error ?? updateGroupMutation.error, "Не удалось сохранить группу.")}
-            </p>
-          ) : null}
-          <div className="flex justify-end">
-            <button
-              className="btn-primary disabled:opacity-60"
-              disabled={createGroupMutation.isPending || updateGroupMutation.isPending || !selectedFolder}
-              type="submit"
-            >
-              {createGroupMutation.isPending || updateGroupMutation.isPending
-                ? "Сохраняем..."
-                : activeModal?.kind === "group" && activeModal.mode === "edit"
-                  ? "Сохранить группу"
-                  : "Создать группу"}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <Modal
-        description={
           activeModal?.kind === "equipment" && activeModal.mode === "edit"
             ? "Измени базовые данные прибора прямо из реестра."
             : selectedFolder
@@ -1076,10 +882,10 @@ export function EquipmentPage() {
         onClose={() => setDeleteTarget(null)}
       >
         <div className="space-y-4">
-          {(deleteFolderMutation.isError || deleteGroupMutation.isError || deleteEquipmentMutation.isError) ? (
+          {(deleteFolderMutation.isError || deleteEquipmentMutation.isError) ? (
             <p className="text-sm text-[#b04c43]">
               {getMutationErrorMessage(
-                deleteFolderMutation.error ?? deleteGroupMutation.error ?? deleteEquipmentMutation.error,
+                deleteFolderMutation.error ?? deleteEquipmentMutation.error,
                 "Не удалось выполнить удаление.",
               )}
             </p>
@@ -1092,13 +898,12 @@ export function EquipmentPage() {
               className="btn-primary disabled:opacity-60"
               disabled={
                 deleteFolderMutation.isPending ||
-                deleteGroupMutation.isPending ||
                 deleteEquipmentMutation.isPending
               }
               type="button"
               onClick={() => void handleConfirmDelete()}
             >
-              {deleteFolderMutation.isPending || deleteGroupMutation.isPending || deleteEquipmentMutation.isPending
+              {deleteFolderMutation.isPending || deleteEquipmentMutation.isPending
                 ? "Удаляем..."
                 : "Подтвердить удаление"}
             </button>

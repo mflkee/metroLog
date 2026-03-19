@@ -22,6 +22,7 @@ import {
   downloadRepairMessageAttachment,
   downloadVerificationMessageAttachment,
   downloadEquipmentAttachment,
+  getEquipmentStatusLabel,
   equipmentStatusLabels,
   equipmentTypeLabels,
   fetchEquipmentAttachments,
@@ -847,7 +848,7 @@ export function EquipmentDetailsPage() {
               <dl className="overflow-hidden rounded-3xl border border-line bg-white shadow-panel">
                 {[
                   ["Категория", equipmentTypeLabels[equipmentQuery.data.equipmentType]],
-                  ["Статус", equipmentStatusLabels[equipmentQuery.data.status]],
+                  ["Статус", getEquipmentStatusLabel(equipmentQuery.data)],
                   ["Объект", equipmentQuery.data.objectName],
                   ["Модификация", equipmentQuery.data.modification || "Не указана"],
                   ["Серийный номер", equipmentQuery.data.serialNumber || "Не указан"],

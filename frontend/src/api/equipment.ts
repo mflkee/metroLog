@@ -977,6 +977,19 @@ export const equipmentStatusLabels: Record<EquipmentStatus, string> = {
   ARCHIVED: "Архив",
 };
 
+export function getEquipmentStatusLabel(item: Pick<EquipmentItem, "status" | "activeRepair" | "activeVerification">): string {
+  if (item.activeRepair && item.activeVerification) {
+    return "В ремонте/поверке";
+  }
+  if (item.activeRepair) {
+    return equipmentStatusLabels.IN_REPAIR;
+  }
+  if (item.activeVerification) {
+    return equipmentStatusLabels.IN_VERIFICATION;
+  }
+  return equipmentStatusLabels[item.status];
+}
+
 export function buildSIVerificationPayloadFromArshin(
   result: ArshinSearchResult,
   detail: ArshinVriDetail | null,

@@ -20,6 +20,7 @@ import {
   equipmentTypeLabels,
   fetchEquipment,
   fetchEquipmentFolderSuggestions,
+  getEquipmentStatusLabel,
   fetchEquipmentFolders,
   importSIEquipmentExcel,
   updateEquipment,
@@ -1445,7 +1446,7 @@ function EquipmentRow({
           {equipmentTypeLabels[item.equipmentType]}
         </span>
       </td>
-      <td className="px-3 py-3 align-top">{equipmentStatusLabels[item.status]}</td>
+      <td className="px-3 py-3 align-top">{getEquipmentStatusLabel(item)}</td>
       <td className="px-3 py-3 align-top">{item.serialNumber || "—"}</td>
       <td className="px-3 py-3 align-top">{item.manufactureYear || "—"}</td>
       <td className="px-3 py-3 align-top">{item.objectName}</td>

@@ -44,7 +44,7 @@ export function EmojiPickerButton({
         <span className="text-base leading-none">🙂</span>
       </button>
       {open ? (
-        <div className="absolute right-0 z-20 mt-2 grid w-[176px] grid-cols-4 gap-1 rounded-2xl border border-line bg-white p-2 shadow-panel">
+        <div className="tone-grandchild absolute bottom-full right-0 z-[120] mb-2 grid w-[176px] grid-cols-4 gap-1 rounded-2xl border border-line p-2 shadow-panel">
           {emojis.map((emoji) => (
             <button
               key={emoji}

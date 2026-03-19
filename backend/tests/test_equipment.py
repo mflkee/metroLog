@@ -202,6 +202,54 @@ async def test_operator_can_create_filter_and_update_registry_entities(
 
 
 @pytest.mark.anyio
+async def test_operator_can_delete_equipment_batch(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Массовое удаление"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_ids: list[int] = []
+    for index in range(2):
+        equipment_response = await client.post(
+            "/api/v1/equipment",
+            headers=headers,
+            json={
+                "folder_id": folder["id"],
+                "object_name": "Комната подготовки воды",
+                "equipment_type": "OTHER",
+                "name": f"Прибор #{index + 1}",
+                "status": "IN_WORK",
+            },
+        )
+        assert equipment_response.status_code == 201
+        equipment_ids.append(equipment_response.json()["id"])
+
+    delete_response = await client.post(
+        "/api/v1/equipment/delete-batch",
+        headers=headers,
+        json={"equipment_ids": equipment_ids},
+    )
+    assert delete_response.status_code == 204
+
+    equipment_list = await client.get(
+        f"/api/v1/equipment?folder_id={folder['id']}",
+        headers=headers,
+    )
+    assert equipment_list.status_code == 200
+    assert equipment_list.json() == []
+
+
+@pytest.mark.anyio
 async def test_operator_can_export_filtered_equipment_registry_to_excel(
     client: AsyncClient,
     db_engine,
@@ -1172,6 +1220,19 @@ async def test_si_can_have_independent_active_verification_with_its_own_dialog(
     assert len(second_message["attachments"]) == 1
     assert second_message["attachments"][0]["file_name"] == "verification-act.pdf"
 
+    update_milestones_response = await client.patch(
+        f"/api/v1/equipment/{equipment['id']}/verification",
+        headers=headers,
+        json={
+            "received_at_destination_at": "2026-03-21",
+            "handed_to_csm_at": "2026-03-22",
+        },
+    )
+    assert update_milestones_response.status_code == 200
+    updated_verification = update_milestones_response.json()
+    assert updated_verification["received_at_destination_at"] == "2026-03-21"
+    assert updated_verification["handed_to_csm_at"] == "2026-03-22"
+
     equipment_detail_response = await client.get(
         f"/api/v1/equipment/{equipment['id']}",
         headers=headers,
@@ -1182,6 +1243,21 @@ async def test_si_can_have_independent_active_verification_with_its_own_dialog(
     assert equipment_detail["active_repair"] is not None
     assert equipment_detail["active_verification"] is not None
     assert equipment_detail["active_verification"]["route_destination"] == "Поверочная лаборатория"
+    assert equipment_detail["active_verification"]["received_at_destination_at"] == "2026-03-21"
+    assert equipment_detail["active_verification"]["handed_to_csm_at"] == "2026-03-22"
+
+    verification_messages_after_update_response = await client.get(
+        f"/api/v1/equipment/{equipment['id']}/verification/messages",
+        headers=headers,
+    )
+    assert verification_messages_after_update_response.status_code == 200
+    verification_messages_after_update = verification_messages_after_update_response.json()
+    assert len(verification_messages_after_update) == 4
+    assert (
+        "Получено в пункте назначения (Поверочная лаборатория)"
+        in verification_messages_after_update[2]["text"]
+    )
+    assert "Передано в ЦСМ" in verification_messages_after_update[3]["text"]
 
     duplicate_verification_response = await client.post(
         f"/api/v1/equipment/{equipment['id']}/verification",
@@ -1197,3 +1273,225 @@ async def test_si_can_have_independent_active_verification_with_its_own_dialog(
         duplicate_verification_response.json()["detail"]
         == "Для этого прибора уже есть активная поверка."
     )
+
+
+@pytest.mark.anyio
+async def test_verification_queue_lists_active_si_verifications(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Очередь поверки"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "ХАЛ",
+            "equipment_type": "SI",
+            "name": "Скоба",
+            "modification": "серии 523",
+            "serial_number": "00024605",
+            "manufacture_year": 2020,
+            "status": "IN_WORK",
+            "si_verification": {
+                "vri_id": "vri-queue-1",
+                "arshin_url": "https://fgis.gost.ru/fundmetrology/cm/results/vri-queue-1",
+                "mit_number": "60026-15",
+                "mit_title": "Скобы с отсчетным устройством",
+                "mit_notation": "201, 523",
+                "mi_number": "00024605",
+                "result_docnum": "С-АСГ/07-03-2026/509468383",
+                "verification_date": "2026-03-07T00:00:00",
+                "valid_date": "2027-03-06T00:00:00",
+                "raw_payload_json": {"source": "test"},
+                "detail_payload_json": {
+                    "miInfo": {
+                        "singleMI": {
+                            "mitypeNumber": "60026-15",
+                            "mitypeTitle": "Скобы с отсчетным устройством",
+                            "mitypeType": "201, 523",
+                            "manufactureNum": "00024605",
+                            "manufactureYear": 2020,
+                            "modification": "серии 523",
+                        }
+                    }
+                },
+            },
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    repair_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/repair",
+        headers=headers,
+        data={
+            "route_city": "Тюмень",
+            "route_destination": "Ремонтный участок",
+            "sent_to_repair_at": "2026-03-19",
+        },
+    )
+    assert repair_response.status_code == 201
+
+    verification_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/verification",
+        headers=headers,
+        data={
+            "route_city": "Арзамас",
+            "route_destination": "Поверочная лаборатория",
+            "sent_to_verification_at": "2026-03-20",
+        },
+    )
+    assert verification_response.status_code == 201
+
+    queue_response = await client.get(
+        "/api/v1/equipment/verifications",
+        headers=headers,
+        params={
+            "lifecycle_status": "active",
+            "query": "509468383",
+        },
+    )
+    assert queue_response.status_code == 200
+    payload = queue_response.json()
+    assert len(payload) == 1
+    assert payload[0]["equipment_id"] == equipment["id"]
+    assert payload[0]["equipment_name"] == "Скоба"
+    assert payload[0]["route_city"] == "Арзамас"
+    assert payload[0]["route_destination"] == "Поверочная лаборатория"
+    assert payload[0]["result_docnum"] == "С-АСГ/07-03-2026/509468383"
+    assert payload[0]["has_active_repair"] is True
+
+
+@pytest.mark.anyio
+async def test_bulk_verification_creates_grouped_records(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Групповая поверка"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_ids: list[int] = []
+    for index in range(2):
+        equipment_response = await client.post(
+            "/api/v1/equipment",
+            headers=headers,
+            json={
+                "folder_id": folder["id"],
+                "object_name": "Комната подготовки воды",
+                "equipment_type": "SI",
+                "name": f"Манометр #{index + 1}",
+                "status": "IN_WORK",
+                "si_verification": {
+                    "vri_id": f"bulk-vri-{index + 1}",
+                    "arshin_url": (
+                        "https://fgis.gost.ru/fundmetrology/cm/results/"
+                        f"bulk-vri-{index + 1}"
+                    ),
+                    "mit_number": "10000-01",
+                    "mit_title": "Манометр",
+                    "mit_notation": "DM2005",
+                    "mi_number": f"SN-BULK-00{index + 1}",
+                    "result_docnum": f"CERT-BULK-00{index + 1}",
+                    "verification_date": "2026-03-01T00:00:00",
+                    "valid_date": "2027-03-01T00:00:00",
+                    "raw_payload_json": {"source": "test"},
+                    "detail_payload_json": {"miInfo": {"singleMI": {"manufactureYear": 2024}}},
+                },
+            },
+        )
+        assert equipment_response.status_code == 201
+        equipment_ids.append(equipment_response.json()["id"])
+
+    bulk_response = await client.post(
+        "/api/v1/equipment/verifications/bulk",
+        headers=headers,
+        json={
+            "equipment_ids": equipment_ids,
+            "batch_name": "Комната подготовки воды / март",
+            "route_city": "Ленск",
+            "route_destination": "Иркутск",
+            "sent_to_verification_at": "2026-03-20",
+            "initial_message_text": "Ящик с приборами отправлен в поверку.",
+        },
+    )
+    assert bulk_response.status_code == 201
+    payload = bulk_response.json()
+    assert len(payload) == 2
+    assert payload[0]["batch_name"] == "Комната подготовки воды / март"
+    assert payload[0]["batch_key"] is not None
+    assert payload[1]["batch_key"] == payload[0]["batch_key"]
+
+    queue_response = await client.get(
+        "/api/v1/equipment/verifications",
+        headers=headers,
+        params={"lifecycle_status": "active", "query": "Комната подготовки воды / март"},
+    )
+    assert queue_response.status_code == 200
+    queue_payload = queue_response.json()
+    assert len(queue_payload) == 2
+    assert all(row["batch_name"] == "Комната подготовки воды / март" for row in queue_payload)
+
+    first_messages_response = await client.get(
+        f"/api/v1/equipment/{equipment_ids[0]}/verification/messages",
+        headers=headers,
+    )
+    assert first_messages_response.status_code == 200
+    first_messages = first_messages_response.json()
+    assert len(first_messages) == 1
+    assert first_messages[0]["text"] == "Ящик с приборами отправлен в поверку."
+
+    second_messages_response = await client.get(
+        f"/api/v1/equipment/{equipment_ids[1]}/verification/messages",
+        headers=headers,
+    )
+    assert second_messages_response.status_code == 200
+    second_messages = second_messages_response.json()
+    assert len(second_messages) == 1
+    assert second_messages[0]["text"] == "Ящик с приборами отправлен в поверку."
+
+    add_group_message_response = await client.post(
+        f"/api/v1/equipment/{equipment_ids[1]}/verification/messages",
+        headers=headers,
+        data={"text": "Группа получена в Иркутске."},
+    )
+    assert add_group_message_response.status_code == 201
+
+    messages_from_first_after_update = await client.get(
+        f"/api/v1/equipment/{equipment_ids[0]}/verification/messages",
+        headers=headers,
+    )
+    assert messages_from_first_after_update.status_code == 200
+    shared_messages = messages_from_first_after_update.json()
+    assert len(shared_messages) == 2
+    assert shared_messages[1]["text"] == "Группа получена в Иркутске."
+
+    update_batch_response = await client.patch(
+        f"/api/v1/equipment/verifications/batch/{payload[0]['batch_key']}",
+        headers=headers,
+        json={"received_at_destination_at": "2026-03-21"},
+    )
+    assert update_batch_response.status_code == 200
+    updated_batch = update_batch_response.json()
+    assert len(updated_batch) == 2
+    assert all(item["received_at_destination_at"] == "2026-03-21" for item in updated_batch)

@@ -7,7 +7,7 @@ Short working buffer for the current state of the project.
 Phase 2 - Equipment Registry Foundation
 
 ## Current Status
-Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin search by certificate number, detail fetch by `vri_id`, a fuller collapsible SI block on the equipment card, manual refresh of an existing SI card by entering a new certificate number, bulk Excel import by certificate numbers into the selected folder, Excel export of the current registry selection, a richer first repair flow from the equipment card with route fields, dialog messages, and repair attachments, and the first independent verification flow for `SI`.
+Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin search by certificate number, detail fetch by `vri_id`, a fuller collapsible SI block on the equipment card, manual refresh of an existing SI card by entering a new certificate number, bulk Excel import by certificate numbers into the selected folder, Excel export of the current registry selection, a richer first repair flow from the equipment card with route fields, dialog messages, and repair attachments, the first independent verification flow for `SI`, the separate `Поверка СИ` page with active/archive tabs, search, milestone editing, close-to-archive flow, grouped verification with shared batch messages and shared batch milestone updates, compact archived verification rows with ZIP download, and an archive link from the equipment card.
 
 ## Completed
 - Stage 1 internal auth is working: bootstrap admin, admin-created users, temporary passwords, forced password change, profile metadata, and admin user-detail pages.
@@ -47,6 +47,17 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 - Equipment card now shows the active repair panel with route information, deadline, and a compact repair dialog thread.
 - `SI` equipment card now also supports an independent active verification flow with its own route fields, dialog thread, and attachments.
 - Backend now enforces one active verification per `SI` item and keeps repair and verification visible independently on the same card.
+- Separate `Поверка СИ` page now lists active and archived verification records, supports search, and gives quick access to the equipment card and Arshin link.
+- Active verification milestone editing now belongs to the dedicated `Поверка СИ` page; the equipment card keeps only a compact current-state summary plus the verification dialog.
+- Equipment registry now supports multi-select and grouped verification creation for all-SI selections with an operator-defined group name.
+- Equipment registry now supports batch deletion of the currently selected items from the same filtered workspace.
+- Verification queue now groups records visually by batch name when they were created together from the registry.
+- Grouped verification now shares one dialog thread by `batch_key`, so messages added from any card in the batch are visible across all related `SI` cards.
+- Verification batch milestone updates can now be applied to the whole active group at once instead of editing each record separately in backend state.
+- Dedicated `Поверка СИ` UI now renders grouped verification as one expandable batch card with shared milestones, one shared dialog, and visible group membership.
+- Active single and grouped verification can now be explicitly completed and moved into the archive.
+- Archived verification rows are now compact and non-expandable; ZIP export is available from the archive list.
+- Equipment card now shows a small archive link under attachments that opens the archived verification tab.
 
 ## Current Scripts
 - `scripts/check.sh`
@@ -58,5 +69,5 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 
 ## Next
 - Refine the repair page into the vertical stage table derived from the Excel MVP.
-- Build the separate verification page after the first card-based verification slice.
-- Add archive/close behavior for repair dialog history and attachment bundles.
+- Add close/archive behavior for repair with the same compact archive pattern already used for verification.
+- Start grouped repair actions from the equipment registry.

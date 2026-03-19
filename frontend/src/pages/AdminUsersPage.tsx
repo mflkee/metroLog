@@ -152,9 +152,9 @@ export function AdminUsersPage() {
         description="Администратор создает учетные записи, назначает роли и выдает временные пароли."
       />
 
-      <div className="space-y-5 rounded-3xl border border-line bg-white p-5 shadow-panel">
+      <div className="tone-parent space-y-5 rounded-3xl border border-line p-5 shadow-panel">
         <form
-          className="grid gap-4 rounded-2xl border border-line bg-white/85 p-4 lg:grid-cols-[1fr_1fr_1fr_1.2fr_220px_auto]"
+          className="tone-child grid gap-4 rounded-2xl border border-line p-4 lg:grid-cols-[1fr_1fr_1fr_1.2fr_220px_auto]"
           onSubmit={handleCreateUser}
         >
           <label className="block text-sm text-steel">
@@ -320,7 +320,7 @@ export function AdminUsersPage() {
               return (
                 <article
                   key={user.id}
-                  className="rounded-2xl border border-line bg-white/85 p-4 shadow-panel"
+                  className="tone-child rounded-2xl border border-line p-4 shadow-panel"
                 >
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="space-y-1">

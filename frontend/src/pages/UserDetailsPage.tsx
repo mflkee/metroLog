@@ -30,7 +30,7 @@ export function UserDetailsPage() {
         description="Просмотр контактной и рабочей информации по учетной записи."
       />
 
-      <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
+      <div className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <Link
             className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
@@ -53,7 +53,7 @@ export function UserDetailsPage() {
         ) : null}
 
         {userQuery.data ? (
-          <dl className="overflow-hidden rounded-2xl border border-line bg-white/85">
+          <dl className="tone-child overflow-hidden rounded-2xl border border-line">
             {[
               ["Фамилия", userQuery.data.lastName || "Не указана"],
               ["Имя", userQuery.data.firstName || "Не указано"],

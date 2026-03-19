@@ -13,6 +13,8 @@ import {
   buildSIVerificationPayloadFromArshin,
   createEquipment,
   createEquipmentFolder,
+  createVerificationBatch,
+  deleteEquipmentBatch,
   deleteEquipment,
   deleteEquipmentFolder,
   exportEquipmentRegistryXlsx,
@@ -65,15 +67,25 @@ type SISearchFormState = {
   certificateNumber: string;
 };
 
+type VerificationBatchFormState = {
+  batchName: string;
+  routeCity: string;
+  routeDestination: string;
+  sentToVerificationAt: string;
+  initialMessageText: string;
+};
+
 type DeleteTarget =
   | { kind: "folder"; id: number; title: string; message: string }
-  | { kind: "equipment"; id: number; title: string; message: string };
+  | { kind: "equipment"; id: number; title: string; message: string }
+  | { kind: "equipment-batch"; ids: number[]; title: string; message: string };
 
 type ActiveModal =
   | null
   | { kind: "folder"; mode: "create" | "edit"; folderId?: number }
   | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number }
-  | { kind: "si-import" };
+  | { kind: "si-import" }
+  | { kind: "verification-batch" };
 
 const defaultFolderForm: FolderFormState = {
   name: "",
@@ -111,6 +123,14 @@ const defaultSIImportForm: SIImportFormState = {
   file: null,
 };
 
+const defaultVerificationBatchForm: VerificationBatchFormState = {
+  batchName: "",
+  routeCity: "",
+  routeDestination: "",
+  sentToVerificationAt: getTodayDateInputValue(),
+  initialMessageText: "",
+};
+
 export function EquipmentPage() {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
@@ -131,10 +151,14 @@ export function EquipmentPage() {
   const [selectedSiResult, setSelectedSiResult] = useState<ArshinSearchResult | null>(null);
   const [selectedSiDetail, setSelectedSiDetail] = useState<ArshinVriDetail | null>(null);
   const [siImportForm, setSiImportForm] = useState<SIImportFormState>(defaultSIImportForm);
+  const [verificationBatchForm, setVerificationBatchForm] = useState<VerificationBatchFormState>(
+    defaultVerificationBatchForm,
+  );
   const [siImportResult, setSiImportResult] = useState<EquipmentSIBulkImportResult | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
 
@@ -289,6 +313,15 @@ export function EquipmentPage() {
     },
   });
 
+  const deleteEquipmentBatchMutation = useMutation({
+    mutationFn: (equipmentIds: number[]) => deleteEquipmentBatch(token ?? "", equipmentIds),
+    onSuccess: async () => {
+      setDeleteTarget(null);
+      setSelectedEquipmentIds([]);
+      await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
+    },
+  });
+
   const importSIExcelMutation = useMutation({
     mutationFn: () => {
       if (!selectedFolderId) {
@@ -321,8 +354,40 @@ export function EquipmentPage() {
       }),
   });
 
+  const createVerificationBatchMutation = useMutation({
+    mutationFn: () =>
+      createVerificationBatch(token ?? "", {
+        equipmentIds: selectedEquipmentIds,
+        batchName: verificationBatchForm.batchName,
+        routeCity: verificationBatchForm.routeCity,
+        routeDestination: verificationBatchForm.routeDestination,
+        sentToVerificationAt: verificationBatchForm.sentToVerificationAt,
+        initialMessageText: verificationBatchForm.initialMessageText,
+      }),
+    onSuccess: async () => {
+      setSelectedEquipmentIds([]);
+      setVerificationBatchForm(defaultVerificationBatchForm);
+      setActiveModal(null);
+      await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
+      await queryClient.invalidateQueries({ queryKey: ["verification-queue"] });
+    },
+  });
+
   const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
   const equipmentItems = useMemo(() => equipmentQuery.data ?? [], [equipmentQuery.data]);
+  const selectedEquipmentItems = useMemo(
+    () => equipmentItems.filter((item) => selectedEquipmentIds.includes(item.id)),
+    [equipmentItems, selectedEquipmentIds],
+  );
+  const visibleSelectedEquipmentIds = useMemo(
+    () => equipmentItems.filter((item) => selectedEquipmentIds.includes(item.id)).map((item) => item.id),
+    [equipmentItems, selectedEquipmentIds],
+  );
+  const areAllVisibleEquipmentSelected =
+    equipmentItems.length > 0 && visibleSelectedEquipmentIds.length === equipmentItems.length;
+  const areAllSelectedItemsSi =
+    selectedEquipmentItems.length > 0
+    && selectedEquipmentItems.every((item) => item.equipmentType === "SI");
   const deferredFolderSearchQuery = useDeferredValue(folderSearchQuery);
 
   const existingObjectNames = useMemo(() => {
@@ -402,8 +467,15 @@ export function EquipmentPage() {
     setActiveModal(null);
   }
 
+  function closeVerificationBatchModal() {
+    setVerificationBatchForm(defaultVerificationBatchForm);
+    createVerificationBatchMutation.reset();
+    setActiveModal(null);
+  }
+
   function leaveFolderWorkspace() {
     setSelectedFolderId(null);
+    setSelectedEquipmentIds([]);
     setSearchQuery("");
     setStatusFilter("ALL");
     setTypeFilter("ALL");
@@ -442,6 +514,15 @@ export function EquipmentPage() {
     setSiImportResult(null);
     importSIExcelMutation.reset();
     setActiveModal({ kind: "si-import" });
+  }
+
+  function openVerificationBatchModal() {
+    setVerificationBatchForm({
+      ...defaultVerificationBatchForm,
+      batchName: selectedFolder ? `${selectedFolder.name} / поверка` : "",
+    });
+    createVerificationBatchMutation.reset();
+    setActiveModal({ kind: "verification-batch" });
   }
 
   function handleEquipmentTypeChange(nextType: EquipmentType) {
@@ -500,6 +581,11 @@ export function EquipmentPage() {
     await importSIExcelMutation.mutateAsync();
   }
 
+  async function handleVerificationBatchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await createVerificationBatchMutation.mutateAsync();
+  }
+
   async function handleExportEquipment() {
     setExportError(null);
     try {
@@ -534,7 +620,27 @@ export function EquipmentPage() {
       await deleteFolderMutation.mutateAsync(deleteTarget.id);
       return;
     }
+    if (deleteTarget.kind === "equipment-batch") {
+      await deleteEquipmentBatchMutation.mutateAsync(deleteTarget.ids);
+      return;
+    }
     await deleteEquipmentMutation.mutateAsync(deleteTarget.id);
+  }
+
+  function toggleEquipmentSelection(equipmentId: number) {
+    setSelectedEquipmentIds((current) =>
+      current.includes(equipmentId)
+        ? current.filter((value) => value !== equipmentId)
+        : [...current, equipmentId],
+    );
+  }
+
+  function toggleSelectAllEquipment() {
+    setSelectedEquipmentIds((current) =>
+      areAllVisibleEquipmentSelected
+        ? current.filter((id) => !equipmentItems.some((item) => item.id === id))
+        : Array.from(new Set([...current, ...equipmentItems.map((item) => item.id)])),
+    );
   }
 
   return (
@@ -585,7 +691,7 @@ export function EquipmentPage() {
           ) : null}
 
           {!foldersQuery.isLoading && !folders.length ? (
-            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
+            <div className="tone-parent rounded-3xl border border-dashed border-line px-5 py-10 text-center">
               <p className="text-base font-semibold text-ink">Папок пока нет.</p>
               <p className="mt-2 text-sm text-steel">
                 Создай первую папку, чтобы собрать внутри общий список приборов.
@@ -594,7 +700,7 @@ export function EquipmentPage() {
           ) : null}
 
           {!foldersQuery.isLoading && folders.length > 0 && filteredFolders.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
+            <div className="tone-parent rounded-3xl border border-dashed border-line px-5 py-10 text-center">
               <p className="text-base font-semibold text-ink">По этому запросу папки не найдены.</p>
               <p className="mt-2 text-sm text-steel">
                 Измени строку поиска или очисти фильтр, чтобы увидеть весь список.
@@ -808,8 +914,51 @@ export function EquipmentPage() {
               <p className="text-sm text-[#b04c43]">{exportError}</p>
             ) : null}
 
+            {canManage && equipmentItems.length ? (
+              <div className="tone-parent flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <button className={subtleButtonClass} type="button" onClick={toggleSelectAllEquipment}>
+                    {areAllVisibleEquipmentSelected ? "Снять все" : "Выделить все"}
+                  </button>
+                  <span className="text-sm text-steel">
+                    Выбрано: {selectedEquipmentIds.length}
+                  </span>
+                  {selectedEquipmentIds.length > 0 && !areAllSelectedItemsSi ? (
+                    <span className="text-sm text-steel">
+                      В поверку можно отправить только набор, где все приборы относятся к СИ.
+                    </span>
+                  ) : null}
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    className="inline-flex items-center justify-center rounded-full border border-[#b04c43] px-4 py-2 text-sm font-medium text-[#b04c43] transition hover:bg-[#fff1ef] disabled:opacity-60"
+                    disabled={selectedEquipmentIds.length === 0}
+                    type="button"
+                    onClick={() =>
+                      setDeleteTarget({
+                        kind: "equipment-batch",
+                        ids: selectedEquipmentIds,
+                        title: "Удалить отмеченные приборы",
+                        message: `Удалить отмеченные приборы (${selectedEquipmentIds.length})?`,
+                      })
+                    }
+                  >
+                    Удалить отмеченные
+                  </button>
+                  <button
+                    className="inline-flex items-center justify-center rounded-full border border-signal-info bg-[color:var(--accent-soft)] px-4 py-2 text-sm font-medium text-ink transition hover:border-signal-info disabled:opacity-60"
+                    disabled={selectedEquipmentIds.length === 0 || !areAllSelectedItemsSi}
+                    type="button"
+                    onClick={openVerificationBatchModal}
+                  >
+                    Отправить в поверку
+                  </button>
+                </div>
+              </div>
+            ) : null}
+
             {!equipmentQuery.isLoading && !equipmentItems.length ? (
-              <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
+              <div className="tone-parent rounded-3xl border border-dashed border-line px-5 py-10 text-center">
                 <p className="text-base font-semibold text-ink">Под текущие фильтры приборы не найдены.</p>
                 <p className="mt-2 text-sm text-steel">
                   Измени фильтры или добавь первый прибор в выбранную папку.
@@ -822,6 +971,16 @@ export function EquipmentPage() {
                 <table className="min-w-full border-separate border-spacing-y-2">
                   <thead>
                     <tr className="text-left text-xs uppercase tracking-[0.16em] text-steel">
+                      {canManage ? (
+                        <th className="px-3 py-2">
+                          <input
+                            checked={areAllVisibleEquipmentSelected}
+                            className="h-4 w-4 accent-[var(--accent)]"
+                            onChange={toggleSelectAllEquipment}
+                            type="checkbox"
+                          />
+                        </th>
+                      ) : null}
                       <th className="px-3 py-2">Прибор</th>
                       <th className="px-3 py-2">Категория</th>
                       <th className="px-3 py-2">Статус</th>
@@ -836,6 +995,9 @@ export function EquipmentPage() {
                       <EquipmentRow
                         key={item.id}
                         item={item}
+                        canManage={canManage}
+                        isSelected={selectedEquipmentIds.includes(item.id)}
+                        onToggleSelected={() => toggleEquipmentSelection(item.id)}
                       />
                     ))}
                   </tbody>
@@ -1007,7 +1169,7 @@ export function EquipmentPage() {
           </div>
 
           {siImportResult ? (
-            <section className="space-y-3 rounded-3xl border border-line bg-[var(--bg-secondary)] p-4">
+            <section className="tone-parent space-y-3 rounded-3xl border border-line p-4">
               <div className="grid gap-3 sm:grid-cols-4">
                 {[
                   ["Строк", String(siImportResult.totalRows)],
@@ -1015,7 +1177,7 @@ export function EquipmentPage() {
                   ["Пропущено", String(siImportResult.skippedCount)],
                   ["Ошибок", String(siImportResult.errorCount)],
                 ].map(([label, value]) => (
-                  <div key={label} className="rounded-2xl border border-line bg-white px-4 py-3">
+                  <div key={label} className="tone-child rounded-2xl border border-line px-4 py-3">
                     <div className="text-xs uppercase tracking-[0.16em] text-steel">{label}</div>
                     <div className="mt-1 text-lg font-semibold text-ink">{value}</div>
                   </div>
@@ -1023,7 +1185,7 @@ export function EquipmentPage() {
               </div>
               <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
                 {siImportResult.rows.map((row) => (
-                  <div key={`${row.rowNumber}-${row.certificateNumber}`} className="rounded-2xl border border-line bg-white px-4 py-3 text-sm">
+                  <div key={`${row.rowNumber}-${row.certificateNumber}`} className="tone-child rounded-2xl border border-line px-4 py-3 text-sm">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="font-semibold text-ink">
@@ -1079,7 +1241,7 @@ export function EquipmentPage() {
       >
         <form className="space-y-4" onSubmit={(event) => void handleEquipmentSubmit(event)}>
           {isSiCreateFlow ? (
-            <section className="space-y-3 rounded-3xl border border-line bg-[var(--bg-secondary)] p-4">
+            <section className="tone-parent space-y-3 rounded-3xl border border-line p-4">
               <div>
                 <h3 className="text-sm font-semibold text-ink">Поиск СИ в Аршине</h3>
                 <p className="mt-1 text-xs text-steel">
@@ -1158,7 +1320,7 @@ export function EquipmentPage() {
                           "w-full rounded-2xl border px-4 py-3 text-left transition",
                           isSelected
                             ? "border-signal-info bg-[var(--accent-soft)]"
-                            : "border-line bg-white hover:border-signal-info/60",
+                            : "tone-child border-line hover:border-signal-info/60",
                         ].join(" ")}
                         type="button"
                         onClick={() => handleSelectSiResult(result)}
@@ -1190,7 +1352,7 @@ export function EquipmentPage() {
               ) : null}
 
               {selectedSiResult ? (
-                <div className="rounded-2xl border border-line bg-white px-4 py-3">
+                <div className="tone-child rounded-2xl border border-line px-4 py-3">
                   <div className="text-xs font-semibold uppercase tracking-[0.14em] text-steel">
                     Выбранное СИ
                   </div>
@@ -1408,6 +1570,109 @@ export function EquipmentPage() {
         </form>
       </Modal>
 
+      <Modal
+        description="Групповая поверка создаст отдельные активные записи для выбранных СИ и объединит их общим названием группы."
+        open={activeModal?.kind === "verification-batch"}
+        title="Групповая поверка"
+        onClose={closeVerificationBatchModal}
+      >
+        <form className="space-y-4" onSubmit={(event) => void handleVerificationBatchSubmit(event)}>
+          <label className="block text-sm text-steel">
+            Название группы
+            <input
+              className="form-input"
+              type="text"
+              value={verificationBatchForm.batchName}
+              onChange={(event) =>
+                setVerificationBatchForm((current) => ({ ...current, batchName: event.target.value }))
+              }
+            />
+          </label>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="block text-sm text-steel">
+              Откуда
+              <input
+                className="form-input"
+                type="text"
+                value={verificationBatchForm.routeCity}
+                onChange={(event) =>
+                  setVerificationBatchForm((current) => ({ ...current, routeCity: event.target.value }))
+                }
+              />
+            </label>
+            <label className="block text-sm text-steel">
+              Куда
+              <input
+                className="form-input"
+                type="text"
+                value={verificationBatchForm.routeDestination}
+                onChange={(event) =>
+                  setVerificationBatchForm((current) => ({
+                    ...current,
+                    routeDestination: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label className="block text-sm text-steel">
+              Дата отправки
+              <input
+                className="form-input"
+                type="date"
+                value={verificationBatchForm.sentToVerificationAt}
+                onChange={(event) =>
+                  setVerificationBatchForm((current) => ({
+                    ...current,
+                    sentToVerificationAt: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <label className="block text-sm text-steel">
+            Первое сообщение
+            <textarea
+              className="form-input min-h-[88px] resize-none py-3"
+              placeholder="Например: Ящик с приборами упакован и отправлен в поверку."
+              value={verificationBatchForm.initialMessageText}
+              onChange={(event) =>
+                setVerificationBatchForm((current) => ({
+                  ...current,
+                  initialMessageText: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <div className="tone-parent rounded-2xl border border-line px-4 py-3 text-sm text-steel">
+            В группу сейчас войдет {selectedEquipmentIds.length} прибор(ов).
+          </div>
+          {createVerificationBatchMutation.isError ? (
+            <p className="text-sm text-[#b04c43]">
+              {getMutationErrorMessage(
+                createVerificationBatchMutation.error,
+                "Не удалось создать групповую поверку.",
+              )}
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <button
+              className="btn-primary px-4 py-2 text-sm disabled:opacity-60"
+              disabled={
+                createVerificationBatchMutation.isPending
+                || selectedEquipmentIds.length === 0
+                || !verificationBatchForm.batchName.trim()
+                || !verificationBatchForm.routeCity.trim()
+                || !verificationBatchForm.routeDestination.trim()
+                || !verificationBatchForm.sentToVerificationAt
+              }
+              type="submit"
+            >
+              {createVerificationBatchMutation.isPending ? "Создаем..." : "Создать группу поверки"}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
       <DeleteConfirmModal
         description={deleteTarget?.message}
         errorMessage={
@@ -1430,12 +1695,28 @@ export function EquipmentPage() {
 
 function EquipmentRow({
   item,
+  canManage,
+  isSelected,
+  onToggleSelected,
 }: {
   item: EquipmentItem;
+  canManage: boolean;
+  isSelected: boolean;
+  onToggleSelected: () => void;
 }) {
   return (
-    <tr className="rounded-2xl border border-line bg-white/85 text-sm text-ink shadow-panel">
-      <td className="rounded-l-2xl px-3 py-3 align-top">
+    <tr className="tone-parent rounded-2xl border border-line text-sm text-ink shadow-panel">
+      {canManage ? (
+        <td className="rounded-l-2xl px-3 py-3 align-top">
+          <input
+            checked={isSelected}
+            className="mt-1 h-4 w-4 accent-[var(--accent)]"
+            onChange={onToggleSelected}
+            type="checkbox"
+          />
+        </td>
+      ) : null}
+      <td className={`${canManage ? "" : "rounded-l-2xl "}px-3 py-3 align-top`}>
         <Link className="font-semibold text-ink transition hover:text-signal-info" to={`/equipment/${item.id}`}>
           {item.name}
         </Link>
@@ -1481,4 +1762,8 @@ function mapEquipmentFormToPayload(
 
 function getMutationErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function getTodayDateInputValue(): string {
+  return new Date().toISOString().slice(0, 10);
 }

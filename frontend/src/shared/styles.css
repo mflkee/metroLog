@@ -4,22 +4,32 @@
 
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --bg-layer-1: #f4f4f5;
-  --bg-layer-2: #e4e4e7;
-  --bg-glow: rgba(82, 82, 91, 0.08);
-  --text-primary: #18181b;
-  --text-muted: #52525b;
-  --border-color: #d4d4d8;
-  --panel-bg: #fafafa;
-  --panel-ghost: rgba(250, 250, 250, 0.92);
-  --panel-hover: #f4f4f5;
-  --accent: #3f3f46;
-  --accent-soft: rgba(63, 63, 70, 0.08);
-  --success: #3f5f4c;
-  --button-primary-bg: #27272a;
+  --bg-layer-1: #d7dbe2;
+  --bg-layer-2: #bcc3cd;
+  --bg-glow: rgba(71, 85, 105, 0.14);
+  --text-primary: #111827;
+  --text-muted: #4b5563;
+  --border-color: #98a2b3;
+  --panel-bg: #e5e7eb;
+  --panel-ghost: rgba(229, 231, 235, 0.9);
+  --panel-hover: #edf0f4;
+  --accent: #334155;
+  --accent-soft: rgba(51, 65, 85, 0.1);
+  --success: #325345;
+  --button-primary-bg: #1f2937;
   --button-primary-text: #ffffff;
-  --input-bg: #f0f1f3;
-  --panel-shadow-value: 0 16px 36px rgba(39, 39, 42, 0.08);
+  --input-bg: #d6dae1;
+  --panel-shadow-value: 0 18px 44px rgba(30, 41, 59, 0.12);
+  --surface-1: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  --surface-2: color-mix(in srgb, var(--surface-1) 72%, var(--bg-layer-2));
+  --surface-3: color-mix(in srgb, var(--surface-2) 64%, var(--bg-layer-2));
+  --surface-inline: color-mix(in srgb, var(--surface-3) 56%, var(--bg-layer-2));
+  --bg-primary: var(--surface-1);
+  --bg-secondary: var(--surface-2);
+  --bg-tertiary: var(--surface-3);
+  --tone-parent-bg: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  --tone-child-bg: color-mix(in srgb, var(--panel-hover) 72%, var(--panel-bg));
+  --tone-grandchild-bg: color-mix(in srgb, var(--input-bg) 76%, var(--panel-hover));
   color-scheme: light;
   background:
     radial-gradient(circle at top left, var(--bg-glow), transparent 34%),
@@ -48,22 +58,22 @@
 }
 
 :root[data-theme="gray"] {
-  --bg-layer-1: #d7dbe2;
-  --bg-layer-2: #bcc3cd;
-  --bg-glow: rgba(71, 85, 105, 0.14);
+  --bg-layer-1: #9ca3af;
+  --bg-layer-2: #7b8390;
+  --bg-glow: rgba(55, 65, 81, 0.16);
   --text-primary: #111827;
-  --text-muted: #4b5563;
-  --border-color: #98a2b3;
-  --panel-bg: #e5e7eb;
-  --panel-ghost: rgba(229, 231, 235, 0.9);
-  --panel-hover: #edf0f4;
-  --accent: #334155;
-  --accent-soft: rgba(51, 65, 85, 0.1);
-  --success: #325345;
-  --button-primary-bg: #1f2937;
+  --text-muted: #374151;
+  --border-color: #6b7280;
+  --panel-bg: #c6ccd4;
+  --panel-ghost: rgba(198, 204, 212, 0.9);
+  --panel-hover: #b5bcc6;
+  --accent: #1f2937;
+  --accent-soft: rgba(31, 41, 55, 0.1);
+  --success: #29493d;
+  --button-primary-bg: #111827;
   --button-primary-text: #ffffff;
-  --input-bg: #d6dae1;
-  --panel-shadow-value: 0 18px 44px rgba(30, 41, 59, 0.12);
+  --input-bg: #aab2bd;
+  --panel-shadow-value: 0 18px 44px rgba(31, 41, 55, 0.16);
   color-scheme: light;
 }
 
@@ -303,13 +313,74 @@ body {
   justify-content: center;
   border: 1px solid var(--border-color);
   border-radius: 999px;
-  background: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  background: var(--surface-1);
   color: var(--text-muted);
   cursor: pointer;
   transition:
     border-color 0.18s ease,
     color 0.18s ease,
     background-color 0.18s ease;
+}
+
+.surface-panel {
+  background: var(--surface-1) !important;
+}
+
+.surface-subtle {
+  background: var(--surface-2) !important;
+}
+
+.surface-item {
+  background: var(--surface-3) !important;
+}
+
+.surface-inline {
+  background: var(--surface-inline) !important;
+}
+
+.surface-subtle .icon-action-button,
+.surface-item .icon-action-button,
+.surface-inline .icon-action-button {
+  background: var(--surface-inline);
+}
+
+.tone-parent {
+  background: var(--tone-parent-bg) !important;
+}
+
+.tone-child {
+  background: var(--tone-child-bg) !important;
+}
+
+.tone-grandchild {
+  background: var(--tone-grandchild-bg) !important;
+}
+
+.tone-parent :is(button, a, label, span, div).rounded-full.border.border-line,
+.tone-parent :is(button, a, label, span, div).rounded-2xl.border.border-line {
+  background: var(--tone-child-bg) !important;
+}
+
+.tone-child :is(button, a, label, span, div).rounded-full.border.border-line,
+.tone-child :is(button, a, label, span, div).rounded-2xl.border.border-line {
+  background: var(--tone-grandchild-bg) !important;
+}
+
+.tone-grandchild :is(button, a, label, span, div).rounded-full.border.border-line,
+.tone-grandchild :is(button, a, label, span, div).rounded-2xl.border.border-line {
+  background: color-mix(in srgb, var(--input-bg) 88%, var(--panel-hover)) !important;
+}
+
+.tone-parent .icon-action-button {
+  background: var(--tone-child-bg);
+}
+
+.tone-child .icon-action-button {
+  background: var(--tone-grandchild-bg);
+}
+
+.tone-grandchild .icon-action-button {
+  background: color-mix(in srgb, var(--input-bg) 88%, var(--panel-hover));
 }
 
 .icon-action-button:hover,
@@ -369,6 +440,51 @@ body {
 
 .bg-white\/85 {
   background-color: var(--panel-ghost) !important;
+}
+
+.surface-panel,
+.bg-white.surface-panel,
+.bg-white\/85.surface-panel {
+  background: var(--surface-1) !important;
+}
+
+.surface-subtle,
+.bg-white.surface-subtle,
+.bg-white\/85.surface-subtle {
+  background: var(--surface-2) !important;
+}
+
+.surface-item,
+.bg-white.surface-item,
+.bg-white\/85.surface-item {
+  background: var(--surface-3) !important;
+}
+
+.surface-inline,
+.bg-white.surface-inline,
+.bg-white\/85.surface-inline {
+  background: var(--surface-inline) !important;
+}
+
+.border-line .border-line.bg-white,
+.border-line .border-line.bg-white\/85,
+.border-line .border-line.bg-\[\#edf2f5\],
+.border-line .border-line.bg-\[\#eaf4f8\] {
+  background: var(--surface-2) !important;
+}
+
+.border-line .border-line .border-line.bg-white,
+.border-line .border-line .border-line.bg-white\/85,
+.border-line .border-line .border-line.bg-\[\#edf2f5\],
+.border-line .border-line .border-line.bg-\[\#eaf4f8\] {
+  background: var(--surface-3) !important;
+}
+
+.border-line .border-line .border-line .border-line.bg-white,
+.border-line .border-line .border-line .border-line.bg-white\/85,
+.border-line .border-line .border-line .border-line.bg-\[\#edf2f5\],
+.border-line .border-line .border-line .border-line.bg-\[\#eaf4f8\] {
+  background: var(--surface-inline) !important;
 }
 
 .hover\:bg-white:hover {

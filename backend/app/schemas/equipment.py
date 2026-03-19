@@ -88,10 +88,47 @@ class VerificationRead(BaseModel):
 
     id: int
     equipment_id: int
+    batch_key: str | None
+    batch_name: str | None
     route_city: str
     route_destination: str
     sent_to_verification_at: date
+    received_at_destination_at: date | None
+    handed_to_csm_at: date | None
+    verification_completed_at: date | None
+    picked_up_from_csm_at: date | None
+    shipped_back_at: date | None
+    returned_from_verification_at: date | None
     closed_at: date | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class VerificationQueueItemRead(BaseModel):
+    equipment_id: int
+    verification_id: int
+    batch_key: str | None
+    batch_name: str | None
+    folder_id: int | None
+    object_name: str
+    equipment_name: str
+    modification: str | None
+    serial_number: str | None
+    manufacture_year: int | None
+    route_city: str
+    route_destination: str
+    sent_to_verification_at: date
+    received_at_destination_at: date | None
+    handed_to_csm_at: date | None
+    verification_completed_at: date | None
+    picked_up_from_csm_at: date | None
+    shipped_back_at: date | None
+    returned_from_verification_at: date | None
+    closed_at: date | None
+    has_active_repair: bool
+    result_docnum: str | None
+    valid_date: datetime | None
+    arshin_url: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -211,10 +248,30 @@ class RepairMessageCreateRequest(BaseModel):
 
 
 class VerificationCreateRequest(BaseModel):
+    batch_key: str | None = None
+    batch_name: str | None = None
     route_city: str
     route_destination: str
     sent_to_verification_at: date
     initial_message_text: str | None = None
+
+
+class VerificationBulkCreateRequest(BaseModel):
+    equipment_ids: list[int]
+    batch_name: str
+    route_city: str
+    route_destination: str
+    sent_to_verification_at: date
+    initial_message_text: str | None = None
+
+
+class VerificationMilestonesUpdateRequest(BaseModel):
+    received_at_destination_at: date | None = None
+    handed_to_csm_at: date | None = None
+    verification_completed_at: date | None = None
+    picked_up_from_csm_at: date | None = None
+    shipped_back_at: date | None = None
+    returned_from_verification_at: date | None = None
 
 
 class VerificationMessageCreateRequest(BaseModel):
@@ -283,3 +340,7 @@ class EquipmentUpdateRequest(BaseModel):
     manufacture_year: int | None = None
     status: EquipmentStatus | None = None
     current_location_manual: str | None = None
+
+
+class EquipmentBulkDeleteRequest(BaseModel):
+    equipment_ids: list[int]

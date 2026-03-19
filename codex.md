@@ -349,6 +349,26 @@ When viewing an SI equipment item that is currently in verification, the card sh
    - Users can add comments with timestamps
    - Attach files, photos, documents (verification certificates, photos of equipment, etc.)
    - All attachments are stored and organized by date
+4. **Verification movement tracker** - a collapsible stage block with fixed dates for:
+   - sent to destination,
+   - received at destination,
+   - handed to CSM,
+   - verification completed,
+   - picked up from CSM,
+   - shipped back,
+   - received back
+
+Movement tracker rules:
+- milestone editing belongs to the dedicated `Поверка СИ` workspace rather than the equipment card,
+- the equipment card should keep only the compact current state plus the verification dialog,
+- milestone updates must automatically write a system message into the verification dialog,
+- the dialog must remain available as a separate thread and must not be replaced by milestone fields,
+- the collapsed verification panel should show the current derived state, for example:
+  - waiting for receipt at destination,
+  - at CSM for verification,
+  - verification completed,
+  - shipped back,
+  - received back.
 
 ### Archive System
 - When verification is completed, all data (comments, attachments, verification results) is packaged into an archive

@@ -369,6 +369,111 @@ class VerificationRepository:
         statement = select(Verification).where(Verification.id == verification_id)
         return self.session.scalar(statement)
 
+    def list_archived_by_equipment_id(
+        self,
+        *,
+        equipment_id: int,
+    ) -> list[tuple[Verification, Equipment, SIVerification | None, bool]]:
+        has_active_repair = exists(
+            select(Repair.id).where(
+                Repair.equipment_id == Verification.equipment_id,
+                Repair.closed_at.is_(None),
+            )
+        )
+        statement = (
+            select(
+                Verification,
+                Equipment,
+                SIVerification,
+                has_active_repair.label("has_active_repair"),
+            )
+            .join(Equipment, Equipment.id == Verification.equipment_id)
+            .outerjoin(SIVerification, SIVerification.equipment_id == Equipment.id)
+            .where(
+                Verification.equipment_id == equipment_id,
+                Verification.closed_at.is_not(None),
+            )
+            .order_by(Verification.closed_at.desc(), Verification.id.desc())
+        )
+        rows = self.session.execute(statement).all()
+        return [(row[0], row[1], row[2], bool(row[3])) for row in rows]
+
+    def list_active_by_batch_key(self, *, batch_key: str) -> list[Verification]:
+        statement = (
+            select(Verification)
+            .where(
+                Verification.batch_key == batch_key,
+                Verification.closed_at.is_(None),
+            )
+            .order_by(Verification.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+    def list_queue_items(
+        self,
+        *,
+        lifecycle_status: str,
+        query: str | None = None,
+    ) -> list[tuple[Verification, Equipment, SIVerification | None, bool]]:
+        has_active_repair = exists(
+            select(Repair.id).where(
+                Repair.equipment_id == Verification.equipment_id,
+                Repair.closed_at.is_(None),
+            )
+        )
+        statement = (
+            select(
+                Verification,
+                Equipment,
+                SIVerification,
+                has_active_repair.label("has_active_repair"),
+            )
+            .join(Equipment, Equipment.id == Verification.equipment_id)
+            .outerjoin(SIVerification, SIVerification.equipment_id == Equipment.id)
+            .where(Equipment.equipment_type == EquipmentType.SI)
+        )
+
+        if lifecycle_status == "active":
+            statement = statement.where(Verification.closed_at.is_(None)).order_by(
+                Verification.sent_to_verification_at.desc(),
+                Verification.created_at.desc(),
+                Verification.id.desc(),
+            )
+        else:
+            statement = statement.where(Verification.closed_at.is_not(None)).order_by(
+                Verification.closed_at.desc(),
+                Verification.updated_at.desc(),
+                Verification.id.desc(),
+            )
+
+        if query:
+            pattern = f"%{query}%"
+            statement = statement.where(
+                or_(
+                    Equipment.object_name.ilike(pattern),
+                    Equipment.name.ilike(pattern),
+                    Equipment.modification.ilike(pattern),
+                    Equipment.serial_number.ilike(pattern),
+                    SIVerification.result_docnum.ilike(pattern),
+                    SIVerification.mit_number.ilike(pattern),
+                    SIVerification.mi_number.ilike(pattern),
+                    Verification.batch_name.ilike(pattern),
+                    Verification.route_city.ilike(pattern),
+                    Verification.route_destination.ilike(pattern),
+                )
+            )
+
+        rows = self.session.execute(statement).all()
+        return [
+            (
+                row[0],
+                row[1],
+                row[2],
+                bool(row[3]),
+            )
+            for row in rows
+        ]
+
 
 class VerificationMessageRepository:
     def __init__(self, session: Session) -> None:
@@ -388,6 +493,15 @@ class VerificationMessageRepository:
         )
         return list(self.session.scalars(statement))
 
+    def list_by_batch_key(self, *, batch_key: str) -> list[VerificationMessage]:
+        statement = (
+            select(VerificationMessage)
+            .options(selectinload(VerificationMessage.attachments))
+            .where(VerificationMessage.batch_key == batch_key)
+            .order_by(VerificationMessage.created_at.asc(), VerificationMessage.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
     def get_by_id(self, message_id: int) -> VerificationMessage | None:
         statement = (
             select(VerificationMessage)
@@ -395,6 +509,9 @@ class VerificationMessageRepository:
             .where(VerificationMessage.id == message_id)
         )
         return self.session.scalar(statement)
+
+    def delete(self, message: VerificationMessage) -> None:
+        self.session.delete(message)
 
 
 class VerificationMessageAttachmentRepository:
@@ -414,6 +531,9 @@ class VerificationMessageAttachmentRepository:
             VerificationMessageAttachment.id == attachment_id
         )
         return self.session.scalar(statement)
+
+    def delete(self, attachment: VerificationMessageAttachment) -> None:
+        self.session.delete(attachment)
 
 
 class SIVerificationRepository:

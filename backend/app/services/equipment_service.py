@@ -3,10 +3,11 @@ from __future__ import annotations
 import csv
 import re
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from io import BytesIO, StringIO
 from pathlib import Path
 from uuid import uuid4
+from zipfile import ZIP_DEFLATED, ZipFile
 
 from fastapi import HTTPException, status
 from openpyxl import Workbook, load_workbook
@@ -58,8 +59,11 @@ from app.schemas.equipment import (
     EquipmentUpdateRequest,
     RepairCreateRequest,
     RepairMessageCreateRequest,
+    VerificationBulkCreateRequest,
     VerificationCreateRequest,
     VerificationMessageCreateRequest,
+    VerificationMilestonesUpdateRequest,
+    VerificationQueueItemRead,
 )
 from app.services.arshin_service import ArshinService
 
@@ -172,6 +176,50 @@ class EquipmentService:
             status=status,
             equipment_type=equipment_type,
         )
+
+    def list_verification_queue(
+        self,
+        *,
+        lifecycle_status: str,
+        query: str | None = None,
+    ) -> list[VerificationQueueItemRead]:
+        normalized_lifecycle_status = lifecycle_status.strip().lower()
+        if normalized_lifecycle_status not in {"active", "archived"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Verification lifecycle status must be active or archived.",
+            )
+
+        rows = self.verifications.list_queue_items(
+            lifecycle_status=normalized_lifecycle_status,
+            query=query.strip() if query else None,
+        )
+        return [
+            self._build_verification_queue_item(
+                verification=verification,
+                equipment=equipment,
+                si_verification=si_verification,
+                has_active_repair=has_active_repair,
+            )
+            for verification, equipment, si_verification, has_active_repair in rows
+        ]
+
+    def list_equipment_verification_history(
+        self,
+        *,
+        equipment_id: int,
+    ) -> list[VerificationQueueItemRead]:
+        self.get_equipment(equipment_id=equipment_id)
+        rows = self.verifications.list_archived_by_equipment_id(equipment_id=equipment_id)
+        return [
+            self._build_verification_queue_item(
+                verification=verification,
+                equipment=equipment,
+                si_verification=si_verification,
+                has_active_repair=has_active_repair,
+            )
+            for verification, equipment, si_verification, has_active_repair in rows
+        ]
 
     def get_equipment(self, *, equipment_id: int) -> Equipment:
         equipment = self.equipment.get_by_id(equipment_id)
@@ -645,6 +693,8 @@ class EquipmentService:
         sent_to_verification_at = payload.sent_to_verification_at
         verification = Verification(
             equipment_id=equipment.id,
+            batch_key=_normalize_optional_text(payload.batch_key),
+            batch_name=_normalize_optional_text(payload.batch_name),
             route_city=_normalize_required_text(
                 payload.route_city,
                 field_label="Verification route city",
@@ -670,6 +720,162 @@ class EquipmentService:
         self.session.refresh(verification)
         return verification
 
+    def create_verification_batch(
+        self,
+        *,
+        payload: VerificationBulkCreateRequest,
+        current_user: User,
+    ) -> list[Verification]:
+        equipment_ids = list(dict.fromkeys(payload.equipment_ids))
+        if not equipment_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нужно выбрать хотя бы один прибор для групповой поверки.",
+            )
+
+        batch_key = uuid4().hex
+        batch_name = _normalize_required_text(
+            payload.batch_name,
+            field_label="Verification batch name",
+        )
+        created: list[Verification] = []
+        for index, equipment_id in enumerate(equipment_ids):
+            created.append(
+                self.create_verification(
+                    equipment_id=equipment_id,
+                    payload=VerificationCreateRequest(
+                        batch_key=batch_key,
+                        batch_name=batch_name,
+                        route_city=payload.route_city,
+                        route_destination=payload.route_destination,
+                        sent_to_verification_at=payload.sent_to_verification_at,
+                        initial_message_text=payload.initial_message_text if index == 0 else None,
+                    ),
+                    current_user=current_user,
+                    files=[],
+                )
+            )
+        return created
+
+    def close_verification(
+        self,
+        *,
+        equipment_id: int,
+    ) -> Verification:
+        verification = self._get_active_verification(equipment_id=equipment_id)
+        verification.closed_at = date.today()
+        self.session.commit()
+        self.session.refresh(verification)
+        return verification
+
+    def close_verification_batch(
+        self,
+        *,
+        batch_key: str,
+    ) -> list[Verification]:
+        normalized_batch_key = _normalize_required_text(
+            batch_key,
+            field_label="Verification batch key",
+        )
+        verifications = self.verifications.list_active_by_batch_key(batch_key=normalized_batch_key)
+        if not verifications:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Активная группа поверки не найдена.",
+            )
+
+        closed_at = date.today()
+        for verification in verifications:
+            verification.closed_at = closed_at
+
+        self.session.commit()
+        for verification in verifications:
+            self.session.refresh(verification)
+        return verifications
+
+    def update_verification_milestones(
+        self,
+        *,
+        equipment_id: int,
+        payload: VerificationMilestonesUpdateRequest,
+        current_user: User,
+    ) -> Verification:
+        verification = self._get_active_verification(equipment_id=equipment_id)
+        for field_name, milestone_label in _VERIFICATION_MILESTONE_LABELS:
+            if field_name not in payload.model_fields_set:
+                continue
+            new_value = getattr(payload, field_name)
+            current_value = getattr(verification, field_name)
+            if current_value == new_value:
+                continue
+            setattr(verification, field_name, new_value)
+            if new_value is not None:
+                self._create_verification_message_record(
+                    verification=verification,
+                    author=current_user,
+                    payload=VerificationMessageCreateRequest(
+                        text=_build_verification_milestone_message(
+                            current_user=current_user,
+                            milestone_label=milestone_label,
+                            milestone_date=new_value,
+                            route_destination=verification.route_destination,
+                        )
+                    ),
+                    files=[],
+                )
+
+        self.session.commit()
+        self.session.refresh(verification)
+        return verification
+
+    def update_verification_batch_milestones(
+        self,
+        *,
+        batch_key: str,
+        payload: VerificationMilestonesUpdateRequest,
+        current_user: User,
+    ) -> list[Verification]:
+        normalized_batch_key = _normalize_required_text(
+            batch_key,
+            field_label="Verification batch key",
+        )
+        verifications = self.verifications.list_active_by_batch_key(batch_key=normalized_batch_key)
+        if not verifications:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Активная группа поверки не найдена.",
+            )
+
+        anchor = verifications[0]
+        for field_name, milestone_label in _VERIFICATION_MILESTONE_LABELS:
+            if field_name not in payload.model_fields_set:
+                continue
+            new_value = getattr(payload, field_name)
+            current_values = {getattr(item, field_name) for item in verifications}
+            if len(current_values) == 1 and new_value in current_values:
+                continue
+            for verification in verifications:
+                setattr(verification, field_name, new_value)
+            if new_value is not None:
+                self._create_verification_message_record(
+                    verification=anchor,
+                    author=current_user,
+                    payload=VerificationMessageCreateRequest(
+                        text=_build_verification_milestone_message(
+                            current_user=current_user,
+                            milestone_label=milestone_label,
+                            milestone_date=new_value,
+                            route_destination=anchor.route_destination,
+                        )
+                    ),
+                    files=[],
+                )
+
+        self.session.commit()
+        for verification in verifications:
+            self.session.refresh(verification)
+        return verifications
+
     def list_active_repair_messages(self, *, equipment_id: int) -> list[RepairMessage]:
         repair = self._get_active_repair(equipment_id=equipment_id)
         return self.repair_messages.list_by_repair(repair_id=repair.id)
@@ -680,6 +886,10 @@ class EquipmentService:
         equipment_id: int,
     ) -> list[VerificationMessage]:
         verification = self._get_active_verification(equipment_id=equipment_id)
+        if verification.batch_key:
+            return self.verification_messages.list_by_batch_key(
+                batch_key=verification.batch_key
+            )
         return self.verification_messages.list_by_verification(
             verification_id=verification.id
         )
@@ -721,6 +931,102 @@ class EquipmentService:
         self.session.commit()
         self.session.refresh(message)
         return message
+
+    def delete_verification_message(
+        self,
+        *,
+        equipment_id: int,
+        message_id: int,
+        current_user: User,
+    ) -> None:
+        verification = self._get_active_verification(equipment_id=equipment_id)
+        message = self._get_verification_message(
+            verification_id=verification.id,
+            message_id=message_id,
+        )
+        self._assert_verification_message_owner(
+            message=message,
+            current_user=current_user,
+        )
+
+        attachment_paths = [
+            settings.attachment_storage_path / attachment.storage_path
+            for attachment in message.attachments
+        ]
+        for attachment in message.attachments:
+            self.verification_message_attachments.delete(attachment)
+        self.verification_messages.delete(message)
+        self.session.commit()
+
+        for file_path in attachment_paths:
+            if file_path.exists() and file_path.is_file():
+                file_path.unlink()
+
+    def export_verification_archive_zip(
+        self,
+        *,
+        verification_id: int,
+    ) -> tuple[str, bytes]:
+        verification = self.verifications.get_by_id(verification_id)
+        if verification is None or verification.closed_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Архив поверки не найден.",
+            )
+
+        if verification.batch_key:
+            messages = self.verification_messages.list_by_batch_key(
+                batch_key=verification.batch_key
+            )
+            archive_name = verification.batch_name or f"verification-batch-{verification.id}"
+        else:
+            messages = self.verification_messages.list_by_verification(
+                verification_id=verification.id
+            )
+            archive_name = f"verification-{verification.id}"
+
+        buffer = BytesIO()
+        with ZipFile(buffer, mode="w", compression=ZIP_DEFLATED) as zip_file:
+            transcript_lines: list[str] = []
+            for index, message in enumerate(messages, start=1):
+                created_at = message.created_at.strftime("%d.%m.%Y %H:%M")
+                transcript_lines.append(f"[{created_at}] {message.author_display_name}")
+                if message.text:
+                    transcript_lines.append(message.text)
+                if message.attachments:
+                    transcript_lines.append(
+                        "Вложения: "
+                        + ", ".join(attachment.file_name for attachment in message.attachments)
+                    )
+                transcript_lines.append("")
+
+                for attachment_index, attachment in enumerate(
+                    message.attachments,
+                    start=1,
+                ):
+                    file_path = settings.attachment_storage_path / attachment.storage_path
+                    if file_path.exists() and file_path.is_file():
+                        zip_file.write(
+                            file_path,
+                            arcname=(
+                                f"files/{index:03d}_{attachment_index:02d}_{attachment.file_name}"
+                            ),
+                        )
+
+            transcript_content = "\n".join(transcript_lines).strip()
+            if not transcript_content:
+                transcript_content = "Диалог поверки пуст."
+
+            zip_file.writestr(
+                "dialog.txt",
+                transcript_content,
+            )
+
+        safe_name = (
+            re.sub(r"[^A-Za-z0-9._-]+", "-", archive_name).strip("-")
+            or "verification-archive"
+        )
+        return f"{safe_name}.zip", buffer.getvalue()
 
     def get_repair_message_attachment_file(
         self,
@@ -770,6 +1076,20 @@ class EquipmentService:
     def delete_equipment(self, *, equipment_id: int) -> None:
         equipment = self.get_equipment(equipment_id=equipment_id)
         self.equipment.delete(equipment)
+        self.session.commit()
+
+    def delete_equipment_batch(self, *, equipment_ids: list[int]) -> None:
+        normalized_ids = list(dict.fromkeys(equipment_ids))
+        if not normalized_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нужно выбрать хотя бы один прибор для удаления.",
+            )
+
+        for equipment_id in normalized_ids:
+            equipment = self.get_equipment(equipment_id=equipment_id)
+            self.equipment.delete(equipment)
+
         self.session.commit()
 
     def list_attachments(self, *, equipment_id: int) -> list[EquipmentAttachment]:
@@ -949,6 +1269,7 @@ class EquipmentService:
 
         message = VerificationMessage(
             verification_id=verification.id,
+            batch_key=verification.batch_key,
             author_user_id=author.id,
             author_display_name=_format_user_display_name(author),
             text=normalized_text,
@@ -1161,6 +1482,57 @@ class EquipmentService:
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You cannot modify this comment.",
             )
+
+    def _assert_verification_message_owner(
+        self,
+        *,
+        message: VerificationMessage,
+        current_user: User,
+    ) -> None:
+        if current_user.role in {UserRole.ADMINISTRATOR, UserRole.MKAIR}:
+            return
+        if message.author_user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot delete this verification message.",
+            )
+
+    def _build_verification_queue_item(
+        self,
+        *,
+        verification: Verification,
+        equipment: Equipment,
+        si_verification: SIVerification | None,
+        has_active_repair: bool,
+    ) -> VerificationQueueItemRead:
+        return VerificationQueueItemRead(
+            equipment_id=equipment.id,
+            verification_id=verification.id,
+            batch_key=verification.batch_key,
+            batch_name=verification.batch_name,
+            folder_id=equipment.folder_id,
+            object_name=equipment.object_name,
+            equipment_name=equipment.name,
+            modification=equipment.modification,
+            serial_number=equipment.serial_number,
+            manufacture_year=equipment.manufacture_year,
+            route_city=verification.route_city,
+            route_destination=verification.route_destination,
+            sent_to_verification_at=verification.sent_to_verification_at,
+            received_at_destination_at=verification.received_at_destination_at,
+            handed_to_csm_at=verification.handed_to_csm_at,
+            verification_completed_at=verification.verification_completed_at,
+            picked_up_from_csm_at=verification.picked_up_from_csm_at,
+            shipped_back_at=verification.shipped_back_at,
+            returned_from_verification_at=verification.returned_from_verification_at,
+            closed_at=verification.closed_at,
+            has_active_repair=has_active_repair,
+            result_docnum=si_verification.result_docnum if si_verification else None,
+            valid_date=si_verification.valid_date if si_verification else None,
+            arshin_url=si_verification.arshin_url if si_verification else None,
+            created_at=verification.created_at,
+            updated_at=verification.updated_at,
+        )
 
     def _build_existing_si_message(
         self,
@@ -1491,6 +1863,36 @@ class UploadedFilePayload:
     file_name: str | None
     content_type: str | None
     content: bytes
+
+
+_VERIFICATION_MILESTONE_LABELS: tuple[tuple[str, str], ...] = (
+    ("received_at_destination_at", "Получено в пункте назначения"),
+    ("handed_to_csm_at", "Передано в ЦСМ"),
+    ("verification_completed_at", "Поверка выполнена"),
+    ("picked_up_from_csm_at", "Получено в ЦСМ"),
+    ("shipped_back_at", "Упаковано и отправлено обратно"),
+    ("returned_from_verification_at", "Получено обратно"),
+)
+
+
+def _build_verification_milestone_message(
+    *,
+    current_user: User,
+    milestone_label: str,
+    milestone_date,
+    route_destination: str,
+) -> str:
+    resolved_label = milestone_label
+    if milestone_label == "Получено в пункте назначения":
+        resolved_label = f"Получено в пункте назначения ({route_destination})"
+    return (
+        f"{_format_user_display_name(current_user)} отметил этап "
+        f"«{resolved_label}» ({_format_short_date(milestone_date)})."
+    )
+
+
+def _format_short_date(value) -> str:
+    return value.strftime("%d.%m.%Y")
 
 
 def _extract_certificate_rows_from_table(

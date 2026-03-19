@@ -91,7 +91,7 @@ export function SettingsPage() {
         description="Персональные параметры оболочки и состав тем, доступных в верхнем переключателе."
       />
 
-      <div className="space-y-4 rounded-3xl border border-line bg-white p-5 shadow-panel">
+      <div className="tone-parent space-y-4 rounded-3xl border border-line p-5 shadow-panel">
         <form className="space-y-4" onSubmit={handleSaveThemes}>
           <div>
             <h3 className="text-base font-semibold text-ink">Темы интерфейса</h3>
@@ -105,7 +105,7 @@ export function SettingsPage() {
             {sortedThemeOptions.map((option) => (
               <label
                 key={option.value}
-                className="flex items-start gap-3 rounded-2xl border border-line bg-[var(--bg-secondary)] px-4 py-3 text-sm text-ink"
+                className="tone-child flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
               >
                 <input
                   checked={option.checked}
@@ -123,7 +123,7 @@ export function SettingsPage() {
             ))}
           </div>
 
-          <div className="rounded-2xl border border-line bg-[var(--bg-secondary)] px-4 py-3 text-sm text-steel">
+          <div className="tone-child rounded-2xl border border-line px-4 py-3 text-sm text-steel">
             Сейчас активна:{" "}
             <span className="font-semibold text-ink">
               {themeOptions.find((option) => option.value === currentTheme)?.label ?? currentTheme}

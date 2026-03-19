@@ -26,6 +26,9 @@ export function Modal({
       return undefined;
     }
 
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
         onClose();
@@ -33,7 +36,10 @@ export function Modal({
     }
 
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
   }, [onClose, open]);
 
   if (!open) {
@@ -49,13 +55,13 @@ export function Modal({
   return (
     <div
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(11,20,27,0.42)] px-4 py-8"
+      className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[rgba(11,20,27,0.42)] px-4 py-8"
       role="dialog"
       onClick={handleBackdropClick}
     >
       <div
         className={[
-          "w-full rounded-[28px] border border-line bg-white shadow-panel",
+          "tone-parent my-auto w-full max-h-[calc(100vh-4rem)] overflow-hidden rounded-[28px] border border-line shadow-panel",
           size === "sm" ? "max-w-md" : "max-w-2xl",
         ].join(" ")}
       >
@@ -74,7 +80,7 @@ export function Modal({
             onClick={onClose}
           />
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className="max-h-[calc(100vh-12rem)] overflow-y-auto px-6 py-5">{children}</div>
         {footer ? <div className="border-t border-line px-6 py-4">{footer}</div> : null}
       </div>
     </div>

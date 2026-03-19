@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,6 +16,7 @@ import {
   createEquipmentRepairMessage,
   createEquipmentVerificationMessage,
   createEquipmentComment,
+  deleteEquipmentVerificationMessage,
   deleteEquipmentComment,
   deleteEquipmentAttachment,
   deleteEquipment,
@@ -23,6 +24,7 @@ import {
   downloadVerificationMessageAttachment,
   downloadEquipmentAttachment,
   getEquipmentStatusLabel,
+  getVerificationProgressLabel,
   equipmentStatusLabels,
   equipmentTypeLabels,
   fetchEquipmentAttachments,
@@ -32,6 +34,7 @@ import {
   fetchEquipmentFolders,
   fetchEquipmentGroups,
   fetchEquipmentRepairMessages,
+  fetchEquipmentVerificationHistory,
   fetchEquipmentVerificationMessages,
   type EquipmentAttachment,
   type EquipmentComment,
@@ -126,6 +129,8 @@ export function EquipmentDetailsPage() {
   const [verificationMessageFiles, setVerificationMessageFiles] = useState<File[]>([]);
   const [repairExpanded, setRepairExpanded] = useState(true);
   const [verificationExpanded, setVerificationExpanded] = useState(true);
+  const [repairDialogExpanded, setRepairDialogExpanded] = useState(true);
+  const [verificationDialogExpanded, setVerificationDialogExpanded] = useState(true);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [siExpanded, setSiExpanded] = useState(false);
   const [siRefreshCertificate, setSiRefreshCertificate] = useState("");
@@ -203,6 +208,16 @@ export function EquipmentDetailsPage() {
       && Number.isInteger(parsedEquipmentId)
       && parsedEquipmentId > 0
       && Boolean(equipmentQuery.data?.activeVerification),
+  });
+
+  const verificationHistoryQuery = useQuery({
+    queryKey: ["equipment-verification-history", parsedEquipmentId],
+    queryFn: () => fetchEquipmentVerificationHistory(token ?? "", parsedEquipmentId),
+    enabled:
+      Boolean(token)
+      && Number.isInteger(parsedEquipmentId)
+      && parsedEquipmentId > 0
+      && equipmentQuery.data?.equipmentType === "SI",
   });
 
   const updateEquipmentMutation = useMutation({
@@ -325,6 +340,18 @@ export function EquipmentDetailsPage() {
       }
     },
   });
+
+  const deleteVerificationMessageMutation = useMutation({
+    mutationFn: (messageId: number) =>
+      deleteEquipmentVerificationMessage(token ?? "", parsedEquipmentId, messageId),
+    onSuccess: async () => {
+      setVerificationActionError(null);
+      await queryClient.invalidateQueries({
+        queryKey: ["equipment-verification-messages", parsedEquipmentId],
+      });
+    },
+  });
+
 
   const deleteEquipmentMutation = useMutation({
     mutationFn: () => deleteEquipment(token ?? "", parsedEquipmentId),
@@ -478,6 +505,13 @@ export function EquipmentDetailsPage() {
     () => verificationMessagesQuery.data ?? [],
     [verificationMessagesQuery.data],
   );
+  const verificationHistory = useMemo(
+    () => verificationHistoryQuery.data ?? [],
+    [verificationHistoryQuery.data],
+  );
+  const latestArchivedVerification = verificationHistory.length
+    ? verificationHistory[verificationHistory.length - 1]
+    : null;
   const siDetail = useMemo(
     () =>
       equipmentQuery.data?.siVerification
@@ -486,6 +520,7 @@ export function EquipmentDetailsPage() {
     [equipmentQuery.data?.siVerification],
   );
   const latestComment = comments.length > 0 ? comments[comments.length - 1] : null;
+
 
   useEffect(() => {
     if (!form?.groupId) {
@@ -874,7 +909,7 @@ export function EquipmentDetailsPage() {
               </dl>
 
               {activeRepair ? (
-                <section className="rounded-3xl border border-line bg-[var(--bg-secondary)] p-5 shadow-panel">
+                <section className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
                   <button
                     aria-expanded={repairExpanded}
                     className="flex w-full items-start justify-between gap-3 text-left"
@@ -925,7 +960,7 @@ export function EquipmentDetailsPage() {
                       </div>
                       <dl className="mt-4 overflow-hidden rounded-3xl border border-line bg-white">
                         {[
-                          ["Город", activeRepair.routeCity],
+                          ["Откуда", activeRepair.routeCity],
                           ["Куда", activeRepair.routeDestination],
                           ["Отправлен в ремонт", formatDateOnly(activeRepair.sentToRepairAt)],
                           ["Дедлайн ремонта", formatDateOnly(activeRepair.repairDeadlineAt)],
@@ -945,21 +980,34 @@ export function EquipmentDetailsPage() {
                         ))}
                       </dl>
 
-                      <section className="mt-4 overflow-hidden rounded-3xl border border-line bg-white">
-                    <div className="border-b border-line bg-[var(--bg-secondary)] px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
+                      <section className="tone-child mt-4 overflow-hidden rounded-3xl border border-line">
+                    <button
+                      aria-expanded={repairDialogExpanded}
+                      className="tone-grandchild flex w-full items-center justify-between gap-3 border-b border-line px-4 py-3 text-left"
+                      onClick={() => setRepairDialogExpanded((current) => !current)}
+                      type="button"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
                           <h4 className="text-sm font-semibold text-ink">Диалог ремонта</h4>
-                          <p className="mt-1 text-xs text-steel">
-                            Фото, документы, чеки и рабочие сообщения по текущему ремонту.
-                          </p>
+                          <svg
+                            className={["h-4 w-4 text-steel transition-transform", repairDialogExpanded ? "rotate-180" : ""].join(" ")}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                          </svg>
                         </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
-                          {repairMessages.length}
-                        </span>
+                        <p className="mt-1 text-xs text-steel">Фото, документы, чеки и рабочие сообщения по текущему ремонту.</p>
                       </div>
-                    </div>
+                      <span className="tone-parent rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
+                        {repairMessages.length}
+                      </span>
+                    </button>
 
+                    {repairDialogExpanded ? (
                     <div className="space-y-3 px-4 py-4">
                       {repairMessagesQuery.isLoading ? (
                         <p className="text-sm text-steel">Загружаем диалог ремонта...</p>
@@ -982,7 +1030,7 @@ export function EquipmentDetailsPage() {
                       {repairMessages.map((message) => (
                         <article
                           key={message.id}
-                          className="rounded-2xl border border-line bg-white/85 px-4 py-3"
+                          className="tone-grandchild rounded-2xl border border-line px-4 py-3"
                         >
                           <div className="text-xs text-steel">
                             {formatRepairMessageMeta(message)}
@@ -997,7 +1045,7 @@ export function EquipmentDetailsPage() {
                               {message.attachments.map((attachment) => (
                                 <button
                                   key={attachment.id}
-                                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-[var(--bg-secondary)] px-3 py-2 text-xs text-ink transition hover:border-signal-info"
+                                  className="tone-child inline-flex max-w-full items-center gap-2 rounded-full border border-line px-3 py-2 text-xs text-ink transition hover:border-signal-info"
                                   type="button"
                                   onClick={() => void handleRepairAttachmentDownload(message, attachment)}
                                 >
@@ -1016,8 +1064,9 @@ export function EquipmentDetailsPage() {
                         </article>
                       ))}
                     </div>
+                    ) : null}
 
-                    {canManage ? (
+                    {canManage && repairDialogExpanded ? (
                       <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateRepairMessage(event)}>
                         <textarea
                           ref={repairMessageInputRef}
@@ -1027,6 +1076,7 @@ export function EquipmentDetailsPage() {
                           rows={2}
                           value={repairMessageDraft}
                           onChange={(event) => setRepairMessageDraft(event.target.value)}
+                          onKeyDown={handleTextareaSubmitShortcut}
                           onInput={(event) => resizeCommentInput(event.currentTarget)}
                         />
                         <input
@@ -1041,7 +1091,7 @@ export function EquipmentDetailsPage() {
                             {repairMessageFiles.map((file) => (
                               <span
                                 key={`${file.name}-${file.size}-${file.lastModified}`}
-                                className="rounded-full border border-line bg-[var(--bg-secondary)] px-3 py-2 text-xs text-ink"
+                                className="tone-child rounded-full border border-line px-3 py-2 text-xs text-ink"
                               >
                                 {file.name}
                               </span>
@@ -1091,7 +1141,7 @@ export function EquipmentDetailsPage() {
               ) : null}
 
               {activeVerification ? (
-                <section className="rounded-3xl border border-line bg-[var(--bg-secondary)] p-5 shadow-panel">
+                <section className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
                   <button
                     aria-expanded={verificationExpanded}
                     className="flex w-full items-start justify-between gap-3 text-left"
@@ -1110,7 +1160,7 @@ export function EquipmentDetailsPage() {
                           {[activeVerification.routeCity, activeVerification.routeDestination].filter(Boolean).join(" · ")}
                         </div>
                         <p className="mt-1 line-clamp-2 break-words text-sm text-ink">
-                          {`отправлен ${formatDateOnly(activeVerification.sentToVerificationAt)}`}
+                          {getVerificationProgressLabel(activeVerification)}
                         </p>
                       </div>
                     </div>
@@ -1134,7 +1184,7 @@ export function EquipmentDetailsPage() {
                     <>
                       <dl className="mt-4 overflow-hidden rounded-3xl border border-line bg-white">
                         {[
-                          ["Город", activeVerification.routeCity],
+                          ["Откуда", activeVerification.routeCity],
                           ["Куда", activeVerification.routeDestination],
                           ["Отправлен в поверку", formatDateOnly(activeVerification.sentToVerificationAt)],
                         ].map(([label, value], index) => (
@@ -1153,21 +1203,34 @@ export function EquipmentDetailsPage() {
                         ))}
                       </dl>
 
-                      <section className="mt-4 overflow-hidden rounded-3xl border border-line bg-white">
-                    <div className="border-b border-line bg-[var(--bg-secondary)] px-4 py-3">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
+                      <section className="tone-child mt-4 overflow-hidden rounded-3xl border border-line">
+                    <button
+                      aria-expanded={verificationDialogExpanded}
+                      className="tone-grandchild flex w-full items-center justify-between gap-3 border-b border-line px-4 py-3 text-left"
+                      onClick={() => setVerificationDialogExpanded((current) => !current)}
+                      type="button"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
                           <h4 className="text-sm font-semibold text-ink">Диалог поверки</h4>
-                          <p className="mt-1 text-xs text-steel">
-                            Сообщения, фото и документы по текущей поверке.
-                          </p>
+                          <svg
+                            className={["h-4 w-4 text-steel transition-transform", verificationDialogExpanded ? "rotate-180" : ""].join(" ")}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                          </svg>
                         </div>
-                        <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
-                          {verificationMessages.length}
-                        </span>
+                        <p className="mt-1 text-xs text-steel">Сообщения, фото и документы по текущей поверке.</p>
                       </div>
-                    </div>
+                      <span className="tone-parent rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
+                        {verificationMessages.length}
+                      </span>
+                    </button>
 
+                    {verificationDialogExpanded ? (
                     <div className="space-y-3 px-4 py-4">
                       {verificationMessagesQuery.isLoading ? (
                         <p className="text-sm text-steel">Загружаем диалог поверки...</p>
@@ -1190,10 +1253,24 @@ export function EquipmentDetailsPage() {
                       {verificationMessages.map((message) => (
                         <article
                           key={message.id}
-                          className="rounded-2xl border border-line bg-white/85 px-4 py-3"
+                          className="tone-grandchild rounded-2xl border border-line px-4 py-3"
                         >
-                          <div className="text-xs text-steel">
-                            {formatVerificationMessageMeta(message)}
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="text-xs text-steel">
+                              {formatVerificationMessageMeta(message)}
+                            </div>
+                            {(canManage || message.authorUserId === user?.id) ? (
+                              <IconActionButton
+                                icon={
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.108 0 00-7.5 0" />
+                                  </svg>
+                                }
+                                label="Удалить сообщение поверки"
+                                size="tiny"
+                                onClick={() => void deleteVerificationMessageMutation.mutateAsync(message.id)}
+                              />
+                            ) : null}
                           </div>
                           {message.text ? (
                             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
@@ -1205,7 +1282,7 @@ export function EquipmentDetailsPage() {
                               {message.attachments.map((attachment) => (
                                 <button
                                   key={attachment.id}
-                                  className="inline-flex max-w-full items-center gap-2 rounded-full border border-line bg-[var(--bg-secondary)] px-3 py-2 text-xs text-ink transition hover:border-signal-info"
+                                  className="tone-child inline-flex max-w-full items-center gap-2 rounded-full border border-line px-3 py-2 text-xs text-ink transition hover:border-signal-info"
                                   type="button"
                                   onClick={() => void handleVerificationAttachmentDownload(message, attachment)}
                                 >
@@ -1224,8 +1301,9 @@ export function EquipmentDetailsPage() {
                         </article>
                       ))}
                     </div>
+                    ) : null}
 
-                    {canManage ? (
+                    {canManage && verificationDialogExpanded ? (
                       <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateVerificationMessage(event)}>
                         <textarea
                           ref={verificationMessageInputRef}
@@ -1235,6 +1313,7 @@ export function EquipmentDetailsPage() {
                           rows={2}
                           value={verificationMessageDraft}
                           onChange={(event) => setVerificationMessageDraft(event.target.value)}
+                          onKeyDown={handleTextareaSubmitShortcut}
                           onInput={(event) => resizeCommentInput(event.currentTarget)}
                         />
                         <input
@@ -1249,7 +1328,7 @@ export function EquipmentDetailsPage() {
                             {verificationMessageFiles.map((file) => (
                               <span
                                 key={`${file.name}-${file.size}-${file.lastModified}`}
-                                className="rounded-full border border-line bg-[var(--bg-secondary)] px-3 py-2 text-xs text-ink"
+                                className="tone-child rounded-full border border-line px-3 py-2 text-xs text-ink"
                               >
                                 {file.name}
                               </span>
@@ -1409,12 +1488,12 @@ export function EquipmentDetailsPage() {
                           ) : null}
                         </>
                       ) : (
-                        <div className="rounded-3xl border border-line bg-[var(--bg-secondary)] px-4 py-3 text-sm text-steel">
+                        <div className="tone-parent rounded-3xl border border-line px-4 py-3 text-sm text-steel">
                           Детальный профиль СИ пока не заполнен. Можно вручную подтянуть новую запись из Аршина по номеру свидетельства.
                         </div>
                       )}
                       {canManage ? (
-                        <section className="rounded-3xl border border-line bg-[var(--bg-secondary)] p-4">
+                        <section className="tone-parent rounded-3xl border border-line p-4">
                           <div className="flex items-start justify-between gap-3">
                             <div>
                               <h4 className="text-sm font-semibold text-ink">Обновить по новому свидетельству</h4>
@@ -1561,7 +1640,7 @@ export function EquipmentDetailsPage() {
                 </section>
               ) : null}
 
-              <section className="rounded-3xl border border-line bg-white p-5 shadow-panel">
+              <section className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
                 <button
                   aria-expanded={commentsExpanded}
                   className="flex w-full items-start justify-between gap-3 text-left"
@@ -1622,6 +1701,7 @@ export function EquipmentDetailsPage() {
                         rows={2}
                         value={commentDraft}
                         onChange={(event) => setCommentDraft(event.target.value)}
+                        onKeyDown={handleTextareaSubmitShortcut}
                         onInput={(event) =>
                           resizeCommentInput(event.currentTarget)
                         }
@@ -1660,7 +1740,7 @@ export function EquipmentDetailsPage() {
                       {comments.map((comment) => (
                         <article
                           key={comment.id}
-                          className="rounded-2xl border border-line bg-white/85 px-4 py-3"
+                          className="tone-child rounded-2xl border border-line px-4 py-3"
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="text-xs text-steel">
@@ -1703,6 +1783,7 @@ export function EquipmentDetailsPage() {
                                 rows={2}
                                 value={commentEditDraft}
                                 onChange={(event) => setCommentEditDraft(event.target.value)}
+                                onKeyDown={handleTextareaSubmitShortcut}
                                 onInput={(event) => resizeCommentInput(event.currentTarget)}
                               />
                               {updateCommentMutation.isError ? (
@@ -1761,7 +1842,7 @@ export function EquipmentDetailsPage() {
             </div>
 
             <aside className="space-y-4">
-              <section className="rounded-3xl border border-line bg-white p-5 shadow-panel">
+              <section className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-semibold text-ink">Вложения</h3>
@@ -1818,7 +1899,7 @@ export function EquipmentDetailsPage() {
                   {attachments.map((attachment) => (
                     <div
                       key={attachment.id}
-                      className="rounded-2xl border border-line bg-white/85 px-4 py-3 text-sm text-ink"
+                      className="tone-child rounded-2xl border border-line px-4 py-3 text-sm text-ink"
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
@@ -1857,6 +1938,48 @@ export function EquipmentDetailsPage() {
                     </div>
                   ))}
                 </div>
+                {equipmentQuery.data.equipmentType === "SI" ? (
+                  <div className="mt-4 border-t border-line pt-4">
+                    {verificationHistoryQuery.isLoading ? (
+                      <p className="text-sm text-steel">Загружаем архив поверки...</p>
+                    ) : null}
+                    {verificationHistoryQuery.isError ? (
+                      <p className="text-sm text-[#b04c43]">
+                        {verificationHistoryQuery.error instanceof Error
+                          ? verificationHistoryQuery.error.message
+                          : "Не удалось загрузить архив поверки."}
+                      </p>
+                    ) : null}
+                    {latestArchivedVerification ? (
+                      <Link
+                        className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
+                        to="/verification/si?tab=archived"
+                      >
+                        <div className="min-w-0">
+                          <p className="font-medium text-ink">Архив поверки</p>
+                          <p className="mt-1 truncate text-xs text-steel">
+                            {[
+                              latestArchivedVerification.resultDocnum
+                                ? `свид. ${latestArchivedVerification.resultDocnum}`
+                                : null,
+                              latestArchivedVerification.closedAt
+                                ? `закрыта ${formatDateOnly(latestArchivedVerification.closedAt)}`
+                                : null,
+                              verificationHistory.length > 1
+                                ? `всего записей: ${verificationHistory.length}`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </p>
+                        </div>
+                        <svg className="h-4 w-4 shrink-0 text-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" />
+                        </svg>
+                      </Link>
+                    ) : null}
+                  </div>
+                ) : null}
               </section>
             </aside>
           </div>
@@ -1873,7 +1996,7 @@ export function EquipmentDetailsPage() {
           <form className="space-y-4" onSubmit={(event) => void handleCreateRepair(event)}>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block text-sm text-steel">
-                Город
+                Откуда
                 <input
                   className="form-input"
                   list={`repair-route-cities-${parsedEquipmentId}`}
@@ -1933,6 +2056,7 @@ export function EquipmentDetailsPage() {
                     initialMessageText: event.target.value,
                   }))
                 }
+                onKeyDown={handleTextareaSubmitShortcut}
               />
             </label>
             <input
@@ -1947,7 +2071,7 @@ export function EquipmentDetailsPage() {
                 {repairForm.files.map((file) => (
                   <span
                     key={`${file.name}-${file.size}-${file.lastModified}`}
-                    className="rounded-full border border-line bg-[var(--bg-secondary)] px-3 py-2 text-xs text-ink"
+                    className="tone-child rounded-full border border-line px-3 py-2 text-xs text-ink"
                   >
                     {file.name}
                   </span>
@@ -2010,7 +2134,7 @@ export function EquipmentDetailsPage() {
           <form className="space-y-4" onSubmit={(event) => void handleCreateVerification(event)}>
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block text-sm text-steel">
-                Город
+                Откуда
                 <input
                   className="form-input"
                   list={`verification-route-cities-${parsedEquipmentId}`}
@@ -2073,6 +2197,7 @@ export function EquipmentDetailsPage() {
                     initialMessageText: event.target.value,
                   }))
                 }
+                onKeyDown={handleTextareaSubmitShortcut}
               />
             </label>
             <input
@@ -2087,7 +2212,7 @@ export function EquipmentDetailsPage() {
                 {verificationForm.files.map((file) => (
                   <span
                     key={`${file.name}-${file.size}-${file.lastModified}`}
-                    className="rounded-full border border-line bg-[var(--bg-secondary)] px-3 py-2 text-xs text-ink"
+                    className="tone-child rounded-full border border-line px-3 py-2 text-xs text-ink"
                   >
                     {file.name}
                   </span>
@@ -2435,8 +2560,8 @@ function SISection({
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-line">
-      <div className="border-b border-line bg-[var(--bg-secondary)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
+    <section className="tone-parent overflow-hidden rounded-3xl border border-line">
+      <div className="tone-child border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
         {title}
       </div>
       <dl>
@@ -2469,8 +2594,8 @@ function SIListSection({
   }
 
   return (
-    <section className="overflow-hidden rounded-3xl border border-line">
-      <div className="border-b border-line bg-[var(--bg-secondary)] px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
+    <section className="tone-parent overflow-hidden rounded-3xl border border-line">
+      <div className="tone-child border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
         {title}
       </div>
       <div className="space-y-2 px-4 py-3 text-sm text-ink">
@@ -2780,6 +2905,15 @@ function normalizeDisplayDate(value: string | null): string | null {
 function resizeCommentInput(textarea: HTMLTextAreaElement): void {
   textarea.style.height = "0px";
   textarea.style.height = `${Math.max(textarea.scrollHeight, 64)}px`;
+}
+
+function handleTextareaSubmitShortcut(event: KeyboardEvent<HTMLTextAreaElement>): void {
+  if (event.key !== "Enter" || event.shiftKey) {
+    return;
+  }
+
+  event.preventDefault();
+  event.currentTarget.form?.requestSubmit();
 }
 
 function insertEmojiAtCursor(

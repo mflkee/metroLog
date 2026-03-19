@@ -107,10 +107,10 @@ export function ProfilePage() {
         title="Профиль"
         description="Учетная страница с базовой информацией и сменой пароля."
       />
-      <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
+      <div className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
         {user ? (
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
-            <dl className="overflow-hidden rounded-2xl border border-line bg-white/85">
+            <dl className="tone-child overflow-hidden rounded-2xl border border-line">
               {[
                 ["Фамилия", user.lastName || "Не указана"],
                 ["Имя", user.firstName || "Не указано"],
@@ -141,7 +141,7 @@ export function ProfilePage() {
 
             <div className="space-y-4">
               <form
-                className="space-y-4 rounded-2xl border border-line bg-white/85 p-4"
+                className="tone-child space-y-4 rounded-2xl border border-line p-4"
                 onSubmit={handleSaveProfile}
               >
                 <div>
@@ -208,7 +208,7 @@ export function ProfilePage() {
               </form>
 
               <form
-                className="space-y-4 rounded-2xl border border-line bg-white/85 p-4"
+                className="tone-child space-y-4 rounded-2xl border border-line p-4"
                 onSubmit={handleChangePassword}
               >
                 <div>

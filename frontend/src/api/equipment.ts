@@ -64,9 +64,17 @@ type RawEquipmentRepair = {
 type RawEquipmentVerification = {
   id: number;
   equipment_id: number;
+  batch_key: string | null;
+  batch_name: string | null;
   route_city: string;
   route_destination: string;
   sent_to_verification_at: string;
+  received_at_destination_at: string | null;
+  handed_to_csm_at: string | null;
+  verification_completed_at: string | null;
+  picked_up_from_csm_at: string | null;
+  shipped_back_at: string | null;
+  returned_from_verification_at: string | null;
   closed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -212,10 +220,47 @@ export type EquipmentRepair = {
 export type EquipmentVerification = {
   id: number;
   equipmentId: number;
+  batchKey: string | null;
+  batchName: string | null;
   routeCity: string;
   routeDestination: string;
   sentToVerificationAt: string;
+  receivedAtDestinationAt: string | null;
+  handedToCsmAt: string | null;
+  verificationCompletedAt: string | null;
+  pickedUpFromCsmAt: string | null;
+  shippedBackAt: string | null;
+  returnedFromVerificationAt: string | null;
   closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type VerificationQueueItem = {
+  equipmentId: number;
+  verificationId: number;
+  batchKey: string | null;
+  batchName: string | null;
+  folderId: number | null;
+  objectName: string;
+  equipmentName: string;
+  modification: string | null;
+  serialNumber: string | null;
+  manufactureYear: number | null;
+  routeCity: string;
+  routeDestination: string;
+  sentToVerificationAt: string;
+  receivedAtDestinationAt: string | null;
+  handedToCsmAt: string | null;
+  verificationCompletedAt: string | null;
+  pickedUpFromCsmAt: string | null;
+  shippedBackAt: string | null;
+  returnedFromVerificationAt: string | null;
+  closedAt: string | null;
+  hasActiveRepair: boolean;
+  resultDocnum: string | null;
+  validDate: string | null;
+  arshinUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -366,6 +411,24 @@ export type CreateEquipmentVerificationPayload = {
   files: File[];
 };
 
+export type CreateVerificationBatchPayload = {
+  equipmentIds: number[];
+  batchName: string;
+  routeCity: string;
+  routeDestination: string;
+  sentToVerificationAt: string;
+  initialMessageText: string;
+};
+
+export type UpdateEquipmentVerificationMilestonesPayload = {
+  receivedAtDestinationAt?: string | null;
+  handedToCsmAt?: string | null;
+  verificationCompletedAt?: string | null;
+  pickedUpFromCsmAt?: string | null;
+  shippedBackAt?: string | null;
+  returnedFromVerificationAt?: string | null;
+};
+
 export type CreateVerificationMessagePayload = {
   text: string;
   files: File[];
@@ -403,6 +466,35 @@ type FetchEquipmentFilters = {
   query?: string;
   status?: EquipmentStatus | null;
   equipmentType?: EquipmentType | null;
+};
+
+type RawVerificationQueueItem = {
+  equipment_id: number;
+  verification_id: number;
+  batch_key: string | null;
+  batch_name: string | null;
+  folder_id: number | null;
+  object_name: string;
+  equipment_name: string;
+  modification: string | null;
+  serial_number: string | null;
+  manufacture_year: number | null;
+  route_city: string;
+  route_destination: string;
+  sent_to_verification_at: string;
+  received_at_destination_at: string | null;
+  handed_to_csm_at: string | null;
+  verification_completed_at: string | null;
+  picked_up_from_csm_at: string | null;
+  shipped_back_at: string | null;
+  returned_from_verification_at: string | null;
+  closed_at: string | null;
+  has_active_repair: boolean;
+  result_docnum: string | null;
+  valid_date: string | null;
+  arshin_url: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
 type RawEquipmentSIBulkImportRow = {
@@ -514,6 +606,46 @@ export async function fetchEquipment(
   return response.map(mapEquipment);
 }
 
+export async function fetchVerificationQueue(
+  token: string,
+  {
+    lifecycleStatus,
+    query,
+  }: {
+    lifecycleStatus: "active" | "archived";
+    query?: string;
+  },
+): Promise<VerificationQueueItem[]> {
+  const search = new URLSearchParams();
+  search.set("lifecycle_status", lifecycleStatus);
+  if (query?.trim()) {
+    search.set("query", query.trim());
+  }
+
+  const response = await apiRequest<RawVerificationQueueItem[]>(
+    `/equipment/verifications?${search.toString()}`,
+    {
+      method: "GET",
+      token,
+    },
+  );
+  return response.map(mapVerificationQueueItem);
+}
+
+export async function fetchEquipmentVerificationHistory(
+  token: string,
+  equipmentId: number,
+): Promise<VerificationQueueItem[]> {
+  const response = await apiRequest<RawVerificationQueueItem[]>(
+    `/equipment/${equipmentId}/verification/history`,
+    {
+      method: "GET",
+      token,
+    },
+  );
+  return response.map(mapVerificationQueueItem);
+}
+
 export async function exportEquipmentRegistryXlsx(
   token: string,
   filters: FetchEquipmentFilters = {},
@@ -602,6 +734,99 @@ export async function createEquipmentVerification(
   return mapEquipmentVerification(response);
 }
 
+export async function createVerificationBatch(
+  token: string,
+  payload: CreateVerificationBatchPayload,
+): Promise<EquipmentVerification[]> {
+  const response = await apiRequest<RawEquipmentVerification[]>("/equipment/verifications/bulk", {
+    method: "POST",
+    token,
+    body: {
+      equipment_ids: payload.equipmentIds,
+      batch_name: payload.batchName,
+      route_city: payload.routeCity,
+      route_destination: payload.routeDestination,
+      sent_to_verification_at: payload.sentToVerificationAt,
+      initial_message_text: payload.initialMessageText.trim() || null,
+    },
+  });
+  return response.map(mapEquipmentVerification);
+}
+
+export async function updateEquipmentVerificationMilestones(
+  token: string,
+  equipmentId: number,
+  payload: UpdateEquipmentVerificationMilestonesPayload,
+): Promise<EquipmentVerification> {
+  const response = await apiRequest<RawEquipmentVerification>(
+    `/equipment/${equipmentId}/verification`,
+    {
+      method: "PATCH",
+      token,
+      body: {
+        received_at_destination_at: payload.receivedAtDestinationAt ?? null,
+        handed_to_csm_at: payload.handedToCsmAt ?? null,
+        verification_completed_at: payload.verificationCompletedAt ?? null,
+        picked_up_from_csm_at: payload.pickedUpFromCsmAt ?? null,
+        shipped_back_at: payload.shippedBackAt ?? null,
+        returned_from_verification_at: payload.returnedFromVerificationAt ?? null,
+      },
+    },
+  );
+  return mapEquipmentVerification(response);
+}
+
+export async function updateVerificationBatchMilestones(
+  token: string,
+  batchKey: string,
+  payload: UpdateEquipmentVerificationMilestonesPayload,
+): Promise<EquipmentVerification[]> {
+  const response = await apiRequest<RawEquipmentVerification[]>(
+    `/equipment/verifications/batch/${batchKey}`,
+    {
+      method: "PATCH",
+      token,
+      body: {
+        received_at_destination_at: payload.receivedAtDestinationAt ?? null,
+        handed_to_csm_at: payload.handedToCsmAt ?? null,
+        verification_completed_at: payload.verificationCompletedAt ?? null,
+        picked_up_from_csm_at: payload.pickedUpFromCsmAt ?? null,
+        shipped_back_at: payload.shippedBackAt ?? null,
+        returned_from_verification_at: payload.returnedFromVerificationAt ?? null,
+      },
+    },
+  );
+  return response.map(mapEquipmentVerification);
+}
+
+export async function closeEquipmentVerification(
+  token: string,
+  equipmentId: number,
+): Promise<EquipmentVerification> {
+  const response = await apiRequest<RawEquipmentVerification>(
+    `/equipment/${equipmentId}/verification/close`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+  return mapEquipmentVerification(response);
+}
+
+export async function closeVerificationBatch(
+  token: string,
+  batchKey: string,
+): Promise<EquipmentVerification[]> {
+  const response = await apiRequest<RawEquipmentVerification[]>(
+    `/equipment/verifications/batch/${batchKey}/close`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+  return response.map(mapEquipmentVerification);
+}
+
 export async function fetchEquipmentRepairMessages(
   token: string,
   equipmentId: number,
@@ -672,6 +897,17 @@ export async function createEquipmentVerificationMessage(
   return mapVerificationMessage(response);
 }
 
+export async function deleteEquipmentVerificationMessage(
+  token: string,
+  equipmentId: number,
+  messageId: number,
+): Promise<void> {
+  await apiRequest(`/equipment/${equipmentId}/verification/messages/${messageId}`, {
+    method: "DELETE",
+    token,
+  });
+}
+
 export async function downloadRepairMessageAttachment(
   token: string,
   equipmentId: number,
@@ -739,6 +975,36 @@ export async function downloadVerificationMessageAttachment(
   const contentDisposition = response.headers.get("content-disposition") ?? "";
   const fileName =
     parseContentDispositionFileName(contentDisposition) ?? `verification-attachment-${attachmentId}`;
+  return { blob, fileName };
+}
+
+export async function downloadVerificationArchiveZip(
+  token: string,
+  verificationId: number,
+): Promise<{ blob: Blob; fileName: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/equipment/verifications/${verificationId}/archive.zip`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "Не удалось связаться с сервером. Проверь доступность приложения и настройки API.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, "Не удалось скачать архив поверки.");
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition") ?? "";
+  const fileName =
+    parseContentDispositionFileName(contentDisposition) ?? `verification-archive-${verificationId}.zip`;
   return { blob, fileName };
 }
 
@@ -963,6 +1229,19 @@ export async function deleteEquipment(token: string, equipmentId: number): Promi
   });
 }
 
+export async function deleteEquipmentBatch(
+  token: string,
+  equipmentIds: number[],
+): Promise<void> {
+  await apiRequest("/equipment/delete-batch", {
+    method: "POST",
+    token,
+    body: {
+      equipment_ids: equipmentIds,
+    },
+  });
+}
+
 export const equipmentTypeLabels: Record<EquipmentType, string> = {
   SI: "СИ",
   IO: "ИО",
@@ -988,6 +1267,39 @@ export function getEquipmentStatusLabel(item: Pick<EquipmentItem, "status" | "ac
     return equipmentStatusLabels.IN_VERIFICATION;
   }
   return equipmentStatusLabels[item.status];
+}
+
+export function getVerificationProgressLabel(
+  verification: Pick<
+    EquipmentVerification,
+    | "routeDestination"
+    | "receivedAtDestinationAt"
+    | "handedToCsmAt"
+    | "verificationCompletedAt"
+    | "pickedUpFromCsmAt"
+    | "shippedBackAt"
+    | "returnedFromVerificationAt"
+  >,
+): string {
+  if (verification.returnedFromVerificationAt) {
+    return "Получено обратно";
+  }
+  if (verification.shippedBackAt) {
+    return "Отправлено обратно";
+  }
+  if (verification.pickedUpFromCsmAt) {
+    return "Получено в ЦСМ";
+  }
+  if (verification.verificationCompletedAt) {
+    return "Поверка выполнена";
+  }
+  if (verification.handedToCsmAt) {
+    return "В ЦСМ на поверке";
+  }
+  if (verification.receivedAtDestinationAt) {
+    return "Получено в пункте назначения";
+  }
+  return "Ожидает получения в пункте назначения";
 }
 
 export function buildSIVerificationPayloadFromArshin(
@@ -1078,9 +1390,17 @@ function mapEquipmentVerification(
   return {
     id: verification.id,
     equipmentId: verification.equipment_id,
+    batchKey: verification.batch_key,
+    batchName: verification.batch_name,
     routeCity: verification.route_city,
     routeDestination: verification.route_destination,
     sentToVerificationAt: verification.sent_to_verification_at,
+    receivedAtDestinationAt: verification.received_at_destination_at,
+    handedToCsmAt: verification.handed_to_csm_at,
+    verificationCompletedAt: verification.verification_completed_at,
+    pickedUpFromCsmAt: verification.picked_up_from_csm_at,
+    shippedBackAt: verification.shipped_back_at,
+    returnedFromVerificationAt: verification.returned_from_verification_at,
     closedAt: verification.closed_at,
     createdAt: verification.created_at,
     updatedAt: verification.updated_at,
@@ -1099,6 +1419,37 @@ function mapRepairMessageAttachment(
     fileMimeType: attachment.file_mime_type,
     fileSize: attachment.file_size,
     createdAt: attachment.created_at,
+  };
+}
+
+function mapVerificationQueueItem(item: RawVerificationQueueItem): VerificationQueueItem {
+  return {
+    equipmentId: item.equipment_id,
+    verificationId: item.verification_id,
+    batchKey: item.batch_key,
+    batchName: item.batch_name,
+    folderId: item.folder_id,
+    objectName: item.object_name,
+    equipmentName: item.equipment_name,
+    modification: item.modification,
+    serialNumber: item.serial_number,
+    manufactureYear: item.manufacture_year,
+    routeCity: item.route_city,
+    routeDestination: item.route_destination,
+    sentToVerificationAt: item.sent_to_verification_at,
+    receivedAtDestinationAt: item.received_at_destination_at,
+    handedToCsmAt: item.handed_to_csm_at,
+    verificationCompletedAt: item.verification_completed_at,
+    pickedUpFromCsmAt: item.picked_up_from_csm_at,
+    shippedBackAt: item.shipped_back_at,
+    returnedFromVerificationAt: item.returned_from_verification_at,
+    closedAt: item.closed_at,
+    hasActiveRepair: item.has_active_repair,
+    resultDocnum: item.result_docnum,
+    validDate: item.valid_date,
+    arshinUrl: item.arshin_url,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
   };
 }
 

@@ -73,6 +73,13 @@ Build reusable blocks:
 - timeline items,
 - form fields.
 
+Uniformity is a hard frontend rule:
+- if two buttons, fields, cards, rows, badges, or modal actions stand next to each other, they must follow one shared size and visual rhythm,
+- neighboring controls must not drift into arbitrary height, padding, radius, or typography differences,
+- destructive, secondary, and primary actions may differ by color and semantic emphasis, but not by accidental sizing or broken alignment,
+- modal windows must also follow one shared spacing, action placement, and control sizing pattern,
+- it is categorically forbidden to introduce one-off UI elements that break the common visual system without a deliberate design-system update.
+
 ### 5. Good loading/error/empty states
 Every page that fetches data must have:
 - skeleton or loading state,
@@ -259,6 +266,9 @@ Process panel behavior:
 * each active process panel should behave like a compact messenger-style thread,
 * users can add messages with author and timestamp,
 * messages may include inline attachments,
+* the equipment card verification panel should keep the dialog and compact current-state summary,
+* milestone date editing belongs to the dedicated `/verification/si` page inside an expandable verification record,
+* on the collapsed verification panel the user should see the current derived state instead of only the send date,
 * the repair send modal should ask for route fields such as city and destination, not repair organization,
 * the first repair message with attachments may be created during send-to-repair, but it is optional,
 * after completion, the active process panel is replaced by a compact archive record with ZIP download action,
@@ -517,6 +527,12 @@ Suggested components:
 Use a neutral professional enterprise style.
 The app should look serious, modern, and clean.
 
+Visual consistency is mandatory:
+- equal-level UI blocks must look equal-level,
+- equal-purpose controls must share the same dimensions and component pattern,
+- differences should communicate meaning, not inconsistency,
+- if a new screen introduces a button, compact action, chip, modal footer, or nested frame, it must reuse the established frontend pattern instead of inventing a new one.
+
 ### Visual priorities
 
 User must instantly notice:
@@ -569,6 +585,13 @@ Profile display blocks should remain compact and readable:
 * avoid oversized cards for short account metadata,
 * prefer tight row-based presentation for user profile details,
 * support long values such as email, position, or facility with clean wrapping.
+
+Form and modal action rules:
+
+* confirm/cancel/save actions must remain visually synchronized when they belong to one action group,
+* neighboring buttons inside one form or modal should differ by semantic color, not by arbitrary size mismatch,
+* repeated dialog structures should reuse the same modal and action-button primitives,
+* nested structures should follow the same depth system across the app so that inner frames, message bubbles, and inline controls become darker or denser in a predictable way.
 
 ---
 

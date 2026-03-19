@@ -476,6 +476,19 @@ Rules:
 
 ### Rule 2.2 - Folder-scoped manual suggestions
 
+Verification must support both:
+- a fixed milestone tracker with explicit dates for movement and handoffs,
+- a free dialog thread with messages and attachments.
+
+Backend rules for the milestone tracker:
+- milestone dates belong to the active verification process record,
+- the current short verification state is derived from the latest completed milestone,
+- updating a milestone date must append a system message to the verification dialog,
+- milestone tracking must not replace the free dialog,
+- milestone editing is primarily handled from the dedicated verification workspace, while the equipment card shows only compact current-state summary plus dialog.
+
+### Rule 2.3 - Folder-scoped manual suggestions
+
 The backend should expose folder-local suggestion lists for recurring manual values.
 
 Examples:

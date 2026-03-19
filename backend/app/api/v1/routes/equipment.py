@@ -8,6 +8,7 @@ from app.api.deps import CurrentUser, DbSession, OperatorUser
 from app.models.equipment import EquipmentStatus, EquipmentType
 from app.schemas.equipment import (
     EquipmentAttachmentRead,
+    EquipmentBulkDeleteRequest,
     EquipmentCommentCreateRequest,
     EquipmentCommentRead,
     EquipmentCommentUpdateRequest,
@@ -25,9 +26,12 @@ from app.schemas.equipment import (
     RepairMessageCreateRequest,
     RepairMessageRead,
     RepairRead,
+    VerificationBulkCreateRequest,
     VerificationCreateRequest,
     VerificationMessageCreateRequest,
     VerificationMessageRead,
+    VerificationMilestonesUpdateRequest,
+    VerificationQueueItemRead,
     VerificationRead,
 )
 from app.services.arshin_service import ArshinService
@@ -130,6 +134,46 @@ async def list_equipment(
     return [EquipmentRead.model_validate(item) for item in equipment_items]
 
 
+@router.get("/verifications", response_model=list[VerificationQueueItemRead])
+async def list_verification_queue(
+    _: CurrentUser,
+    db: DbSession,
+    lifecycle_status: Annotated[str, Query()] = "active",
+    query: Annotated[str | None, Query()] = None,
+) -> list[VerificationQueueItemRead]:
+    return EquipmentService(db).list_verification_queue(
+        lifecycle_status=lifecycle_status,
+        query=query,
+    )
+
+
+@router.get(
+    "/{equipment_id}/verification/history",
+    response_model=list[VerificationQueueItemRead],
+)
+async def list_equipment_verification_history(
+    equipment_id: int,
+    _: CurrentUser,
+    db: DbSession,
+) -> list[VerificationQueueItemRead]:
+    return EquipmentService(db).list_equipment_verification_history(
+        equipment_id=equipment_id
+    )
+
+
+@router.post("/verifications/bulk", response_model=list[VerificationRead], status_code=201)
+async def create_verification_batch(
+    payload: VerificationBulkCreateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> list[VerificationRead]:
+    verifications = EquipmentService(db).create_verification_batch(
+        payload=payload,
+        current_user=current_user,
+    )
+    return [VerificationRead.model_validate(item) for item in verifications]
+
+
 @router.get("/export/xlsx")
 async def export_equipment_registry_xlsx(
     _: CurrentUser,
@@ -214,6 +258,56 @@ async def create_equipment_verification(
         files=uploaded_files,
     )
     return VerificationRead.model_validate(verification)
+
+
+@router.patch("/{equipment_id}/verification", response_model=VerificationRead)
+async def update_equipment_verification_milestones(
+    equipment_id: int,
+    payload: VerificationMilestonesUpdateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> VerificationRead:
+    verification = EquipmentService(db).update_verification_milestones(
+        equipment_id=equipment_id,
+        payload=payload,
+        current_user=current_user,
+    )
+    return VerificationRead.model_validate(verification)
+
+
+@router.patch("/verifications/batch/{batch_key}", response_model=list[VerificationRead])
+async def update_verification_batch_milestones(
+    batch_key: str,
+    payload: VerificationMilestonesUpdateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> list[VerificationRead]:
+    verifications = EquipmentService(db).update_verification_batch_milestones(
+        batch_key=batch_key,
+        payload=payload,
+        current_user=current_user,
+    )
+    return [VerificationRead.model_validate(item) for item in verifications]
+
+
+@router.post("/{equipment_id}/verification/close", response_model=VerificationRead)
+async def close_equipment_verification(
+    equipment_id: int,
+    _: OperatorUser,
+    db: DbSession,
+) -> VerificationRead:
+    verification = EquipmentService(db).close_verification(equipment_id=equipment_id)
+    return VerificationRead.model_validate(verification)
+
+
+@router.post("/verifications/batch/{batch_key}/close", response_model=list[VerificationRead])
+async def close_verification_batch(
+    batch_key: str,
+    _: OperatorUser,
+    db: DbSession,
+) -> list[VerificationRead]:
+    verifications = EquipmentService(db).close_verification_batch(batch_key=batch_key)
+    return [VerificationRead.model_validate(item) for item in verifications]
 
 
 @router.post("/{equipment_id}/repair", response_model=RepairRead, status_code=201)
@@ -312,6 +406,23 @@ async def create_equipment_verification_message(
     return VerificationMessageRead.model_validate(message)
 
 
+@router.delete(
+    "/{equipment_id}/verification/messages/{message_id}",
+    status_code=204,
+)
+async def delete_equipment_verification_message(
+    equipment_id: int,
+    message_id: int,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> None:
+    EquipmentService(db).delete_verification_message(
+        equipment_id=equipment_id,
+        message_id=message_id,
+        current_user=current_user,
+    )
+
+
 @router.get(
     "/{equipment_id}/repair/messages/{message_id}/attachments/{attachment_id}/download"
 )
@@ -353,6 +464,22 @@ async def download_equipment_verification_message_attachment(
         file_path,
         filename=attachment.file_name,
         media_type=attachment.file_mime_type or "application/octet-stream",
+    )
+
+
+@router.get("/verifications/{verification_id}/archive.zip")
+async def download_verification_archive(
+    verification_id: int,
+    _: CurrentUser,
+    db: DbSession,
+) -> StreamingResponse:
+    file_name, content = EquipmentService(db).export_verification_archive_zip(
+        verification_id=verification_id
+    )
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
     )
 
 
@@ -519,6 +646,15 @@ async def update_equipment(
         payload=payload,
     )
     return EquipmentRead.model_validate(equipment_item)
+
+
+@router.post("/delete-batch", status_code=204)
+async def delete_equipment_batch(
+    payload: EquipmentBulkDeleteRequest,
+    _: OperatorUser,
+    db: DbSession,
+) -> None:
+    EquipmentService(db).delete_equipment_batch(equipment_ids=payload.equipment_ids)
 
 
 async def _read_uploaded_files(files: list[UploadFile] | None) -> list[UploadedFilePayload]:

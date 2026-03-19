@@ -1,20 +1,24 @@
 import { Modal } from "@/components/Modal";
 
 type DeleteConfirmModalProps = {
+  confirmLabel?: string;
   description?: string;
   errorMessage?: string | null;
   isOpen: boolean;
   isPending?: boolean;
+  pendingLabel?: string;
   title: string;
   onClose: () => void;
   onConfirm: () => void;
 };
 
 export function DeleteConfirmModal({
+  confirmLabel = "Подтвердить удаление",
   description,
   errorMessage,
   isOpen,
   isPending = false,
+  pendingLabel = "Удаляем...",
   title,
   onClose,
   onConfirm,
@@ -31,13 +35,13 @@ export function DeleteConfirmModal({
         {errorMessage ? <p className="text-sm text-[#b04c43]">{errorMessage}</p> : null}
         <div className="flex justify-end">
           <button
-            aria-label="Подтвердить удаление"
+            aria-label={confirmLabel}
             className="btn-primary disabled:opacity-60"
             disabled={isPending}
             type="button"
             onClick={onConfirm}
           >
-            {isPending ? "Удаляем..." : "Подтвердить удаление"}
+            {isPending ? pendingLabel : confirmLabel}
           </button>
         </div>
       </div>

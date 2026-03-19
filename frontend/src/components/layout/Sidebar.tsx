@@ -16,7 +16,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
   return (
     <aside
       className={[
-        "border-b border-line bg-white/85 py-5 shadow-panel backdrop-blur transition-[padding] duration-300 lg:border-b-0 lg:border-r",
+        "sticky top-0 self-start h-screen overflow-y-auto border-b border-line bg-white/85 py-5 shadow-panel backdrop-blur transition-[padding] duration-300 lg:border-b-0 lg:border-r",
         collapsed ? "px-2.5 lg:px-2" : "px-4 lg:px-4",
       ].join(" ")}
     >

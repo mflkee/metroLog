@@ -1,4 +1,5 @@
 from functools import cached_property
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -18,6 +19,10 @@ class Settings(BaseSettings):
     frontend_app_url: str = "http://localhost:5173"
     database_url: str = "postgresql+psycopg://metrolog:metrolog@127.0.0.1:5432/metrolog"
     redis_url: str = "redis://127.0.0.1:6379/0"
+    arshin_api_base_url: str = "https://fgis.gost.ru/fundmetrology/eapi"
+    arshin_public_results_base_url: str = "https://fgis.gost.ru/fundmetrology/cm/results/"
+    arshin_api_timeout_seconds: float = 30.0
+    attachment_storage_dir: str = "storage/equipment-attachments"
     backend_cors_origins_raw: str = Field(
         default="http://localhost:5173",
         alias="BACKEND_CORS_ORIGINS",
@@ -36,6 +41,10 @@ class Settings(BaseSettings):
             for origin in self.backend_cors_origins_raw.split(",")
             if origin.strip()
         ]
+
+    @cached_property
+    def attachment_storage_path(self) -> Path:
+        return Path(self.attachment_storage_dir).expanduser().resolve()
 
 
 settings = Settings()

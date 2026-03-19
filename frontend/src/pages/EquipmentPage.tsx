@@ -4,22 +4,35 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import {
+  fetchArshinVriDetail,
+  searchArshinByCertificate,
+  type ArshinSearchResult,
+  type ArshinVriDetail,
+} from "@/api/arshin";
+import {
+  buildSIVerificationPayloadFromArshin,
   createEquipment,
   createEquipmentFolder,
   deleteEquipment,
   deleteEquipmentFolder,
+  exportEquipmentRegistryXlsx,
   equipmentStatusLabels,
   equipmentTypeLabels,
   fetchEquipment,
+  fetchEquipmentFolderSuggestions,
   fetchEquipmentFolders,
+  importSIEquipmentExcel,
   updateEquipment,
   updateEquipmentFolder,
   type EquipmentFolder,
   type EquipmentItem,
+  type EquipmentSIBulkImportResult,
   type EquipmentStatus,
   type EquipmentType,
   type UpdateEquipmentPayload,
 } from "@/api/equipment";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuthStore } from "@/store/auth";
@@ -28,8 +41,6 @@ const equipmentTypeOptions: EquipmentType[] = ["SI", "IO", "VO", "OTHER"];
 const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "ARCHIVED"];
 const subtleButtonClass =
   "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
-const iconActionClass =
-  "icon-action-button h-10 w-10";
 
 type FolderFormState = {
   name: string;
@@ -49,6 +60,10 @@ type EquipmentFormState = {
   currentLocationManual: string;
 };
 
+type SISearchFormState = {
+  certificateNumber: string;
+};
+
 type DeleteTarget =
   | { kind: "folder"; id: number; title: string; message: string }
   | { kind: "equipment"; id: number; title: string; message: string };
@@ -56,7 +71,8 @@ type DeleteTarget =
 type ActiveModal =
   | null
   | { kind: "folder"; mode: "create" | "edit"; folderId?: number }
-  | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number };
+  | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number }
+  | { kind: "si-import" };
 
 const defaultFolderForm: FolderFormState = {
   name: "",
@@ -76,6 +92,24 @@ const defaultEquipmentForm: EquipmentFormState = {
   currentLocationManual: "",
 };
 
+const defaultSISearchForm: SISearchFormState = {
+  certificateNumber: "",
+};
+
+type SIImportFormState = {
+  objectName: string;
+  status: EquipmentStatus;
+  currentLocationManual: string;
+  file: File | null;
+};
+
+const defaultSIImportForm: SIImportFormState = {
+  objectName: "",
+  status: "IN_WORK",
+  currentLocationManual: "",
+  file: null,
+};
+
 export function EquipmentPage() {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
@@ -91,6 +125,13 @@ export function EquipmentPage() {
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
   const [folderForm, setFolderForm] = useState<FolderFormState>(defaultFolderForm);
   const [equipmentForm, setEquipmentForm] = useState<EquipmentFormState>(defaultEquipmentForm);
+  const [siSearchForm, setSiSearchForm] = useState<SISearchFormState>(defaultSISearchForm);
+  const [siSearchResults, setSiSearchResults] = useState<ArshinSearchResult[]>([]);
+  const [selectedSiResult, setSelectedSiResult] = useState<ArshinSearchResult | null>(null);
+  const [selectedSiDetail, setSelectedSiDetail] = useState<ArshinVriDetail | null>(null);
+  const [siImportForm, setSiImportForm] = useState<SIImportFormState>(defaultSIImportForm);
+  const [siImportResult, setSiImportResult] = useState<EquipmentSIBulkImportResult | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
@@ -118,6 +159,12 @@ export function EquipmentPage() {
         status: statusFilter === "ALL" ? null : statusFilter,
         equipmentType: typeFilter === "ALL" ? null : typeFilter,
       }),
+    enabled: Boolean(token) && selectedFolderId !== null,
+  });
+
+  const folderSuggestionsQuery = useQuery({
+    queryKey: ["equipment-folder-suggestions", selectedFolderId ?? "none"],
+    queryFn: () => fetchEquipmentFolderSuggestions(token ?? "", selectedFolderId ?? 0),
     enabled: Boolean(token) && selectedFolderId !== null,
   });
 
@@ -164,9 +211,44 @@ export function EquipmentPage() {
     },
   });
 
+  const siSearchMutation = useMutation({
+    mutationFn: ({ certificateNumber }: { certificateNumber: string }) =>
+      searchArshinByCertificate(token ?? "", {
+        certificateNumber,
+      }),
+    onSuccess: (results) => {
+      setSiSearchResults(results);
+      setSelectedSiResult(null);
+      setSelectedSiDetail(null);
+    },
+  });
+
+  const siDetailMutation = useMutation({
+    mutationFn: (vriId: string) => fetchArshinVriDetail(token ?? "", vriId),
+    onSuccess: (detail) => {
+      setSelectedSiDetail(detail);
+      setEquipmentForm((current) => ({
+        ...current,
+        equipmentType: "SI",
+        name: detail.typeName ?? current.name,
+        modification: detail.modification ?? "",
+        serialNumber: detail.serialNumber ?? "",
+        manufactureYear: detail.manufactureYear ? String(detail.manufactureYear) : "",
+      }));
+    },
+  });
+
   const createEquipmentMutation = useMutation({
     mutationFn: () =>
-      createEquipment(token ?? "", mapEquipmentFormToPayload(equipmentForm, selectedFolderId ?? 0)),
+      createEquipment(
+        token ?? "",
+        mapEquipmentFormToPayload(
+          equipmentForm,
+          selectedFolderId ?? 0,
+          selectedSiResult,
+          selectedSiDetail,
+        ),
+      ),
     onSuccess: async (equipmentItem) => {
       closeEquipmentModal();
       await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
@@ -187,7 +269,7 @@ export function EquipmentPage() {
       return updateEquipment(
         token ?? "",
         activeModal.equipmentId,
-        mapEquipmentFormToPayload(equipmentForm, selectedFolderId),
+        mapEquipmentFormToPayload(equipmentForm, selectedFolderId, null, null),
       );
     },
     onSuccess: async (equipmentItem) => {
@@ -206,26 +288,59 @@ export function EquipmentPage() {
     },
   });
 
+  const importSIExcelMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedFolderId) {
+        throw new Error("Сначала выбери папку для импорта.");
+      }
+      if (!siImportForm.file) {
+        throw new Error("Выбери Excel-файл для импорта.");
+      }
+      return importSIEquipmentExcel(token ?? "", {
+        folderId: selectedFolderId,
+        objectName: siImportForm.objectName,
+        status: siImportForm.status,
+        currentLocationManual: siImportForm.currentLocationManual,
+        file: siImportForm.file,
+      });
+    },
+    onSuccess: async (result) => {
+      setSiImportResult(result);
+      await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
+    },
+  });
+
+  const exportEquipmentMutation = useMutation({
+    mutationFn: () =>
+      exportEquipmentRegistryXlsx(token ?? "", {
+        folderId: selectedFolderId,
+        query: deferredSearchQuery,
+        status: statusFilter === "ALL" ? null : statusFilter,
+        equipmentType: typeFilter === "ALL" ? null : typeFilter,
+      }),
+  });
+
   const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
   const equipmentItems = useMemo(() => equipmentQuery.data ?? [], [equipmentQuery.data]);
   const deferredFolderSearchQuery = useDeferredValue(folderSearchQuery);
 
-  // Get unique object names and locations from current folder for autocomplete
   const existingObjectNames = useMemo(() => {
     const names = new Set<string>();
+    folderSuggestionsQuery.data?.objectNames.forEach((value) => names.add(value));
     equipmentItems.forEach((item) => {
       if (item.objectName) names.add(item.objectName);
     });
     return Array.from(names).sort();
-  }, [equipmentItems]);
+  }, [equipmentItems, folderSuggestionsQuery.data?.objectNames]);
 
   const existingLocations = useMemo(() => {
     const locations = new Set<string>();
+    folderSuggestionsQuery.data?.currentLocations.forEach((value) => locations.add(value));
     equipmentItems.forEach((item) => {
       if (item.currentLocationManual) locations.add(item.currentLocationManual);
     });
     return Array.from(locations).sort();
-  }, [equipmentItems]);
+  }, [equipmentItems, folderSuggestionsQuery.data?.currentLocations]);
 
   useEffect(() => {
     if (selectedFolderId === null) {
@@ -250,6 +365,10 @@ export function EquipmentPage() {
       [folder.name, folder.description ?? ""].some((value) => value.toLowerCase().includes(query)),
     );
   }, [deferredFolderSearchQuery, folders]);
+  const isSiCreateFlow =
+    activeModal?.kind === "equipment" &&
+    activeModal.mode === "create" &&
+    equipmentForm.equipmentType === "SI";
 
   if (!token) {
     return null;
@@ -260,8 +379,25 @@ export function EquipmentPage() {
     setActiveModal(null);
   }
 
+  function resetSiSearchState() {
+    setSiSearchForm(defaultSISearchForm);
+    setSiSearchResults([]);
+    setSelectedSiResult(null);
+    setSelectedSiDetail(null);
+    siSearchMutation.reset();
+    siDetailMutation.reset();
+  }
+
   function closeEquipmentModal() {
     setEquipmentForm(defaultEquipmentForm);
+    resetSiSearchState();
+    setActiveModal(null);
+  }
+
+  function closeSIImportModal() {
+    setSiImportForm(defaultSIImportForm);
+    setSiImportResult(null);
+    importSIExcelMutation.reset();
     setActiveModal(null);
   }
 
@@ -270,6 +406,7 @@ export function EquipmentPage() {
     setSearchQuery("");
     setStatusFilter("ALL");
     setTypeFilter("ALL");
+    setExportError(null);
     searchParams.delete("folderId");
     window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
   }
@@ -290,7 +427,44 @@ export function EquipmentPage() {
 
   function openCreateEquipmentModal() {
     setEquipmentForm(defaultEquipmentForm);
+    resetSiSearchState();
     setActiveModal({ kind: "equipment", mode: "create" });
+  }
+
+  function openSIImportModal() {
+    setSiImportForm({
+      objectName: selectedFolder?.name ?? "",
+      status: "IN_WORK",
+      currentLocationManual: "",
+      file: null,
+    });
+    setSiImportResult(null);
+    importSIExcelMutation.reset();
+    setActiveModal({ kind: "si-import" });
+  }
+
+  function handleEquipmentTypeChange(nextType: EquipmentType) {
+    setEquipmentForm((current) => ({
+      ...current,
+      equipmentType: nextType,
+    }));
+
+    if (nextType !== "SI") {
+      resetSiSearchState();
+    }
+  }
+
+  function handleSelectSiResult(result: ArshinSearchResult) {
+    setSelectedSiResult(result);
+    setSelectedSiDetail(null);
+    setEquipmentForm((current) => ({
+      ...current,
+      equipmentType: "SI",
+      name: result.mitTitle ?? current.name,
+      modification: result.miModification ?? "",
+      serialNumber: result.miNumber ?? "",
+    }));
+    void siDetailMutation.mutateAsync(result.vriId);
   }
 
   async function handleFolderSubmit(event: FormEvent<HTMLFormElement>) {
@@ -310,11 +484,44 @@ export function EquipmentPage() {
     if (!selectedFolderId || activeModal?.kind !== "equipment") {
       return;
     }
+    if (equipmentForm.equipmentType === "SI" && (!selectedSiResult || !selectedSiDetail)) {
+      return;
+    }
     if (activeModal.mode === "create") {
       await createEquipmentMutation.mutateAsync();
       return;
     }
     await updateEquipmentMutation.mutateAsync();
+  }
+
+  async function handleSIImportSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await importSIExcelMutation.mutateAsync();
+  }
+
+  async function handleExportEquipment() {
+    setExportError(null);
+    try {
+      const { blob, fileName } = await exportEquipmentMutation.mutateAsync();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "Не удалось выгрузить Excel-файл.",
+      );
+    }
+  }
+
+  function triggerSiSearch() {
+    void siSearchMutation.mutateAsync({
+      certificateNumber: siSearchForm.certificateNumber,
+    });
   }
 
   async function handleConfirmDelete() {
@@ -411,25 +618,27 @@ export function EquipmentPage() {
                   </div>
                   {canManage ? (
                     <div className="folder-list__actions">
-                      <button
-                        aria-label={`Редактировать папку ${folder.name}`}
-                        className="icon-action-button icon-action-button--tiny"
-                        title="Редактировать папку"
-                        type="button"
+                      <IconActionButton
+                        icon={
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                          </svg>
+                        }
+                        label={`Редактировать папку ${folder.name}`}
+                        size="tiny"
                         onClick={(event) => {
                           event.stopPropagation();
                           openEditFolderModal(folder);
                         }}
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                        </svg>
-                      </button>
-                      <button
-                        aria-label={`Удалить папку ${folder.name}`}
-                        className="icon-action-button icon-action-button--tiny"
-                        title="Удалить папку"
-                        type="button"
+                      />
+                      <IconActionButton
+                        icon={
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                          </svg>
+                        }
+                        label={`Удалить папку ${folder.name}`}
+                        size="tiny"
                         onClick={(event) => {
                           event.stopPropagation();
                           setDeleteTarget({
@@ -439,11 +648,7 @@ export function EquipmentPage() {
                             message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
                           });
                         }}
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                        </svg>
-                      </button>
+                      />
                     </div>
                   ) : null}
                 </button>
@@ -470,22 +675,24 @@ export function EquipmentPage() {
 
             {canManage ? (
               <div className="flex flex-wrap gap-3">
-                <button
-                  aria-label="Редактировать папку"
-                  className={iconActionClass}
-                  title="Редактировать папку"
-                  type="button"
+                <IconActionButton
+                  className="h-10 w-10"
+                  icon={
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                    </svg>
+                  }
+                  label="Редактировать папку"
                   onClick={() => openEditFolderModal(selectedFolder)}
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                  </svg>
-                </button>
-                <button
-                  aria-label="Удалить папку"
-                  className={iconActionClass}
-                  title="Удалить папку"
-                  type="button"
+                />
+                <IconActionButton
+                  className="h-10 w-10"
+                  icon={
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                    </svg>
+                  }
+                  label="Удалить папку"
                   onClick={() =>
                     setDeleteTarget({
                       kind: "folder",
@@ -494,22 +701,41 @@ export function EquipmentPage() {
                       message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
                     })
                   }
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                  </svg>
-                </button>
-                <button
-                  aria-label="Добавить прибор"
-                  className={iconActionClass}
-                  title="Добавить прибор"
-                  type="button"
+                />
+                <IconActionButton
+                  className="h-10 w-10"
+                  icon={
+                    exportEquipmentMutation.isPending ? (
+                      <span className="text-sm leading-none">…</span>
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4m-5 7.5h18" />
+                      </svg>
+                    )
+                  }
+                  label="Экспортировать текущий список в Excel"
+                  onClick={() => void handleExportEquipment()}
+                />
+                <IconActionButton
+                  className="h-10 w-10"
+                  icon={
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5v12m0-12 4 4m-4-4-4 4M4.5 18.75h15" />
+                    </svg>
+                  }
+                  label="Импорт СИ из Excel"
+                  onClick={openSIImportModal}
+                />
+                <IconActionButton
+                  className="h-10 w-10"
+                  icon={
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
+                    </svg>
+                  }
+                  label="Добавить прибор"
                   onClick={openCreateEquipmentModal}
-                >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
-                  </svg>
-                </button>
+                />
               </div>
             ) : null}
           </div>
@@ -576,6 +802,9 @@ export function EquipmentPage() {
                   ? equipmentQuery.error.message
                   : "Не удалось загрузить оборудование."}
               </p>
+            ) : null}
+            {exportError ? (
+              <p className="text-sm text-[#b04c43]">{exportError}</p>
             ) : null}
 
             {!equipmentQuery.isLoading && !equipmentItems.length ? (
@@ -683,6 +912,156 @@ export function EquipmentPage() {
 
       <Modal
         description={
+          selectedFolder
+            ? `Импорт номеров свидетельств в папку «${selectedFolder.name}». Создаются только однозначно найденные записи Аршина.`
+            : "Сначала выбери папку."
+        }
+        open={activeModal?.kind === "si-import"}
+        title="Импорт СИ из Excel"
+        onClose={closeSIImportModal}
+      >
+        <form className="space-y-4" onSubmit={(event) => void handleSIImportSubmit(event)}>
+          <label className="block text-sm text-steel">
+            Объект
+            <input
+              className="form-input"
+              type="text"
+              value={siImportForm.objectName}
+              onChange={(event) =>
+                setSiImportForm((current) => ({ ...current, objectName: event.target.value }))
+              }
+            />
+          </label>
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="block text-sm text-steel">
+              Статус
+              <select
+                className="form-input"
+                value={siImportForm.status}
+                onChange={(event) =>
+                  setSiImportForm((current) => ({
+                    ...current,
+                    status: event.target.value as EquipmentStatus,
+                  }))
+                }
+              >
+                {equipmentStatusOptions.map((status) => (
+                  <option key={status} value={status}>
+                    {equipmentStatusLabels[status]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-sm text-steel">
+              Текущее местоположение
+              <input
+                className="form-input"
+                type="text"
+                value={siImportForm.currentLocationManual}
+                onChange={(event) =>
+                  setSiImportForm((current) => ({
+                    ...current,
+                    currentLocationManual: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <label className="block text-sm text-steel">
+            Excel-файл
+            <input
+              className="form-input"
+              accept=".xlsx,.xlsm,.csv"
+              type="file"
+              onChange={(event) =>
+                setSiImportForm((current) => ({
+                  ...current,
+                  file: event.target.files?.[0] ?? null,
+                }))
+              }
+            />
+            <span className="mt-1 block text-xs text-steel">
+              Используй колонку с номерами свидетельств. Если есть заголовок со словом «свидетельство», он будет найден автоматически.
+            </span>
+          </label>
+          {importSIExcelMutation.isError ? (
+            <p className="text-sm text-[#b04c43]">
+              {getMutationErrorMessage(importSIExcelMutation.error, "Не удалось импортировать Excel-файл.")}
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <button
+              aria-label="Запустить импорт СИ"
+              className="btn-primary disabled:opacity-60"
+              disabled={
+                importSIExcelMutation.isPending
+                || !selectedFolder
+                || !siImportForm.file
+                || !siImportForm.objectName.trim()
+              }
+              type="submit"
+            >
+              {importSIExcelMutation.isPending ? "Импорт..." : "Импортировать"}
+            </button>
+          </div>
+
+          {siImportResult ? (
+            <section className="space-y-3 rounded-3xl border border-line bg-[var(--bg-secondary)] p-4">
+              <div className="grid gap-3 sm:grid-cols-4">
+                {[
+                  ["Строк", String(siImportResult.totalRows)],
+                  ["Создано", String(siImportResult.createdCount)],
+                  ["Пропущено", String(siImportResult.skippedCount)],
+                  ["Ошибок", String(siImportResult.errorCount)],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-2xl border border-line bg-white px-4 py-3">
+                    <div className="text-xs uppercase tracking-[0.16em] text-steel">{label}</div>
+                    <div className="mt-1 text-lg font-semibold text-ink">{value}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
+                {siImportResult.rows.map((row) => (
+                  <div key={`${row.rowNumber}-${row.certificateNumber}`} className="rounded-2xl border border-line bg-white px-4 py-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="font-semibold text-ink">
+                          Строка {row.rowNumber} · {row.certificateNumber}
+                        </div>
+                        <div className="mt-1 text-steel">{row.message}</div>
+                        {row.equipmentId ? (
+                          <Link className="mt-2 inline-block text-xs font-semibold text-signal-info hover:underline" to={`/equipment/${row.equipmentId}`}>
+                            {row.equipmentName ?? `Прибор #${row.equipmentId}`}
+                          </Link>
+                        ) : null}
+                      </div>
+                      <span
+                        className={[
+                          "rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                          row.status === "created"
+                            ? "bg-[#e7f3eb] text-[#2f7a4f]"
+                            : row.status === "skipped"
+                              ? "bg-[#f3efe5] text-[#8c6a2b]"
+                              : "bg-[#f8e8e6] text-[#b04c43]",
+                        ].join(" ")}
+                      >
+                        {row.status === "created"
+                          ? "Создано"
+                          : row.status === "skipped"
+                            ? "Пропуск"
+                            : "Ошибка"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </form>
+      </Modal>
+
+      <Modal
+        description={
           activeModal?.kind === "equipment" && activeModal.mode === "edit"
             ? "Измени базовые данные прибора прямо из реестра."
             : selectedFolder
@@ -698,18 +1077,174 @@ export function EquipmentPage() {
         onClose={closeEquipmentModal}
       >
         <form className="space-y-4" onSubmit={(event) => void handleEquipmentSubmit(event)}>
+          {isSiCreateFlow ? (
+            <section className="space-y-3 rounded-3xl border border-line bg-[var(--bg-secondary)] p-4">
+              <div>
+                <h3 className="text-sm font-semibold text-ink">Поиск СИ в Аршине</h3>
+                <p className="mt-1 text-xs text-steel">
+                  Для `SI` создание идет через номер свидетельства. После выбора записи
+                  система подтянет детальные сведения по `vri_id`.
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto]">
+                <label className="block text-sm text-steel">
+                  Номер свидетельства
+                  <input
+                    className="form-input"
+                    placeholder="Например С-АСГ/07-03-2026/509468383"
+                    type="text"
+                    value={siSearchForm.certificateNumber}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        triggerSiSearch();
+                      }
+                    }}
+                    onChange={(event) => {
+                      setSiSearchForm((current) => ({
+                        ...current,
+                        certificateNumber: event.target.value,
+                      }));
+                      setSiSearchResults([]);
+                      setSelectedSiResult(null);
+                      setSelectedSiDetail(null);
+                    }}
+                  />
+                </label>
+                <div className="flex items-end">
+                  <button
+                    aria-label="Найти СИ в Аршине"
+                    className="btn-primary disabled:opacity-60"
+                    disabled={siSearchMutation.isPending}
+                    type="button"
+                    onClick={triggerSiSearch}
+                  >
+                    {siSearchMutation.isPending ? (
+                      "…"
+                    ) : (
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="m21 21-4.35-4.35m1.85-5.15a7 7 0 11-14 0 7 7 0 0114 0Z"
+                        />
+                      </svg>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {siSearchMutation.isError ? (
+                <p className="text-sm text-[#b04c43]">
+                  {getMutationErrorMessage(siSearchMutation.error, "Не удалось выполнить поиск по Аршину.")}
+                </p>
+              ) : null}
+
+              {siSearchMutation.isSuccess && siSearchResults.length === 0 ? (
+                <p className="text-sm text-steel">
+                  По этому свидетельству записи не найдены.
+                </p>
+              ) : null}
+
+              {siSearchResults.length > 0 ? (
+                <div className="space-y-2">
+                  {siSearchResults.map((result) => {
+                    const isSelected = selectedSiResult?.vriId === result.vriId;
+                    return (
+                      <button
+                        key={result.vriId}
+                        className={[
+                          "w-full rounded-2xl border px-4 py-3 text-left transition",
+                          isSelected
+                            ? "border-signal-info bg-[var(--accent-soft)]"
+                            : "border-line bg-white hover:border-signal-info/60",
+                        ].join(" ")}
+                        type="button"
+                        onClick={() => handleSelectSiResult(result)}
+                      >
+                        <div className="flex flex-wrap items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="font-semibold text-ink">
+                              {result.mitTitle ?? "СИ без наименования"}
+                            </div>
+                            <div className="mt-1 text-xs text-steel">
+                              {[
+                                result.mitNotation || "без обозначения",
+                                result.miModification || "без модификации",
+                                result.miNumber || "без заводского номера",
+                                result.resultDocnum || "без свидетельства",
+                              ].join(" · ")}
+                            </div>
+                          </div>
+                          {isSelected ? (
+                            <span className="rounded-full bg-white px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-signal-info">
+                              Выбрано
+                            </span>
+                          ) : null}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+
+              {selectedSiResult ? (
+                <div className="rounded-2xl border border-line bg-white px-4 py-3">
+                  <div className="text-xs font-semibold uppercase tracking-[0.14em] text-steel">
+                    Выбранное СИ
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm text-ink">
+                    <p className="font-semibold">
+                      {selectedSiDetail?.typeName ?? selectedSiResult.mitTitle ?? "СИ"}
+                    </p>
+                    <p className="text-steel">
+                      {[
+                        selectedSiDetail?.typeDesignation ?? selectedSiResult.mitNotation,
+                        selectedSiDetail?.modification ?? selectedSiResult.miModification,
+                        selectedSiDetail?.serialNumber ?? selectedSiResult.miNumber,
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    {siDetailMutation.isPending ? (
+                      <p className="text-steel">Загружаем детальные сведения по `vri_id`...</p>
+                    ) : null}
+                    {siDetailMutation.isError ? (
+                      <p className="text-[#b04c43]">
+                        {getMutationErrorMessage(
+                          siDetailMutation.error,
+                          "Не удалось загрузить детальные сведения СИ.",
+                        )}
+                      </p>
+                    ) : null}
+                    {selectedSiDetail ? (
+                      <p className="text-steel">
+                        {[
+                          selectedSiDetail.regNumber ? `рег. номер ${selectedSiDetail.regNumber}` : null,
+                          selectedSiDetail.manufactureYear
+                            ? `год ${selectedSiDetail.manufactureYear}`
+                            : null,
+                          selectedSiDetail.certificateNumber
+                            ? `свид. ${selectedSiDetail.certificateNumber}`
+                            : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
+
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block text-sm text-steel">
               Категория
               <select
                 className="form-input"
                 value={equipmentForm.equipmentType}
-                onChange={(event) =>
-                  setEquipmentForm((current) => ({
-                    ...current,
-                    equipmentType: event.target.value as EquipmentType,
-                  }))
-                }
+                onChange={(event) => handleEquipmentTypeChange(event.target.value as EquipmentType)}
               >
                 {equipmentTypeOptions.map((type) => (
                   <option key={type} value={type}>
@@ -741,6 +1276,7 @@ export function EquipmentPage() {
                 className="form-input"
                 type="text"
                 value={equipmentForm.name}
+                readOnly={isSiCreateFlow}
                 onChange={(event) =>
                   setEquipmentForm((current) => ({ ...current, name: event.target.value }))
                 }
@@ -752,6 +1288,7 @@ export function EquipmentPage() {
                 className="form-input"
                 type="text"
                 value={equipmentForm.modification}
+                readOnly={isSiCreateFlow}
                 onChange={(event) =>
                   setEquipmentForm((current) => ({ ...current, modification: event.target.value }))
                 }
@@ -763,6 +1300,7 @@ export function EquipmentPage() {
                 className="form-input"
                 type="text"
                 value={equipmentForm.serialNumber}
+                readOnly={isSiCreateFlow}
                 onChange={(event) =>
                   setEquipmentForm((current) => ({ ...current, serialNumber: event.target.value }))
                 }
@@ -827,6 +1365,16 @@ export function EquipmentPage() {
               {getMutationErrorMessage(createEquipmentMutation.error ?? updateEquipmentMutation.error, "Не удалось сохранить прибор.")}
             </p>
           ) : null}
+          {isSiCreateFlow && !selectedSiResult ? (
+            <p className="text-sm text-steel">
+              Для создания `SI` сначала выбери запись из поиска Аршина.
+            </p>
+          ) : null}
+          {isSiCreateFlow && selectedSiResult && !selectedSiDetail ? (
+            <p className="text-sm text-steel">
+              Создание станет доступно после загрузки детальных данных по выбранной записи.
+            </p>
+          ) : null}
           <div className="flex justify-end">
             <button
               aria-label={
@@ -835,7 +1383,12 @@ export function EquipmentPage() {
                   : "Создать прибор"
               }
               className="btn-primary disabled:opacity-60"
-              disabled={createEquipmentMutation.isPending || updateEquipmentMutation.isPending || !selectedFolder}
+              disabled={
+                createEquipmentMutation.isPending ||
+                updateEquipmentMutation.isPending ||
+                !selectedFolder ||
+                (isSiCreateFlow && (!selectedSiResult || !selectedSiDetail))
+              }
               type="submit"
             >
               {createEquipmentMutation.isPending || updateEquipmentMutation.isPending ? (
@@ -854,40 +1407,22 @@ export function EquipmentPage() {
         </form>
       </Modal>
 
-      <Modal
+      <DeleteConfirmModal
         description={deleteTarget?.message}
-        open={deleteTarget !== null}
-        size="sm"
-        title={deleteTarget?.title ?? "Подтверждение удаления"}
-        onClose={() => setDeleteTarget(null)}
-      >
-        <div className="space-y-3">
-          {(deleteFolderMutation.isError || deleteEquipmentMutation.isError) ? (
-            <p className="text-sm text-[#b04c43]">
-              {getMutationErrorMessage(
+        errorMessage={
+          deleteFolderMutation.isError || deleteEquipmentMutation.isError
+            ? getMutationErrorMessage(
                 deleteFolderMutation.error ?? deleteEquipmentMutation.error,
                 "Не удалось выполнить удаление.",
-              )}
-            </p>
-          ) : null}
-          <div className="flex justify-end">
-            <button
-              aria-label="Подтвердить удаление"
-              className="btn-primary disabled:opacity-60"
-              disabled={
-                deleteFolderMutation.isPending ||
-                deleteEquipmentMutation.isPending
-              }
-              type="button"
-              onClick={() => void handleConfirmDelete()}
-            >
-              {deleteFolderMutation.isPending || deleteEquipmentMutation.isPending
-                ? "Удаляем..."
-                : "Подтвердить удаление"}
-            </button>
-          </div>
-        </div>
-      </Modal>
+              )
+            : null
+        }
+        isOpen={deleteTarget !== null}
+        isPending={deleteFolderMutation.isPending || deleteEquipmentMutation.isPending}
+        title={deleteTarget?.title ?? "Подтверждение удаления"}
+        onClose={() => setDeleteTarget(null)}
+        onConfirm={() => void handleConfirmDelete()}
+      />
     </section>
   );
 }
@@ -922,6 +1457,8 @@ function EquipmentRow({
 function mapEquipmentFormToPayload(
   form: EquipmentFormState,
   folderId: number,
+  selectedSiResult: ArshinSearchResult | null,
+  selectedSiDetail: ArshinVriDetail | null,
 ): UpdateEquipmentPayload {
   return {
     folderId,
@@ -934,6 +1471,10 @@ function mapEquipmentFormToPayload(
     manufactureYear: form.manufactureYear ? Number(form.manufactureYear) : null,
     status: form.status,
     currentLocationManual: form.currentLocationManual,
+    siVerification:
+      form.equipmentType === "SI" && selectedSiResult
+        ? buildSIVerificationPayloadFromArshin(selectedSiResult, selectedSiDetail)
+        : null,
   };
 }
 

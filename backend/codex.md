@@ -143,6 +143,55 @@ Fields:
 * created_at
 * updated_at optional
 
+### EquipmentAttachment
+
+File attachment visible from the equipment card.
+
+Fields:
+
+* id
+* equipment_id
+* repair_id nullable
+* verification_process_id nullable
+* uploaded_by_user_id nullable until auth is fully enforced
+* file_name
+* file_mime_type
+* file_size
+* storage_path
+* created_at
+
+### EquipmentProcessMessage
+
+Messenger-style process message linked to repair or verification workflow.
+
+Fields:
+
+* id
+* equipment_id
+* repair_id nullable
+* verification_process_id nullable
+* author_user_id nullable until auth is fully enforced
+* author_display_name
+* message_text
+* created_at
+
+### VerificationProcess
+
+Operational verification workflow instance for `SI` equipment.
+
+Fields:
+
+* id
+* equipment_id
+* batch_id nullable
+* started_at
+* completed_at nullable
+* archived_at nullable
+* archive_zip_path nullable
+* is_active
+* created_at
+* updated_at
+
 ### User
 
 Internal authenticated user managed by administrators.
@@ -238,7 +287,8 @@ Fields:
 
 * id
 * equipment_id
-* repair_org_name
+* route_city
+* route_destination
 * sent_to_repair_at
 * repair_deadline_at
 * sent_from_repair_at
@@ -253,10 +303,16 @@ Fields:
 * payment_deadline_at
 * paid_at
 * current_stage_cached optional
-* comment
 * created_at
 * updated_at
 * closed_at optional
+
+Repair creation rules for the equipment card:
+
+* repair organization field is not required in MVP,
+* operator specifies route fields such as city and destination instead,
+* operator may optionally attach the first repair dialog message and files during creation,
+* the repair may also be created without an initial message and populated later through the dialog.
 
 ### EventLog
 
@@ -361,6 +417,21 @@ Validation:
 * if equipment type is SI, verification block is allowed,
 * if equipment type is not SI, SI verification data must not be created unless explicitly supported later.
 
+### Rule 1.2 - SI onboarding through Arshin
+
+`SI` equipment creation must use Arshin-assisted onboarding.
+
+Rules:
+
+* non-`SI` equipment may be created through standard manual create flow,
+* `SI` equipment creation should start from Arshin search parameters rather than a plain manual form,
+* the resulting equipment and SI verification data should be populated from Arshin response data,
+* the onboarding search should work from certificate number without forcing an explicit year in the UI,
+* after the user selects an Arshin search result, the backend should support detailed enrichment by `vri_id`,
+* the stored `SI` profile should preserve both short search payload and detailed `vri_id` payload,
+* the detailed card for `SI` should expose the richer detail payload,
+* later refresh by new certificate number should update the same `SI` card data without recreating the equipment item.
+
 ### Rule 1.0 - Shared registry and dedicated SI workspace
 
 The backend must support two different read models:
@@ -389,6 +460,30 @@ Validation:
 
 Each equipment item can have at most one active repair.
 A repair is active until it is completed or explicitly closed.
+
+### Rule 2.1 - Independent repair and verification processes
+
+Repair and verification are independent processes.
+
+Rules:
+
+* repair is allowed for all equipment categories,
+* verification process is allowed only for `SI`,
+* one `SI` item may have active repair and active verification at the same time,
+* detailed equipment responses must expose these states independently,
+* one process must not overwrite or hide the other in backend state,
+* active repair must affect registry-facing status so that the item is shown as `IN_REPAIR`.
+
+### Rule 2.2 - Folder-scoped manual suggestions
+
+The backend should expose folder-local suggestion lists for recurring manual values.
+
+Examples:
+
+* object names,
+* current locations,
+* repair route cities,
+* repair destinations.
 
 ### Rule 3 - Derived deadlines
 
@@ -457,7 +552,53 @@ Requirements:
 * each note entry must include timestamp,
 * note additions should be logged in the event log,
 * note history must be available in detailed equipment responses,
-* all authenticated user roles may add note entries.
+* all authenticated user roles may add note entries,
+* only the note author may edit or delete a note entry.
+
+### Rule 9.1 - Static comments vs process dialogs
+
+The equipment card must separate static comments from process-specific communication.
+
+Rules:
+
+* equipment comments are static card-level data,
+* static comments do not reset when repair or verification state changes,
+* process messages belong to repair or verification workflows,
+* process messages behave like a threaded log with author and timestamp.
+
+### Rule 9.2 - Attachments
+
+The equipment card must support file attachments.
+
+Rules:
+
+* attachments may belong to the equipment card in general,
+* attachments may also belong to a specific repair or verification workflow,
+* supported files include documents, PDFs, photos, and related materials.
+
+### Rule 9.3 - Grouped process batches
+
+The backend must support grouped repair and verification actions.
+
+Rules:
+
+* mixed selection of `SI` and non-`SI` may create grouped repair only,
+* grouped verification is allowed only when every selected item is `SI`,
+* grouped process metadata must remain visible from each included equipment card,
+* one grouped batch uses one shared dialog thread,
+* equipment may later be added to or removed from an existing grouped batch.
+
+### Rule 9.4 - Process completion and archive
+
+Completed processes must move into archive state.
+
+Rules:
+
+* repair completion is valid only after payment is complete,
+* grouped repair or grouped verification may also be completed in bulk,
+* after completion, active process data becomes archived,
+* the card must expose archive metadata and ZIP download link for completed processes,
+* ZIP contents should include only the process dialog and its attachments.
 
 ### Rule 10 - Event log as audit trail
 
@@ -532,6 +673,10 @@ Response should include:
 
 Create new equipment.
 
+Behavior:
+
+* intended primarily for non-`SI` equipment manual creation.
+
 ### `GET /api/v1/equipment/{id}`
 
 Get detailed equipment card.
@@ -541,7 +686,11 @@ Response should include:
 * equipment main data,
 * verification summary or detail when applicable,
 * active repair summary when applicable,
-* note entries with author and timestamps.
+* active verification summary when applicable,
+* note entries with author and timestamps,
+* equipment-level attachments,
+* active process messages and process attachments,
+* archive records for completed repair and verification processes.
 
 ### `PATCH /api/v1/equipment/{id}`
 
@@ -556,6 +705,14 @@ Current behavior:
 * deletion is hard delete,
 * UI is expected to ask for explicit confirmation before calling the endpoint,
 * soft delete may be introduced later if audit requirements grow.
+
+### `GET /api/v1/equipment/{id}/attachments`
+
+List card-level and process-linked attachments visible from the equipment card.
+
+### `POST /api/v1/equipment/{id}/attachments`
+
+Upload card-level attachment.
 
 ### `GET /api/v1/equipment/folders`
 
@@ -629,6 +786,11 @@ Must validate:
 * equipment exists,
 * no other active repair exists.
 
+Batch behavior:
+
+* grouped repair creation must support multiple equipment ids,
+* grouped repair may include both `SI` and non-`SI`.
+
 ### `GET /api/v1/repairs/{id}`
 
 Get repair details.
@@ -640,6 +802,24 @@ Update repair milestone fields and comments.
 ### `POST /api/v1/repairs/{id}/close`
 
 Optional endpoint if explicit close is needed.
+
+Close validation:
+
+* repair completion is allowed only after payment is complete.
+
+### `POST /api/v1/repairs/batch`
+
+Create grouped repair for multiple selected equipment items.
+
+The batch should support later membership changes.
+
+### `PATCH /api/v1/repairs/batch/{batch_id}/items`
+
+Add or remove equipment items from grouped repair batch.
+
+### `POST /api/v1/repairs/batch/{batch_id}/close`
+
+Complete grouped repair batch when business rules allow it.
 
 ---
 
@@ -703,7 +883,19 @@ Add equipment note entry.
 
 ### `PATCH /api/v1/equipment/{id}/notes/{note_id}`
 
-Optional note edit endpoint if editing is permitted later.
+Update note entry text. Allowed only for the note author.
+
+### `DELETE /api/v1/equipment/{id}/notes/{note_id}`
+
+Delete note entry. Allowed only for the note author.
+
+### `GET /api/v1/equipment/{id}/process-messages`
+
+List repair and verification dialog messages for the equipment card.
+
+### `POST /api/v1/equipment/{id}/process-messages`
+
+Create process dialog message with optional attachments.
 
 ---
 
@@ -767,6 +959,8 @@ Must support:
 * organization updates,
 * position updates,
 * facility updates.
+* shell theme preference updates bound to the authenticated user.
+* persisted list of enabled shell themes that controls which presets appear in the top-right switcher.
 
 ### `POST /api/v1/users/{id}/reset-password`
 
@@ -800,6 +994,13 @@ Possible input:
 * verification date,
 * reg number + serial number,
 * other supported fields depending on integration.
+
+Expected search behavior:
+
+* support the multi-parameter Arshin search patterns already proven in `../metroSearch`,
+* support first-stage lookup by certificate number and year,
+* support second-stage lookup by instrument parameters such as registration number, title, notation, modification, serial number, and year,
+* preserve enough metadata to decide whether the match is reliable.
 
 ### `POST /api/v1/arshin/sync/{equipment_id}`
 
@@ -842,12 +1043,72 @@ Get SI verification details including equipment link context.
 
 Save manual review result for uncertain or problematic SI records.
 
+### `POST /api/v1/verification/si/{equipment_id}/start`
+
+Start verification workflow for one `SI` item.
+
+### `POST /api/v1/verification/si/batch`
+
+Start grouped verification workflow for selected `SI` items.
+
+The batch should support later membership changes.
+
+### `PATCH /api/v1/verification/si/batch/{batch_id}/items`
+
+Add or remove equipment items from grouped verification batch.
+
+### `POST /api/v1/verification/si/{equipment_id}/complete`
+
+Complete verification workflow for one `SI` item and archive it.
+
+### `POST /api/v1/verification/si/batch/{batch_id}/complete`
+
+Complete grouped verification workflow and archive it.
+
+---
+
+## Export Endpoints
+
+Operational list endpoints should support Excel export based on current filters.
+
+Later extension:
+
+* support bulk SI onboarding from an uploaded Excel file with certificate numbers,
+* for each row, resolve the Arshin record and create the matching SI equipment item when the match is accepted,
+* bulk import should return a row-level report with created, skipped, and error states rather than failing as one opaque batch.
+
+### `GET /api/v1/equipment/export`
+
+Export filtered equipment registry to Excel.
+
+### `GET /api/v1/repairs/export`
+
+Export filtered repairs list to Excel.
+
+### `GET /api/v1/verification/si/export`
+
+Export filtered SI verification list to Excel.
+
 ### `GET /api/v1/arshin/vri/{vri_id}`
 
 Fetch detailed Arshin data by `vri_id`.
 
 Use this when the card or manual review workflow needs full detail,
 including etalon-related information.
+
+### `POST /api/v1/equipment/si/from-arshin`
+
+Create `SI` equipment item from selected Arshin search result and its detailed `vri_id` enrichment.
+
+### `POST /api/v1/verification/si/{equipment_id}/refresh-by-certificate`
+
+Refresh existing `SI` verification data by entering a new certificate number.
+
+Expected behavior:
+
+* backend re-runs Arshin lookup,
+* updates card-visible SI data for the existing equipment record,
+* preserves auditability of the refresh action.
 
 ---
 

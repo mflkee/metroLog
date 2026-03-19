@@ -69,10 +69,20 @@ class AuthService:
         self.session.commit()
 
     def update_profile(self, *, user: User, payload: UserProfileUpdateRequest) -> User:
-        user.phone = _normalize_optional_text(payload.phone, limit=64)
-        user.organization = _normalize_optional_text(payload.organization, limit=255)
-        user.position = _normalize_optional_text(payload.position, limit=255)
-        user.facility = _normalize_optional_text(payload.facility, limit=255)
+        if "phone" in payload.model_fields_set:
+            user.phone = _normalize_optional_text(payload.phone, limit=64)
+        if "organization" in payload.model_fields_set:
+            user.organization = _normalize_optional_text(payload.organization, limit=255)
+        if "position" in payload.model_fields_set:
+            user.position = _normalize_optional_text(payload.position, limit=255)
+        if "facility" in payload.model_fields_set:
+            user.facility = _normalize_optional_text(payload.facility, limit=255)
+        if "theme_preference" in payload.model_fields_set:
+            user.theme_preference = payload.theme_preference
+        if "enabled_theme_options" in payload.model_fields_set:
+            user.enabled_theme_options = _normalize_enabled_theme_options(
+                payload.enabled_theme_options
+            )
         self.session.commit()
         self.session.refresh(user)
         return user
@@ -107,4 +117,29 @@ def _normalize_optional_text(value: str | None, *, limit: int) -> str | None:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Field is too long. Maximum length is {limit} characters.",
         )
+    return normalized
+
+
+def _normalize_enabled_theme_options(values: list[object] | None) -> list[str] | None:
+    if values is None:
+        return None
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        if hasattr(value, "value"):
+            candidate = str(value.value)
+        else:
+            candidate = str(value)
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        normalized.append(candidate)
+
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Хотя бы одна тема должна оставаться доступной.",
+        )
+
     return normalized

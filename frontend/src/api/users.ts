@@ -1,5 +1,6 @@
 import { apiRequest } from "@/api/client";
 import { mapUser, type AuthUser, type UserRole } from "@/api/auth";
+import type { ThemeName } from "@/store/theme";
 
 type RawUser = {
   id: number;
@@ -15,6 +16,8 @@ type RawUser = {
   organization: string | null;
   position: string | null;
   facility: string | null;
+  theme_preference: ThemeName | null;
+  enabled_theme_options: ThemeName[] | null;
   created_at: string;
   updated_at: string;
 };

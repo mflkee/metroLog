@@ -4,7 +4,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models.user import UserRole
+from app.models.user import UserRole, UserThemePreference
 
 
 class UserRead(BaseModel):
@@ -24,6 +24,8 @@ class UserRead(BaseModel):
     organization: str | None
     position: str | None
     facility: str | None
+    theme_preference: UserThemePreference | None
+    enabled_theme_options: list[UserThemePreference] | None
     created_at: datetime
     updated_at: datetime
 
@@ -55,6 +57,8 @@ class UserProfileUpdateRequest(BaseModel):
     organization: str | None = None
     position: str | None = None
     facility: str | None = None
+    theme_preference: UserThemePreference | None = None
+    enabled_theme_options: list[UserThemePreference] | None = None
 
 
 class UserTemporaryPasswordResponse(BaseModel):

@@ -1,22 +1,48 @@
 import { useEffect, useRef, useState } from "react";
 
-import { themeOptions, useThemeStore } from "@/store/theme";
+import { updateProfile } from "@/api/auth";
+import { getVisibleThemes, themeOptions, useThemeStore } from "@/store/theme";
+import { useAuthStore } from "@/store/auth";
 
 export function ThemeSwitcher() {
   const theme = useThemeStore((state) => state.theme);
   const setTheme = useThemeStore((state) => state.setTheme);
+  const token = useAuthStore((state) => state.token);
+  const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
+  const visibleThemes = getVisibleThemes(user?.enabledThemes, theme);
+  const visibleOptions = themeOptions.filter((option) => visibleThemes.includes(option.value));
+
+  async function handleSelect(value: string) {
+    const nextTheme = value as typeof theme;
+    setTheme(nextTheme);
+
+    if (!token || !user || user.themePreference === nextTheme) {
+      return;
+    }
+
+    try {
+      const updatedUser = await updateProfile(token, {
+        themePreference: nextTheme,
+      });
+      setUser(updatedUser);
+    } catch {
+      // local theme is already applied; next successful profile fetch will resync state
+    }
+  }
 
   return (
     <div className="theme-switcher">
       <Picker
         activeLabel={(themeOptions.find((option) => option.value === theme) ?? themeOptions[0]).label}
         label="Тема"
-        options={themeOptions.map((option) => ({
+        options={visibleOptions.map((option) => ({
           value: option.value,
           label: option.label,
+          preview: option.source,
         }))}
         selectedValue={theme}
-        onSelect={(value) => setTheme(value as typeof theme)}
+        onSelect={(value) => void handleSelect(value)}
       />
     </div>
   );

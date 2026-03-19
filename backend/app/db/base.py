@@ -14,5 +14,18 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-from app.models.equipment import Equipment, EquipmentFolder, EquipmentGroup  # noqa: E402,F401
+from app.models.equipment import (  # noqa: E402,F401
+    Equipment,
+    EquipmentAttachment,
+    EquipmentComment,
+    EquipmentFolder,
+    EquipmentGroup,
+    Repair,
+    RepairMessage,
+    RepairMessageAttachment,
+    SIVerification,
+    Verification,
+    VerificationMessage,
+    VerificationMessageAttachment,
+)
 from app.models.user import User  # noqa: E402,F401

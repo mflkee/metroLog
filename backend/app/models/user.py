@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import DateTime, Enum, String, func
+from sqlalchemy import JSON, DateTime, Enum, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -13,6 +13,18 @@ class UserRole(StrEnum):
     ADMINISTRATOR = "ADMINISTRATOR"
     MKAIR = "MKAIR"
     CUSTOMER = "CUSTOMER"
+
+
+class UserThemePreference(StrEnum):
+    LIGHT = "light"
+    DARK = "dark"
+    GRAY = "gray"
+    TOKYONIGHT = "tokyonight"
+    CATPPUCCIN = "catppuccin"
+    KANAGAWA = "kanagawa"
+    FLEXOKI = "flexoki"
+    GRUVBOX = "gruvbox"
+    MOONFLY = "moonfly"
 
 
 class User(Base):
@@ -43,6 +55,11 @@ class User(Base):
     organization: Mapped[str | None] = mapped_column(String(255), nullable=True)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)
     facility: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    theme_preference: Mapped[UserThemePreference | None] = mapped_column(
+        Enum(UserThemePreference, native_enum=False, length=32),
+        nullable=True,
+    )
+    enabled_theme_options: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

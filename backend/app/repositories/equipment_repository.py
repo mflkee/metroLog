@@ -1,14 +1,23 @@
 from __future__ import annotations
 
-from sqlalchemy import delete, or_, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy import delete, distinct, exists, or_, select, update
+from sqlalchemy.orm import Session, selectinload
 
 from app.models.equipment import (
     Equipment,
+    EquipmentAttachment,
+    EquipmentComment,
     EquipmentFolder,
     EquipmentGroup,
     EquipmentStatus,
     EquipmentType,
+    Repair,
+    RepairMessage,
+    RepairMessageAttachment,
+    SIVerification,
+    Verification,
+    VerificationMessage,
+    VerificationMessageAttachment,
 )
 
 
@@ -86,7 +95,15 @@ class EquipmentRepository:
         return equipment
 
     def get_by_id(self, equipment_id: int) -> Equipment | None:
-        statement = select(Equipment).where(Equipment.id == equipment_id)
+        statement = (
+            select(Equipment)
+            .options(
+                selectinload(Equipment.si_verification),
+                selectinload(Equipment.active_repair),
+                selectinload(Equipment.active_verification),
+            )
+            .where(Equipment.id == equipment_id)
+        )
         return self.session.scalar(statement)
 
     def delete(self, equipment: Equipment) -> None:
@@ -101,7 +118,15 @@ class EquipmentRepository:
         status: EquipmentStatus | None = None,
         equipment_type: EquipmentType | None = None,
     ) -> list[Equipment]:
-        statement = select(Equipment).order_by(Equipment.created_at.desc(), Equipment.id.desc())
+        statement = (
+            select(Equipment)
+            .options(
+                selectinload(Equipment.si_verification),
+                selectinload(Equipment.active_repair),
+                selectinload(Equipment.active_verification),
+            )
+            .order_by(Equipment.created_at.desc(), Equipment.id.desc())
+        )
 
         if folder_id is not None:
             statement = statement.where(Equipment.folder_id == folder_id)
@@ -109,8 +134,42 @@ class EquipmentRepository:
         if group_id is not None:
             statement = statement.where(Equipment.group_id == group_id)
 
+        active_repair_exists = exists(
+            select(Repair.id).where(
+                Repair.equipment_id == Equipment.id,
+                Repair.closed_at.is_(None),
+            )
+        )
+        active_verification_exists = exists(
+            select(Verification.id).where(
+                Verification.equipment_id == Equipment.id,
+                Verification.closed_at.is_(None),
+            )
+        )
+
         if status is not None:
-            statement = statement.where(Equipment.status == status)
+            if status == EquipmentStatus.IN_REPAIR:
+                statement = statement.where(
+                    or_(
+                        Equipment.status == status,
+                        active_repair_exists,
+                    )
+                )
+            elif status == EquipmentStatus.IN_VERIFICATION:
+                statement = statement.where(
+                    or_(
+                        Equipment.status == status,
+                        active_verification_exists,
+                    )
+                )
+            elif status == EquipmentStatus.IN_WORK:
+                statement = statement.where(
+                    Equipment.status == status,
+                    ~active_repair_exists,
+                    ~active_verification_exists,
+                )
+            else:
+                statement = statement.where(Equipment.status == status)
 
         if equipment_type is not None:
             statement = statement.where(Equipment.equipment_type == equipment_type)
@@ -129,6 +188,26 @@ class EquipmentRepository:
 
         return list(self.session.scalars(statement))
 
+    def list_distinct_object_names(self, *, folder_id: int) -> list[str]:
+        statement = (
+            select(distinct(Equipment.object_name))
+            .where(Equipment.folder_id == folder_id)
+            .order_by(Equipment.object_name.asc())
+        )
+        return [value for value in self.session.scalars(statement) if value]
+
+    def list_distinct_locations(self, *, folder_id: int) -> list[str]:
+        statement = (
+            select(distinct(Equipment.current_location_manual))
+            .where(
+                Equipment.folder_id == folder_id,
+                Equipment.current_location_manual.is_not(None),
+                Equipment.current_location_manual != "",
+            )
+            .order_by(Equipment.current_location_manual.asc())
+        )
+        return [value for value in self.session.scalars(statement) if value]
+
     def clear_group_for_group_id(self, *, group_id: int) -> None:
         statement = update(Equipment).where(Equipment.group_id == group_id).values(group_id=None)
         self.session.execute(statement)
@@ -136,3 +215,220 @@ class EquipmentRepository:
     def delete_by_folder_id(self, *, folder_id: int) -> None:
         statement = delete(Equipment).where(Equipment.folder_id == folder_id)
         self.session.execute(statement)
+
+
+class EquipmentAttachmentRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, attachment: EquipmentAttachment) -> EquipmentAttachment:
+        self.session.add(attachment)
+        self.session.flush()
+        return attachment
+
+    def get_by_id(self, attachment_id: int) -> EquipmentAttachment | None:
+        statement = select(EquipmentAttachment).where(EquipmentAttachment.id == attachment_id)
+        return self.session.scalar(statement)
+
+    def list_by_equipment(self, *, equipment_id: int) -> list[EquipmentAttachment]:
+        statement = (
+            select(EquipmentAttachment)
+            .where(EquipmentAttachment.equipment_id == equipment_id)
+            .order_by(EquipmentAttachment.created_at.desc(), EquipmentAttachment.id.desc())
+        )
+        return list(self.session.scalars(statement))
+
+    def delete(self, attachment: EquipmentAttachment) -> None:
+        self.session.delete(attachment)
+
+
+class EquipmentCommentRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, comment: EquipmentComment) -> EquipmentComment:
+        self.session.add(comment)
+        self.session.flush()
+        return comment
+
+    def get_by_id(self, comment_id: int) -> EquipmentComment | None:
+        statement = select(EquipmentComment).where(EquipmentComment.id == comment_id)
+        return self.session.scalar(statement)
+
+    def list_by_equipment(self, *, equipment_id: int) -> list[EquipmentComment]:
+        statement = (
+            select(EquipmentComment)
+            .where(EquipmentComment.equipment_id == equipment_id)
+            .order_by(EquipmentComment.created_at.asc(), EquipmentComment.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+    def delete(self, comment: EquipmentComment) -> None:
+        self.session.delete(comment)
+
+
+class RepairRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, repair: Repair) -> Repair:
+        self.session.add(repair)
+        self.session.flush()
+        return repair
+
+    def get_active_by_equipment_id(self, *, equipment_id: int) -> Repair | None:
+        statement = select(Repair).where(
+            Repair.equipment_id == equipment_id,
+            Repair.closed_at.is_(None),
+        )
+        return self.session.scalar(statement)
+
+    def get_by_id(self, repair_id: int) -> Repair | None:
+        statement = select(Repair).where(Repair.id == repair_id)
+        return self.session.scalar(statement)
+
+    def list_distinct_route_cities(self, *, folder_id: int) -> list[str]:
+        statement = (
+            select(distinct(Repair.route_city))
+            .join(Equipment, Equipment.id == Repair.equipment_id)
+            .where(Equipment.folder_id == folder_id)
+            .order_by(Repair.route_city.asc())
+        )
+        return [value for value in self.session.scalars(statement) if value]
+
+    def list_distinct_route_destinations(self, *, folder_id: int) -> list[str]:
+        statement = (
+            select(distinct(Repair.route_destination))
+            .join(Equipment, Equipment.id == Repair.equipment_id)
+            .where(Equipment.folder_id == folder_id)
+            .order_by(Repair.route_destination.asc())
+        )
+        return [value for value in self.session.scalars(statement) if value]
+
+
+class RepairMessageRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, message: RepairMessage) -> RepairMessage:
+        self.session.add(message)
+        self.session.flush()
+        return message
+
+    def list_by_repair(self, *, repair_id: int) -> list[RepairMessage]:
+        statement = (
+            select(RepairMessage)
+            .options(selectinload(RepairMessage.attachments))
+            .where(RepairMessage.repair_id == repair_id)
+            .order_by(RepairMessage.created_at.asc(), RepairMessage.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+    def get_by_id(self, message_id: int) -> RepairMessage | None:
+        statement = (
+            select(RepairMessage)
+            .options(selectinload(RepairMessage.attachments))
+            .where(RepairMessage.id == message_id)
+        )
+        return self.session.scalar(statement)
+
+
+class RepairMessageAttachmentRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, attachment: RepairMessageAttachment) -> RepairMessageAttachment:
+        self.session.add(attachment)
+        self.session.flush()
+        return attachment
+
+    def get_by_id(self, attachment_id: int) -> RepairMessageAttachment | None:
+        statement = select(RepairMessageAttachment).where(
+            RepairMessageAttachment.id == attachment_id
+        )
+        return self.session.scalar(statement)
+
+
+class VerificationRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, verification: Verification) -> Verification:
+        self.session.add(verification)
+        self.session.flush()
+        return verification
+
+    def get_active_by_equipment_id(self, *, equipment_id: int) -> Verification | None:
+        statement = select(Verification).where(
+            Verification.equipment_id == equipment_id,
+            Verification.closed_at.is_(None),
+        )
+        return self.session.scalar(statement)
+
+    def get_by_id(self, verification_id: int) -> Verification | None:
+        statement = select(Verification).where(Verification.id == verification_id)
+        return self.session.scalar(statement)
+
+
+class VerificationMessageRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, message: VerificationMessage) -> VerificationMessage:
+        self.session.add(message)
+        self.session.flush()
+        return message
+
+    def list_by_verification(self, *, verification_id: int) -> list[VerificationMessage]:
+        statement = (
+            select(VerificationMessage)
+            .options(selectinload(VerificationMessage.attachments))
+            .where(VerificationMessage.verification_id == verification_id)
+            .order_by(VerificationMessage.created_at.asc(), VerificationMessage.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+    def get_by_id(self, message_id: int) -> VerificationMessage | None:
+        statement = (
+            select(VerificationMessage)
+            .options(selectinload(VerificationMessage.attachments))
+            .where(VerificationMessage.id == message_id)
+        )
+        return self.session.scalar(statement)
+
+
+class VerificationMessageAttachmentRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(
+        self,
+        attachment: VerificationMessageAttachment,
+    ) -> VerificationMessageAttachment:
+        self.session.add(attachment)
+        self.session.flush()
+        return attachment
+
+    def get_by_id(self, attachment_id: int) -> VerificationMessageAttachment | None:
+        statement = select(VerificationMessageAttachment).where(
+            VerificationMessageAttachment.id == attachment_id
+        )
+        return self.session.scalar(statement)
+
+
+class SIVerificationRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, si_verification: SIVerification) -> SIVerification:
+        self.session.add(si_verification)
+        self.session.flush()
+        return si_verification
+
+    def get_by_equipment_id(self, *, equipment_id: int) -> SIVerification | None:
+        statement = select(SIVerification).where(SIVerification.equipment_id == equipment_id)
+        return self.session.scalar(statement)
+
+    def get_by_vri_id(self, *, vri_id: str) -> SIVerification | None:
+        statement = select(SIVerification).where(SIVerification.vri_id == vri_id)
+        return self.session.scalar(statement)

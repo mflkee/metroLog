@@ -1,5 +1,7 @@
 import { type MouseEvent, type ReactNode, useEffect } from "react";
 
+import { IconActionButton } from "@/components/IconActionButton";
+
 type ModalProps = {
   title: string;
   description?: string;
@@ -62,17 +64,15 @@ export function Modal({
             <h3 className="text-xl font-semibold text-ink">{title}</h3>
             {description ? <p className="mt-1 text-sm text-steel">{description}</p> : null}
           </div>
-          <button
-            aria-label="Закрыть"
-            className="icon-action-button"
-            title="Закрыть"
-            type="button"
+          <IconActionButton
+            icon={
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+              </svg>
+            }
+            label="Закрыть"
             onClick={onClose}
-          >
-            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
-            </svg>
-          </button>
+          />
         </div>
         <div className="px-6 py-5">{children}</div>
         {footer ? <div className="border-t border-line px-6 py-4">{footer}</div> : null}

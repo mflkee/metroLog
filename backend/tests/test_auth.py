@@ -170,6 +170,8 @@ async def test_user_can_update_profile_fields(
             "organization": 'ООО "МКАИР-ИТ"',
             "position": "Инженер-метролог",
             "facility": 'ПСП ХАЛ "Северный"',
+            "theme_preference": "dark",
+            "enabled_theme_options": ["light", "gray", "dark", "tokyonight"],
         },
     )
 
@@ -179,6 +181,8 @@ async def test_user_can_update_profile_fields(
     assert payload["organization"] == 'ООО "МКАИР-ИТ"'
     assert payload["position"] == "Инженер-метролог"
     assert payload["facility"] == 'ПСП ХАЛ "Северный"'
+    assert payload["theme_preference"] == "dark"
+    assert payload["enabled_theme_options"] == ["light", "gray", "dark", "tokyonight"]
 
 
 @pytest.mark.anyio

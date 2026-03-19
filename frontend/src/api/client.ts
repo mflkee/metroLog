@@ -21,8 +21,9 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   const { body, headers, token, ...init } = options;
   const requestHeaders = new Headers(headers);
   requestHeaders.set("Accept", "application/json");
+  const isFormDataBody = body instanceof FormData;
 
-  if (body !== undefined) {
+  if (body !== undefined && !isFormDataBody) {
     requestHeaders.set("Content-Type", "application/json");
   }
 
@@ -35,7 +36,12 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
     response = await fetch(`${apiBaseUrl}${path}`, {
       ...init,
       headers: requestHeaders,
-      body: body === undefined ? undefined : JSON.stringify(body),
+      body:
+        body === undefined
+          ? undefined
+          : isFormDataBody
+            ? body
+            : JSON.stringify(body),
     });
   } catch {
     throw new ApiError(
@@ -45,14 +51,14 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const contentType = response.headers.get("content-type") ?? "";
-  
+
   if (response.status === 204 || !contentType.includes("application/json")) {
     if (!response.ok) {
       throw new ApiError(response.status, "Request failed.");
     }
     return {} as T;
   }
-  
+
   const payload = await response.json();
 
   if (!response.ok) {

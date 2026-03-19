@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import type { AuthUser } from "@/api/auth";
+import { syncThemeFromUser } from "@/store/theme";
 
 export type AuthStatus = "loading" | "authenticated" | "anonymous";
 
@@ -55,6 +56,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     })),
   setSession: ({ token, user }) => {
     persistToken(token);
+    syncThemeFromUser(user.themePreference);
     set({
       token,
       user,
@@ -62,11 +64,14 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
   setUser: (user) =>
-    set((state) => ({
-      token: state.token,
-      user,
-      status: state.token ? "authenticated" : "anonymous",
-    })),
+    set((state) => {
+      syncThemeFromUser(user.themePreference);
+      return {
+        token: state.token,
+        user,
+        status: state.token ? "authenticated" : "anonymous",
+      };
+    }),
   markAnonymous: () => {
     persistToken(null);
     set({

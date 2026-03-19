@@ -73,6 +73,18 @@ Current expectation:
 - SI-specific detailed data should become visible inside the equipment card only for SI records,
 - the dedicated `Поверка СИ` page is the place for SI-specific tables, calculations, deadlines, remaining days, and verification-focused work.
 
+SI creation rule:
+- non-`SI` equipment may be created through regular manual equipment forms,
+- `SI` equipment must not be created as plain manual CRUD,
+- `SI` is added through Arshin search flow,
+- the record is created from Arshin response data,
+- the onboarding search should work from certificate number without forcing the user to type the year,
+- after selecting the Arshin search result, the system must fetch detailed data by `vri_id`,
+- the created `SI` record should store both the short search payload and the detailed Arshin payload,
+- later certificate refresh should be possible from the card by entering only the new certificate number and updating the SI data from Arshin.
+- bulk `SI` onboarding should also be possible from an uploaded Excel/CSV file with certificate numbers inside the selected folder workspace,
+- bulk import must return a row-level report so the operator can see which rows were created, skipped, or failed.
+
 ### Authentication expectations
 
 The target auth flow should behave like an internal business application,
@@ -86,6 +98,9 @@ Required auth behavior:
 - first login with a temporary password must require immediate password change,
 - profile page must support direct password change,
 - profile page must support editing profile metadata such as phone, organization, position, and facility,
+- shell-level theme preference should be stored per user account and restored after login on any client,
+- settings must allow the user to decide which theme presets stay visible in the top-right shell switcher,
+- the default visible presets for a new user should remain `light`, `gray`, and `dark`,
 - administrators must be able to reset a user's password by issuing a new temporary password,
 - administrators must be able to open another user's account page and review their contact or role-related data,
 - if an administrator opens their own record from the user-management area, the UI should route them to the regular profile page,
@@ -123,6 +138,7 @@ Current functional access expectations:
 - Event log page: visible to `ADMINISTRATOR` and `MKAIR`
 - Equipment card page: visible to all users
 - Equipment card note additions: allowed for all users
+- Equipment card note edit/delete: allowed only for the author of the note entry
 - User management page: visible only to `ADMINISTRATOR`, with rights assignment controls
 
 These permissions should be treated as the current baseline
@@ -347,6 +363,114 @@ When viewing an SI equipment item that is currently in verification, the card sh
 
 ---
 
+## Repair and Verification Process Model
+
+Repair and verification must be modeled as two independent processes.
+
+Rules:
+- repair is available for all equipment categories,
+- verification is available only for `SI`,
+- an `SI` item may be in repair and in verification at the same time,
+- these two states must not overwrite or hide each other,
+- the equipment card may therefore show two independent active process panels at once:
+  - `Прибор находится в ремонте`,
+  - `Прибор находится в поверке`.
+
+### Equipment card process panels
+
+The equipment card should no longer prioritize a `neighboring equipment` block.
+Instead, the card should include:
+- `Вложения` block for files, images, PDFs, and related documents,
+- `Комментарии` block for static equipment-level comments,
+- active process panels for repair and verification when those processes exist.
+
+Comments rules:
+- comments are static equipment-level information,
+- comments do not disappear or reset when repair or verification state changes,
+- each comment entry stores author, timestamp, and text.
+
+Attachments rules:
+- attachments may be added from the equipment card,
+- attachments may belong either to the equipment in general or to a specific active process,
+- supported attachment types should include documents, PDFs, photos, and similar operational files.
+
+### Process dialog behavior
+
+When an equipment item is sent to repair or verification,
+the card should show a dedicated process dialog panel below the main card.
+
+This process dialog should behave closer to a messenger thread:
+- users can leave operational messages,
+- each message stores author and timestamp,
+- files and photos can be attached inline with the message,
+- repair creation does not ask for repair organization; it asks for route fields such as city and destination,
+- when sending to repair, the operator may attach the first message and files immediately, but this initial message is optional,
+- examples include notes such as `прибор упакован и отправлен в поверку` with supporting photos.
+
+### Bulk process actions
+
+The registry should support bulk sending of selected equipment into processes.
+
+Rules:
+- mixed selection of `SI` and non-`SI` may be sent in bulk only to repair,
+- selection containing only `SI` may be sent in bulk either to repair or to verification,
+- bulk send creates a shared process batch or grouped process,
+- equipment cards included in one grouped batch should display synchronized process dialog data for that batch,
+- the grouped batch should still remain traceable per equipment item.
+
+Accepted decisions:
+- one grouped process should use one shared dialog thread for the whole batch,
+- equipment may be added to or removed from an existing grouped batch later.
+
+### Completing and archiving processes
+
+Repairs and verifications should move to archive only after explicit completion.
+
+Rules:
+- repair completion is available only after the payment step is marked complete,
+- grouped repair or grouped verification may also be completed in bulk,
+- when a process is completed, its active dialog panel disappears from the card,
+- instead of the active panel, the card should show a compact archive record,
+- the archive record should include a download action in the top-right corner,
+- downloading should return a ZIP archive containing only the dialog and the attachments from that dialog.
+
+### Repair page presentation
+
+The repair page should represent stages in a vertical operational table,
+inspired by the Excel MVP but adapted for the application.
+
+Each stage row should show at least:
+- stage name,
+- actual date,
+- deadline,
+- completed / not completed state.
+
+Later, the product may add a visual tracker strip that highlights:
+- factual movement events,
+- deadlines,
+- stage markers,
+- hover details,
+- navigation into the dedicated repair page.
+
+---
+
+## Export Expectations
+
+Operational list pages should support Excel export.
+
+Initial export targets:
+- equipment registry,
+- repairs,
+- SI verification registry.
+
+Rules:
+- export must respect the current filters and search state,
+- if the user narrowed the list, only the filtered result should be exported,
+- export data should be produced from the backend query result rather than only from frontend-rendered rows.
+- later the system should also support bulk SI onboarding from an uploaded Excel file with certificate numbers, so matching Arshin records can be resolved and added in batch.
+
+---
+
 ## Navigation Paradigm
 
 Use the principle:
@@ -412,7 +536,9 @@ Requirements:
 - this structure should be inspired by proven patterns already used in `../metrologet`,
 - SI and non-SI equipment should coexist inside the same organizational structure,
 - equipment must still belong to the selected folder even when no group is assigned,
-- the registry table should visually dominate the workspace and use most of the free width.
+- the registry table should visually dominate the workspace and use most of the free width,
+- the UI should reuse folder-local suggestions for recurring manual values where practical,
+- if a device has an active repair, registry-facing status should read as `in repair`.
 
 The `Оборудование` page should follow a focused `metroloGet`-style browsing pattern:
 - first choose folder,
@@ -467,7 +593,16 @@ Notes requirements:
 - each note entry must record the user name,
 - each note entry must record the timestamp,
 - all users may add note entries,
+- only the author of a note entry may edit or delete that note entry,
 - note history should remain visible in the equipment card.
+
+Additional card requirements:
+- the old `neighboring equipment` block should be replaced by `Вложения`,
+- attachments should support documents, PDFs, photos, and related materials,
+- comments remain static equipment-level information and do not reset when process state changes,
+- the card must expose `send to repair` for any equipment,
+- the card must expose `send to verification` only for `SI`,
+- active repair and active verification should appear as separate process panels when both exist.
 
 ---
 

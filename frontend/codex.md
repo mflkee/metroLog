@@ -194,6 +194,15 @@ Additional UX expectations:
 * deleting folders, groups, and equipment should require a confirmation dialog,
 * creation buttons should stay visually secondary and should not dominate the screen.
 
+Creation flow difference:
+
+* non-`SI` equipment may be created through the normal manual equipment form,
+* when the user selects `SI`, the UI should switch into Arshin search flow instead of a plain manual form,
+* the Arshin search should support the search modes already proven in `../metroSearch`,
+* the onboarding search should work from certificate number without forcing a separate year field in the UI,
+* after the user selects an Arshin result, the UI should load detail by `vri_id`,
+* confirmed `SI` creation should populate the new record from backend Arshin data.
+
 The common registry should not be the main place for SI-specific calculations.
 Those belong to the dedicated `/verification/si` workspace.
 
@@ -206,6 +215,7 @@ Must include:
 * main info card,
 * verification block for SI,
 * repair card,
+* attachments block instead of neighboring equipment,
 * timeline,
 * event log,
 * wide notes/comments area.
@@ -213,8 +223,11 @@ Must include:
 If the equipment is SI, the card should also support:
 
 * direct Arshin link,
-* detailed Arshin fetch by `vri_id`,
-* display of etalon-related details when available.
+* a collapsible SI block with the Arshin-oriented field names,
+* staged delivery: first show the stored basic Arshin profile, then store and expose detailed payload by `vri_id`,
+* display of etalon-related details when available,
+* fuller SI detail output than the common registry,
+* quick refresh by entering a new certificate number when a new certificate appears.
 
 Navigation rule:
 
@@ -226,7 +239,30 @@ Notes behavior:
 * note entries must show author name,
 * note entries must show timestamp,
 * adding a note must be available to all users,
+* editing and deleting a note must be available only to the note author,
 * notes should behave like an operational log on the card, not a hidden textarea.
+
+Card workflow behavior:
+
+* `Комментарии` are static equipment-level information and do not disappear when process state changes,
+* `Вложения` should accept files, PDFs, photos, and related documents,
+* the old `neighboring equipment` block should be replaced by `Вложения`,
+* the card should expose action buttons to:
+  * send any equipment to repair,
+  * send `SI` equipment to verification,
+* when active processes exist, the card may show two independent panels at once:
+  * `Прибор находится в ремонте`,
+  * `Прибор находится в поверке`.
+
+Process panel behavior:
+
+* each active process panel should behave like a compact messenger-style thread,
+* users can add messages with author and timestamp,
+* messages may include inline attachments,
+* the repair send modal should ask for route fields such as city and destination, not repair organization,
+* the first repair message with attachments may be created during send-to-repair, but it is optional,
+* after completion, the active process panel is replaced by a compact archive record with ZIP download action,
+* one grouped batch should display one shared dialog thread for every included card.
 
 ### `/verification/si`
 
@@ -251,6 +287,20 @@ This page should be the place for SI-specific calculated columns, for example:
 * overdue state,
 * other derived SI values similar to the `metroloGet` approach.
 
+Workflow rules:
+
+* verification is independent from repair,
+* only `SI` items can enter verification,
+* grouped verification is allowed only when all selected items are `SI`,
+* completion should move verification panels into archive state,
+* grouped verification membership may be adjusted later.
+
+Adding `SI` behavior:
+
+* `SI` records should be onboarded from Arshin search rather than hand-entered field by field,
+* detailed `vri_id` enrichment should be part of the standard `SI` creation flow,
+* updating an existing `SI` after a new certificate appears should be possible by entering the certificate number only.
+
 ### `/repairs`
 
 Dedicated repair page.
@@ -263,6 +313,31 @@ Must include:
 * overdue markers,
 * search,
 * filter by stage and repair organization.
+
+Workflow rules:
+
+* repair is available for all equipment categories,
+* grouped repair may include both `SI` and non-`SI`,
+* repair completion is available only after payment,
+* grouped repair completion should also be supported,
+* after completion, the active repair panel on the card becomes a compact archive record,
+* grouped repair membership may be adjusted later.
+
+### Excel export
+
+List pages should support Excel export of the current filtered result.
+
+Later extension:
+
+* a user should also be able to upload an Excel file with certificate numbers and trigger bulk SI onboarding from Arshin.
+* this bulk import should live in the equipment registry workspace for the currently selected folder,
+* after upload, the UI should show a compact row-level import report with created, skipped, and error results.
+
+Applies to:
+
+* equipment registry,
+* repairs,
+* SI verification registry.
 
 ### `/events`
 
@@ -450,7 +525,8 @@ User must instantly notice:
 * overdue state,
 * verification validity,
 * where the equipment is now,
-* required next action.
+* required next action,
+* active repair state in the registry row when applicable.
 
 ### Tables
 
@@ -700,6 +776,12 @@ Notes area:
 * support easy reading and adding entries,
 * keep it visible enough to be actually used in daily work.
 
+Attachments area:
+
+* replace neighboring equipment block with `Вложения`,
+* support card-level files and process-linked files,
+* show uploaded items in a clear operational list.
+
 ### UX goals
 
 Details page must answer:
@@ -728,6 +810,15 @@ Represent milestone-based process clearly.
 * show overdue warnings clearly,
 * allow editing milestone dates in a predictable form,
 * support search and filtering in repair lists.
+
+The primary repair stage view should be a vertical operational table similar to the Excel MVP.
+
+Each stage row should show:
+
+* stage name,
+* actual date,
+* deadline,
+* completed / not completed state.
 
 ### UX goals
 
@@ -858,7 +949,11 @@ Additional shell styling rules:
 * the sidebar must support a collapsed icon-only mode,
 * the sidebar collapse control should live inside the sidebar itself,
 * the top bar title should stay short: `metroLog`,
-* the shell should support both theme selection and font selection.
+* the shell should support both theme selection and font selection,
+* theme selection should be restored from the authenticated user's profile, not only from local browser state.
+* `/settings` should let the user toggle which theme presets remain visible in the top-right switcher.
+* the default visible presets should be `light`, `gray`, and `dark`, while extra presets may be inspired by common GTK/NVim palettes.
+* recurring manual fields should prefer folder-scoped suggestions over repeated blank typing.
 
 Theme tuning rules:
 
@@ -919,7 +1014,10 @@ Even if not a full accessibility project, follow basic rules:
 * stage badge,
 * deadline badges,
 * show active repair on details page,
-* search and filters for repair lists.
+* search and filters for repair lists,
+* process dialog panel with attachments,
+* grouped repair actions,
+* archive record after completion.
 
 ---
 
@@ -940,7 +1038,10 @@ Even if not a full accessibility project, follow basic rules:
 * details block for SI records,
 * uncertain match indicator,
 * manual review flow,
-* Arshin detail link and `vri_id`-based detail fetch support.
+* Arshin detail link and `vri_id`-based detail fetch support,
+* process dialog panel with attachments,
+* grouped verification actions,
+* archive record after completion.
 
 ---
 

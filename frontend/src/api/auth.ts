@@ -1,4 +1,5 @@
 import { apiRequest } from "@/api/client";
+import type { ThemeName } from "@/store/theme";
 
 export type UserRole = "ADMINISTRATOR" | "MKAIR" | "CUSTOMER";
 
@@ -16,6 +17,8 @@ type RawUser = {
   organization: string | null;
   position: string | null;
   facility: string | null;
+  theme_preference: ThemeName | null;
+  enabled_theme_options: ThemeName[] | null;
   created_at: string;
   updated_at: string;
 };
@@ -41,6 +44,8 @@ export type AuthUser = {
   organization: string | null;
   position: string | null;
   facility: string | null;
+  themePreference: ThemeName | null;
+  enabledThemes: ThemeName[] | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -68,10 +73,12 @@ export type ChangePasswordPayload = {
 };
 
 export type UpdateProfilePayload = {
-  phone: string;
-  organization: string;
-  position: string;
-  facility: string;
+  phone?: string;
+  organization?: string;
+  position?: string;
+  facility?: string;
+  themePreference?: ThemeName | null;
+  enabledThemes?: ThemeName[] | null;
 };
 
 export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
@@ -120,6 +127,8 @@ export async function updateProfile(
       organization: payload.organization,
       position: payload.position,
       facility: payload.facility,
+      theme_preference: payload.themePreference,
+      enabled_theme_options: payload.enabledThemes,
     },
   });
   return mapUser(response);
@@ -153,6 +162,8 @@ export function mapUser(user: RawUser): AuthUser {
     organization: user.organization,
     position: user.position,
     facility: user.facility,
+    themePreference: user.theme_preference,
+    enabledThemes: user.enabled_theme_options,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
   };

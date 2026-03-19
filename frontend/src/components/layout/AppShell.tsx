@@ -25,7 +25,7 @@ export function AppShell({ children }: AppShellProps) {
         className={[
           "grid min-h-screen min-w-full grid-cols-1 transition-[grid-template-columns] duration-300",
           sidebarCollapsed
-            ? "lg:grid-cols-[92px_minmax(0,1fr)]"
+            ? "lg:grid-cols-[78px_minmax(0,1fr)]"
             : "lg:grid-cols-[280px_minmax(0,1fr)]",
         ].join(" ")}
       >

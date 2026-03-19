@@ -28,6 +28,8 @@ const equipmentTypeOptions: EquipmentType[] = ["SI", "IO", "VO", "OTHER"];
 const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "ARCHIVED"];
 const subtleButtonClass =
   "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
+const iconActionClass =
+  "icon-action-button h-10 w-10";
 
 type FolderFormState = {
   name: string;
@@ -334,6 +336,123 @@ export function EquipmentPage() {
         description="Общий реестр оборудования: сначала папка, затем рабочая таблица приборов."
       />
 
+      {!selectedFolder ? (
+        <section className="folder-browser-panel space-y-4 rounded-[24px] p-4 shadow-panel">
+          <div className="flex flex-col gap-4 border-b border-line pb-4 xl:flex-row xl:items-end xl:justify-between">
+            <div>
+              <h2 className="text-xl font-semibold text-ink">Папки оборудования</h2>
+              <p className="mt-1 text-sm text-steel">
+                Выбери рабочую папку и открой оборудование этой области.
+              </p>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="block min-w-[260px] text-sm text-steel">
+                Поиск по папкам
+                <input
+                  className="form-input"
+                  placeholder="Название или описание папки"
+                  type="search"
+                  value={folderSearchQuery}
+                  onChange={(event) => setFolderSearchQuery(event.target.value)}
+                />
+              </label>
+              {canManage ? (
+                <button className={subtleButtonClass} type="button" onClick={openCreateFolderModal}>
+                  <span className="sr-only">Новая папка</span>
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
+                  </svg>
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          {foldersQuery.isLoading ? <p className="text-sm text-steel">Загружаем папки...</p> : null}
+          {foldersQuery.isError ? (
+            <p className="text-sm text-[#b04c43]">
+              {foldersQuery.error instanceof Error
+                ? foldersQuery.error.message
+                : "Не удалось загрузить папки."}
+            </p>
+          ) : null}
+
+          {!foldersQuery.isLoading && !folders.length ? (
+            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
+              <p className="text-base font-semibold text-ink">Папок пока нет.</p>
+              <p className="mt-2 text-sm text-steel">
+                Создай первую папку, чтобы собрать внутри общий список приборов.
+              </p>
+            </div>
+          ) : null}
+
+          {!foldersQuery.isLoading && folders.length > 0 && filteredFolders.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
+              <p className="text-base font-semibold text-ink">По этому запросу папки не найдены.</p>
+              <p className="mt-2 text-sm text-steel">
+                Измени строку поиска или очисти фильтр, чтобы увидеть весь список.
+              </p>
+            </div>
+          ) : null}
+
+          {filteredFolders.length > 0 ? (
+            <div className="folder-list">
+              {filteredFolders.map((folder) => (
+                <button
+                  key={folder.id}
+                  className="folder-list__item"
+                  type="button"
+                  onClick={() => setSelectedFolderId(folder.id)}
+                >
+                  <div className="folder-list__content">
+                    <div className="folder-list__title">{folder.name}</div>
+                    <p className="folder-list__description">
+                      {folder.description || "Рабочая папка без дополнительного описания."}
+                    </p>
+                  </div>
+                  {canManage ? (
+                    <div className="folder-list__actions">
+                      <button
+                        aria-label={`Редактировать папку ${folder.name}`}
+                        className="icon-action-button icon-action-button--tiny"
+                        title="Редактировать папку"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          openEditFolderModal(folder);
+                        }}
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                        </svg>
+                      </button>
+                      <button
+                        aria-label={`Удалить папку ${folder.name}`}
+                        className="icon-action-button icon-action-button--tiny"
+                        title="Удалить папку"
+                        type="button"
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDeleteTarget({
+                            kind: "folder",
+                            id: folder.id,
+                            title: "Удалить папку",
+                            message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
+                          });
+                        }}
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       {selectedFolder ? (
         <section className="space-y-4 rounded-[30px] border border-line bg-white p-5 shadow-panel">
           <div className="flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-start lg:justify-between">
@@ -351,8 +470,45 @@ export function EquipmentPage() {
 
             {canManage ? (
               <div className="flex flex-wrap gap-3">
-                <button className={subtleButtonClass} type="button" onClick={openCreateEquipmentModal}>
-                  Новый прибор
+                <button
+                  aria-label="Редактировать папку"
+                  className={iconActionClass}
+                  title="Редактировать папку"
+                  type="button"
+                  onClick={() => openEditFolderModal(selectedFolder)}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+                  </svg>
+                </button>
+                <button
+                  aria-label="Удалить папку"
+                  className={iconActionClass}
+                  title="Удалить папку"
+                  type="button"
+                  onClick={() =>
+                    setDeleteTarget({
+                      kind: "folder",
+                      id: selectedFolder.id,
+                      title: "Удалить папку",
+                      message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
+                    })
+                  }
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                </button>
+                <button
+                  aria-label="Добавить прибор"
+                  className={iconActionClass}
+                  title="Добавить прибор"
+                  type="button"
+                  onClick={openCreateEquipmentModal}
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
+                  </svg>
                 </button>
               </div>
             ) : null}
@@ -360,10 +516,10 @@ export function EquipmentPage() {
 
           <section className="space-y-4">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div>
+              <div className="xl:max-w-[60ch]">
                 <h3 className="text-lg font-semibold text-ink">Реестр приборов</h3>
-                <p className="mt-1 text-sm text-steel">
-                  Здесь только базовая информация, а расширенный состав данных открывается в карточке прибора.
+                <p className="mt-1 max-w-[clamp(36ch,42vw,60ch)] text-sm leading-5 text-steel">
+                  Базовые данные здесь, полные сведения открываются в карточке прибора.
                 </p>
               </div>
 
@@ -458,112 +614,7 @@ export function EquipmentPage() {
             ) : null}
           </section>
         </section>
-      ) : (
-        <section className="space-y-4 rounded-[30px] border border-line bg-white p-5 shadow-panel">
-          <div className="flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold text-ink">Папки оборудования</h2>
-              <p className="mt-1 text-sm text-steel">
-                Сначала выбирается рабочая папка, а уже внутри открывается таблица приборов.
-              </p>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <label className="block min-w-[260px] text-sm text-steel">
-                Поиск по папкам
-                <input
-                  className="form-input"
-                  placeholder="Название или описание папки"
-                  type="search"
-                  value={folderSearchQuery}
-                  onChange={(event) => setFolderSearchQuery(event.target.value)}
-                />
-              </label>
-              {canManage ? (
-                <button className={subtleButtonClass} type="button" onClick={openCreateFolderModal}>
-                  Новая папка
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          {foldersQuery.isLoading ? <p className="text-sm text-steel">Загружаем папки...</p> : null}
-          {foldersQuery.isError ? (
-            <p className="text-sm text-[#b04c43]">
-              {foldersQuery.error instanceof Error
-                ? foldersQuery.error.message
-                : "Не удалось загрузить папки."}
-            </p>
-          ) : null}
-
-          {!foldersQuery.isLoading && !folders.length ? (
-            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
-              <p className="text-base font-semibold text-ink">Папок пока нет.</p>
-              <p className="mt-2 text-sm text-steel">
-                Создай первую папку, чтобы собрать внутри общий список приборов.
-              </p>
-            </div>
-          ) : null}
-
-          {!foldersQuery.isLoading && folders.length > 0 && filteredFolders.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
-              <p className="text-base font-semibold text-ink">По этому запросу папки не найдены.</p>
-              <p className="mt-2 text-sm text-steel">
-                Измени строку поиска или очисти фильтр, чтобы увидеть весь список.
-              </p>
-            </div>
-          ) : null}
-
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {filteredFolders.map((folder) => (
-              <div
-                key={folder.id}
-                className="rounded-[26px] border border-line bg-white/85 p-5 transition hover:border-signal-info hover:bg-white"
-              >
-                {canManage ? (
-                  <div className="mb-4 flex justify-end gap-2">
-                    <button
-                      aria-label={`Редактировать папку ${folder.name}`}
-                      className="icon-action-button"
-                      title="Редактировать папку"
-                      type="button"
-                      onClick={() => openEditFolderModal(folder)}
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                      </svg>
-                    </button>
-                    <button
-                      aria-label={`Удалить папку ${folder.name}`}
-                      className="icon-action-button"
-                      title="Удалить папку"
-                      type="button"
-                      onClick={() =>
-                        setDeleteTarget({
-                          kind: "folder",
-                          id: folder.id,
-                          title: "Удалить папку",
-                          message:
-                            "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
-                        })
-                      }
-                    >
-                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                      </svg>
-                    </button>
-                  </div>
-                ) : null}
-                <button className="block w-full text-left" type="button" onClick={() => setSelectedFolderId(folder.id)}>
-                  <div className="text-lg font-semibold text-ink">{folder.name}</div>
-                  <p className="mt-2 text-sm text-steel">
-                    {folder.description || "Открой папку, чтобы работать с приборами."}
-                  </p>
-                </button>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      ) : null}
 
       <Modal
         description={
@@ -605,15 +656,26 @@ export function EquipmentPage() {
           ) : null}
           <div className="flex justify-end">
             <button
+              aria-label={
+                activeModal?.kind === "folder" && activeModal.mode === "edit"
+                  ? "Сохранить папку"
+                  : "Создать папку"
+              }
               className="btn-primary disabled:opacity-60"
               disabled={createFolderMutation.isPending || updateFolderMutation.isPending}
               type="submit"
             >
-              {createFolderMutation.isPending || updateFolderMutation.isPending
-                ? "Сохраняем..."
-                : activeModal?.kind === "folder" && activeModal.mode === "edit"
-                  ? "Сохранить папку"
-                  : "Создать папку"}
+              {createFolderMutation.isPending || updateFolderMutation.isPending ? (
+                "…"
+              ) : activeModal?.kind === "folder" && activeModal.mode === "edit" ? (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
+                </svg>
+              )}
             </button>
           </div>
         </form>
@@ -767,15 +829,26 @@ export function EquipmentPage() {
           ) : null}
           <div className="flex justify-end">
             <button
+              aria-label={
+                activeModal?.kind === "equipment" && activeModal.mode === "edit"
+                  ? "Сохранить прибор"
+                  : "Создать прибор"
+              }
               className="btn-primary disabled:opacity-60"
               disabled={createEquipmentMutation.isPending || updateEquipmentMutation.isPending || !selectedFolder}
               type="submit"
             >
-              {createEquipmentMutation.isPending || updateEquipmentMutation.isPending
-                ? "Сохраняем..."
-                : activeModal?.kind === "equipment" && activeModal.mode === "edit"
-                  ? "Сохранить прибор"
-                  : "Создать прибор"}
+              {createEquipmentMutation.isPending || updateEquipmentMutation.isPending ? (
+                "…"
+              ) : activeModal?.kind === "equipment" && activeModal.mode === "edit" ? (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
+                </svg>
+              )}
             </button>
           </div>
         </form>
@@ -784,10 +857,11 @@ export function EquipmentPage() {
       <Modal
         description={deleteTarget?.message}
         open={deleteTarget !== null}
+        size="sm"
         title={deleteTarget?.title ?? "Подтверждение удаления"}
         onClose={() => setDeleteTarget(null)}
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {(deleteFolderMutation.isError || deleteEquipmentMutation.isError) ? (
             <p className="text-sm text-[#b04c43]">
               {getMutationErrorMessage(
@@ -796,11 +870,9 @@ export function EquipmentPage() {
               )}
             </p>
           ) : null}
-          <div className="flex justify-end gap-3">
-            <button className={subtleButtonClass} type="button" onClick={() => setDeleteTarget(null)}>
-              Отмена
-            </button>
+          <div className="flex justify-end">
             <button
+              aria-label="Подтвердить удаление"
               className="btn-primary disabled:opacity-60"
               disabled={
                 deleteFolderMutation.isPending ||

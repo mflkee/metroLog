@@ -16,6 +16,10 @@ The system must provide:
 - a future-ready authentication system with roles and permissions,
 - staged development suitable for CLI-driven AI-assisted coding.
 
+The UI must also remain compact and operational on smaller laptop screens.
+Large decorative spacing, oversized cards, and overly verbose controls should be avoided
+when they reduce the usable workspace for tables and operational forms.
+
 ---
 
 ## Functional Reference Workbook
@@ -235,6 +239,9 @@ Frontend should:
 - provide filters and forms,
 - show loading and error states,
 - never reimplement critical business rules as the only source of truth.
+
+Where practical, repetitive operational actions should prefer concise icon-based controls
+instead of long textual buttons, especially in dense registry and card workflows.
 
 ### 6. No direct frontend access to Arshin
 Frontend never calls Arshin directly.
@@ -746,4 +753,3 @@ A phase is complete only when:
 * obvious edge cases are handled,
 * related tests are added where applicable,
 * documentation/spec is updated if needed.
-

@@ -40,6 +40,11 @@ Main emphasis:
 - usable forms,
 - minimal clutter.
 
+Compactness is a hard requirement:
+- the interface must stay efficient on smaller laptop screens,
+- avoid oversized cards, oversized empty zones, and decorative spacing,
+- action-heavy workflows should prefer dense layouts and icon-based controls where clarity is preserved.
+
 ### 2. Backend-driven business logic
 Frontend may display derived values, but critical rules must come from backend:
 - stage,
@@ -456,6 +461,9 @@ Tables must be:
 * sortable,
 * with sticky headers if practical,
 * responsive enough for common desktop sizes.
+
+The layout should preserve as much horizontal space as possible for the table area.
+Supporting navigation or filters must not consume excessive width when a table is the main task focus.
 
 ### Cards
 

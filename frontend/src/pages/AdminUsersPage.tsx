@@ -226,11 +226,18 @@ export function AdminUsersPage() {
               Активный пользователь
             </label>
             <button
+              aria-label="Создать пользователя"
               className="btn-primary disabled:opacity-60"
               type="submit"
               disabled={createUserMutation.isPending}
             >
-              {createUserMutation.isPending ? "Создаем..." : "Создать пользователя"}
+              {createUserMutation.isPending ? (
+                "…"
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
+                </svg>
+              )}
             </button>
           </div>
         </form>

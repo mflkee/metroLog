@@ -7,9 +7,18 @@ type ModalProps = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  size?: "default" | "sm";
 };
 
-export function Modal({ title, description, open, onClose, children, footer }: ModalProps) {
+export function Modal({
+  title,
+  description,
+  open,
+  onClose,
+  children,
+  footer,
+  size = "default",
+}: ModalProps) {
   useEffect(() => {
     if (!open) {
       return undefined;
@@ -42,18 +51,27 @@ export function Modal({ title, description, open, onClose, children, footer }: M
       role="dialog"
       onClick={handleBackdropClick}
     >
-      <div className="w-full max-w-2xl rounded-[28px] border border-line bg-white shadow-panel">
+      <div
+        className={[
+          "w-full rounded-[28px] border border-line bg-white shadow-panel",
+          size === "sm" ? "max-w-md" : "max-w-2xl",
+        ].join(" ")}
+      >
         <div className="flex items-start justify-between gap-4 border-b border-line px-6 py-5">
           <div>
             <h3 className="text-xl font-semibold text-ink">{title}</h3>
             {description ? <p className="mt-1 text-sm text-steel">{description}</p> : null}
           </div>
           <button
-            className="rounded-full border border-line px-3 py-1.5 text-sm text-steel transition hover:border-signal-info hover:text-ink"
+            aria-label="Закрыть"
+            className="icon-action-button"
+            title="Закрыть"
             type="button"
             onClick={onClose}
           >
-            Закрыть
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18 18 6M6 6l12 12" />
+            </svg>
           </button>
         </div>
         <div className="px-6 py-5">{children}</div>

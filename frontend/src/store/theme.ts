@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type ThemeName = "light" | "dark" | "gray" | "tokyo-night" | "gruvbox";
+export type ThemeName = "light" | "dark" | "gray";
 
 type ThemeOption = {
   value: ThemeName;
@@ -19,8 +19,6 @@ export const themeOptions: ThemeOption[] = [
   { value: "light", label: "Светлая" },
   { value: "dark", label: "Темная" },
   { value: "gray", label: "Серая" },
-  { value: "tokyo-night", label: "Tokyo Night" },
-  { value: "gruvbox", label: "Gruvbox" },
 ];
 
 function getStoredTheme(): ThemeName {
@@ -29,14 +27,16 @@ function getStoredTheme(): ThemeName {
   }
 
   const storedTheme = window.localStorage.getItem(THEME_STORAGE_KEY);
-  if (
-    storedTheme === "light" ||
-    storedTheme === "dark" ||
-    storedTheme === "gray" ||
-    storedTheme === "tokyo-night" ||
-    storedTheme === "gruvbox"
-  ) {
+  if (storedTheme === "light" || storedTheme === "dark" || storedTheme === "gray") {
     return storedTheme;
+  }
+
+  if (storedTheme === "tokyo-night") {
+    return "dark";
+  }
+
+  if (storedTheme === "gruvbox") {
+    return "gray";
   }
 
   return DEFAULT_THEME;

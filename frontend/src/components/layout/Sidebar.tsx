@@ -17,7 +17,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
     <aside
       className={[
         "border-b border-line bg-white/85 py-5 shadow-panel backdrop-blur transition-[padding] duration-300 lg:border-b-0 lg:border-r",
-        collapsed ? "px-3 lg:px-2.5" : "px-4 lg:px-4",
+        collapsed ? "px-2.5 lg:px-2" : "px-4 lg:px-4",
       ].join(" ")}
     >
       <div className={["mb-6 flex", collapsed ? "lg:justify-center" : "justify-end"].join(" ")}>
@@ -42,7 +42,7 @@ export function Sidebar({ collapsed, onToggleCollapsed }: SidebarProps) {
             className={({ isActive }) =>
               [
                 "block rounded-2xl border transition",
-                collapsed ? "px-3 py-3 lg:px-2.5" : "px-4 py-3",
+                collapsed ? "px-2.5 py-3 lg:px-2" : "px-4 py-3",
                 isActive
                   ? "border-signal-info bg-[#eaf4f8] text-ink"
                   : "border-transparent bg-transparent text-steel hover:border-line hover:bg-white",

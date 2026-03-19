@@ -491,11 +491,18 @@ export function EquipmentDetailsPage() {
             ) : null}
             <div className="flex justify-end">
               <button
+                aria-label="Сохранить изменения"
                 className="btn-primary disabled:opacity-60"
                 disabled={updateEquipmentMutation.isPending}
                 type="submit"
               >
-                {updateEquipmentMutation.isPending ? "Сохраняем..." : "Сохранить изменения"}
+                {updateEquipmentMutation.isPending ? (
+                  "…"
+                ) : (
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                  </svg>
+                )}
               </button>
             </div>
           </form>
@@ -505,10 +512,11 @@ export function EquipmentDetailsPage() {
       <Modal
         description="Удалить этот прибор из реестра? Действие потребует подтверждения."
         open={confirmDeleteOpen}
+        size="sm"
         title="Удалить прибор"
         onClose={() => setConfirmDeleteOpen(false)}
       >
-        <div className="space-y-4">
+        <div className="space-y-3">
           {deleteEquipmentMutation.isError ? (
             <p className="text-sm text-[#b04c43]">
               {deleteEquipmentMutation.error instanceof Error
@@ -516,15 +524,9 @@ export function EquipmentDetailsPage() {
                 : "Не удалось удалить прибор."}
             </p>
           ) : null}
-          <div className="flex justify-end gap-3">
+          <div className="flex justify-end">
             <button
-              className="rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink"
-              type="button"
-              onClick={() => setConfirmDeleteOpen(false)}
-            >
-              Отмена
-            </button>
-            <button
+              aria-label="Подтвердить удаление"
               className="btn-primary disabled:opacity-60"
               disabled={deleteEquipmentMutation.isPending}
               type="button"

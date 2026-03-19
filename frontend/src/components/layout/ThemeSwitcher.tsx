@@ -14,7 +14,6 @@ export function ThemeSwitcher() {
         options={themeOptions.map((option) => ({
           value: option.value,
           label: option.label,
-          preview: "Интерфейс",
         }))}
         selectedValue={theme}
         onSelect={(value) => setTheme(value as typeof theme)}

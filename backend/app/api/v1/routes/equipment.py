@@ -1,3 +1,5 @@
+from typing import Annotated
+
 from fastapi import APIRouter, Query
 
 from app.api.deps import CurrentUser, DbSession, OperatorUser
@@ -59,7 +61,7 @@ async def delete_folder(
 async def list_groups(
     _: CurrentUser,
     db: DbSession,
-    folder_id: int | None = Query(default=None),
+    folder_id: Annotated[int | None, Query()] = None,
 ) -> list[EquipmentGroupRead]:
     groups = EquipmentService(db).list_groups(folder_id=folder_id)
     return [EquipmentGroupRead.model_validate(group) for group in groups]
@@ -69,11 +71,11 @@ async def list_groups(
 async def list_equipment(
     _: CurrentUser,
     db: DbSession,
-    folder_id: int | None = Query(default=None),
-    group_id: int | None = Query(default=None),
-    query: str | None = Query(default=None),
-    status: EquipmentStatus | None = Query(default=None),
-    equipment_type: EquipmentType | None = Query(default=None),
+    folder_id: Annotated[int | None, Query()] = None,
+    group_id: Annotated[int | None, Query()] = None,
+    query: Annotated[str | None, Query()] = None,
+    status: Annotated[EquipmentStatus | None, Query()] = None,
+    equipment_type: Annotated[EquipmentType | None, Query()] = None,
 ) -> list[EquipmentRead]:
     equipment_items = EquipmentService(db).list_equipment(
         folder_id=folder_id,

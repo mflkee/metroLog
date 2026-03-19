@@ -65,7 +65,7 @@ async def test_operator_can_create_filter_and_update_registry_entities(
             "modification": "AX-200",
             "serial_number": "SN-001",
             "manufacture_year": 2024,
-            "status": "ACTIVE",
+            "status": "IN_WORK",
             "current_location_manual": "Шкаф 3",
         },
     )
@@ -186,7 +186,6 @@ async def test_customer_can_view_registry_but_cannot_mutate(
         json={
             "first_name": "Customer",
             "last_name": "Viewer",
-            "patronymic": "",
             "email": "viewer@example.com",
             "role": "CUSTOMER",
             "is_active": True,

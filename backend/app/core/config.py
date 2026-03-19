@@ -16,15 +16,6 @@ class Settings(BaseSettings):
     bootstrap_admin_email: str = "admin@metrolog.local"
     bootstrap_admin_password: str = "ChangeMe123"
     frontend_app_url: str = "http://localhost:5173"
-    email_delivery_mode: str = "console"
-    smtp_host: str = ""
-    smtp_port: int = 587
-    smtp_username: str = ""
-    smtp_password: str = ""
-    smtp_sender: str = "no-reply@metrolog.local"
-    smtp_use_tls: bool = True
-    email_verification_code_ttl_minutes: int = 30
-    password_reset_code_ttl_minutes: int = 30
     database_url: str = "sqlite+pysqlite:///./metrolog.db"
     redis_url: str = "redis://localhost:6379/0"
     backend_cors_origins_raw: str = Field(

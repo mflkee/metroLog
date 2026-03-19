@@ -130,8 +130,8 @@ export function EquipmentDetailsPage() {
     });
   }, [equipmentQuery.data]);
 
-  const folders = foldersQuery.data ?? [];
-  const groups = groupsQuery.data ?? [];
+  const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
+  const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data]);
   const selectedFolderGroups = useMemo(
     () => groups.filter((group) => group.folderId === Number(form?.folderId ?? equipmentQuery.data?.folderId ?? 0)),
     [equipmentQuery.data?.folderId, form?.folderId, groups],

@@ -1,7 +1,6 @@
 from app.db.base import Base
 
 __all__ = ["Base"]
-from app.models.auth_code import AuthCode, AuthCodeType
 from app.models.equipment import (
     Equipment,
     EquipmentFolder,
@@ -12,8 +11,6 @@ from app.models.equipment import (
 from app.models.user import User, UserRole
 
 __all__ = [
-    "AuthCode",
-    "AuthCodeType",
     "Equipment",
     "EquipmentFolder",
     "EquipmentGroup",

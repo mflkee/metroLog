@@ -3,6 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "scripts": {
+    "setup:local": "./scripts/local/setup.sh",
+    "start:backend": "./scripts/local/backend.sh",
+    "start:frontend": "./scripts/local/frontend.sh",
+    "check": "./scripts/check.sh",
+    "deploy:docker": "./scripts/docker/deploy.sh",
+    "smoke:docker": "./scripts/docker/smoke.sh",
     "dev:backend": "env UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend uvicorn app.main:app --reload --host 0.0.0.0 --port 8000",
     "test:backend": "env UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend pytest",
     "lint:backend": "env UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend ruff check .",

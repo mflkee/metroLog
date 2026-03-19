@@ -83,6 +83,7 @@ export function EquipmentPage() {
     const folderIdFromUrl = searchParams.get("folderId");
     return folderIdFromUrl ? Number(folderIdFromUrl) : null;
   });
+  const [folderSearchQuery, setFolderSearchQuery] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | "ALL">("ALL");
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
@@ -203,8 +204,9 @@ export function EquipmentPage() {
     },
   });
 
-  const folders = foldersQuery.data ?? [];
-  const equipmentItems = equipmentQuery.data ?? [];
+  const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
+  const equipmentItems = useMemo(() => equipmentQuery.data ?? [], [equipmentQuery.data]);
+  const deferredFolderSearchQuery = useDeferredValue(folderSearchQuery);
 
   // Get unique object names and locations from current folder for autocomplete
   const existingObjectNames = useMemo(() => {
@@ -237,6 +239,15 @@ export function EquipmentPage() {
     () => folders.find((folder) => folder.id === selectedFolderId) ?? null,
     [folders, selectedFolderId],
   );
+  const filteredFolders = useMemo(() => {
+    const query = deferredFolderSearchQuery.trim().toLowerCase();
+    if (!query) {
+      return folders;
+    }
+    return folders.filter((folder) =>
+      [folder.name, folder.description ?? ""].some((value) => value.toLowerCase().includes(query)),
+    );
+  }, [deferredFolderSearchQuery, folders]);
 
   if (!token) {
     return null;
@@ -456,11 +467,23 @@ export function EquipmentPage() {
                 Сначала выбирается рабочая папка, а уже внутри открывается таблица приборов.
               </p>
             </div>
-            {canManage ? (
-              <button className={subtleButtonClass} type="button" onClick={openCreateFolderModal}>
-                Новая папка
-              </button>
-            ) : null}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="block min-w-[260px] text-sm text-steel">
+                Поиск по папкам
+                <input
+                  className="form-input"
+                  placeholder="Название или описание папки"
+                  type="search"
+                  value={folderSearchQuery}
+                  onChange={(event) => setFolderSearchQuery(event.target.value)}
+                />
+              </label>
+              {canManage ? (
+                <button className={subtleButtonClass} type="button" onClick={openCreateFolderModal}>
+                  Новая папка
+                </button>
+              ) : null}
+            </div>
           </div>
 
           {foldersQuery.isLoading ? <p className="text-sm text-steel">Загружаем папки...</p> : null}
@@ -481,8 +504,17 @@ export function EquipmentPage() {
             </div>
           ) : null}
 
+          {!foldersQuery.isLoading && folders.length > 0 && filteredFolders.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-line bg-[var(--bg-secondary)] px-5 py-10 text-center">
+              <p className="text-base font-semibold text-ink">По этому запросу папки не найдены.</p>
+              <p className="mt-2 text-sm text-steel">
+                Измени строку поиска или очисти фильтр, чтобы увидеть весь список.
+              </p>
+            </div>
+          ) : null}
+
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {folders.map((folder) => (
+            {filteredFolders.map((folder) => (
               <div
                 key={folder.id}
                 className="rounded-[26px] border border-line bg-white/85 p-5 transition hover:border-signal-info hover:bg-white"

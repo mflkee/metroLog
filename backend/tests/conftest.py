@@ -9,7 +9,6 @@ from sqlalchemy.orm import sessionmaker
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
-from app.services.email_service import clear_email_outbox
 
 
 @pytest.fixture
@@ -34,10 +33,8 @@ async def client(db_engine: Engine) -> AsyncClient:
         with testing_session() as session:
             yield session
 
-    clear_email_outbox()
     app.dependency_overrides[get_db] = override_get_db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://testserver") as async_client:
         yield async_client
     app.dependency_overrides.clear()
-    clear_email_outbox()

@@ -2,16 +2,8 @@
 
 Этот документ покрывает два сценария:
 
-1. локальный запуск без Docker;
-2. запуск на новом сервере через Docker Compose.
-
-## Что важно сразу
-
-- Не запускай `docker-compose up docker-compose.yml`.
-  Это неверно: `docker-compose.yml` не сервис.
-- Правильная команда: `docker compose up --build`.
-- Если видишь `docker.sock: no such file or directory`, значит Docker daemon не запущен.
-- Файл `.env.example` по умолчанию заточен под Docker. Для локального запуска без Docker его нужно немного поправить.
+1. локальная разработка без Docker;
+2. запуск на сервере через Docker Compose.
 
 ## Вариант 1. Локальный запуск без Docker
 
@@ -30,13 +22,13 @@ uv --version
 python3 --version
 ```
 
-### 1. Подготовить `.env`
+### 1. Подготовить локальную среду
 
 ```bash
-cp .env.example .env
+npm run setup:local
 ```
 
-Открой `.env` и измени минимум вот это:
+Если нужно вручную поправить `.env`, ориентируйся на такой минимум:
 
 ```dotenv
 APP_ENV=development
@@ -65,29 +57,17 @@ VITE_API_BASE_URL=/api/v1
 VITE_API_PROXY_TARGET=http://localhost:8000
 ```
 
-Критичный момент:
+Критично:
 
-- если оставить `DATABASE_URL=postgresql+psycopg://...@postgres:5432/...`, backend локально не поднимется, потому что хост `postgres` существует только внутри Docker Compose;
-- если оставить `VITE_API_PROXY_TARGET=http://backend:8000`, frontend локально не достучится до backend.
+- `postgres` и `backend` как hostname работают только внутри Docker Compose;
+- для локального dev лучше держать backend и frontend отдельно, так быстрее и проще отлаживать.
 
-### 2. Установить зависимости backend
-
-```bash
-uv sync --directory backend --dev
-```
-
-### 3. Установить зависимости frontend
-
-```bash
-npm --prefix frontend ci
-```
-
-### 4. Поднять backend
+### 2. Поднять backend
 
 В одном терминале:
 
 ```bash
-npm run dev:backend
+npm run start:backend
 ```
 
 Backend будет доступен на:
@@ -97,12 +77,12 @@ http://localhost:8000
 http://localhost:8000/docs
 ```
 
-### 5. Поднять frontend
+### 3. Поднять frontend
 
 Во втором терминале:
 
 ```bash
-npm run dev:frontend
+npm run start:frontend
 ```
 
 Frontend будет доступен на:
@@ -111,7 +91,7 @@ Frontend будет доступен на:
 http://localhost:5173
 ```
 
-### 6. Войти в систему
+### 4. Войти в систему
 
 Используй bootstrap-админа из `.env`:
 
@@ -124,24 +104,13 @@ password: ChangeMe123
 
 ### Полезные команды
 
-Проверка backend:
-
 ```bash
-npm run test:backend
-npm run lint:backend
-```
-
-Проверка frontend:
-
-```bash
-npm run test:frontend
-npm run lint:frontend
-npm run build:frontend
+npm run check
 ```
 
 ## Вариант 2. Запуск на новом сервере через Docker Compose
 
-Этот вариант проще для сервера, если Docker уже установлен и daemon запущен.
+Этот вариант нужен для интеграционной проверки и серверного запуска.
 
 ### 1. Убедиться, что Docker работает
 
@@ -180,13 +149,13 @@ BACKEND_CORS_ORIGINS=http://your-host:5173
 FRONTEND_APP_URL=http://your-host:5173
 ```
 
-### 3. Запустить контейнеры
+### 3. Запустить стек
 
 ```bash
-docker compose up --build -d
+npm run deploy:docker
 ```
 
-### 4. Проверить, что всё поднялось
+### 4. Дополнительная проверка
 
 ```bash
 docker compose ps
@@ -206,57 +175,28 @@ docker compose down
 docker compose down -v
 ```
 
-## Что у тебя уже сломалось и почему
+## Типовые ошибки
 
-### Ошибка
+### `env file .../.env not found`
 
-```bash
-docker-compose up docker-compose.yml
-```
-
-Почему:
-
-- `docker-compose.yml` был воспринят как имя сервиса.
-
-Нужно:
-
-```bash
-docker compose up --build
-```
-
-### Ошибка
-
-```bash
-docker-compose up
-env file .../.env not found
-```
-
-Почему:
-
-- compose-файл требует `.env`.
-
-Нужно:
+Создай `.env`:
 
 ```bash
 cp .env.example .env
 ```
 
-### Ошибка
+### `failed to connect to the docker API at unix:///var/run/docker.sock`
 
-```bash
-failed to connect to the docker API at unix:///var/run/docker.sock
-```
-
-Почему:
-
-- Docker daemon не запущен.
-
-Нужно:
+Запусти Docker daemon:
 
 ```bash
 sudo systemctl enable --now docker
 docker info
 ```
+
+### Локально backend не может подключиться к БД
+
+Скорее всего, в `.env` остался Docker-host `postgres`. Для локального запуска используй SQLite или локальный PostgreSQL.
 
 ## Самый короткий путь запустить прямо сейчас
 

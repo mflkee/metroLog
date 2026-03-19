@@ -176,7 +176,9 @@ class EquipmentService:
             if next_folder_id is None:
                 next_folder_id = next_group.folder_id
             if next_group.folder_id != next_folder_id:
-                if "folder_id" in payload.model_fields_set and "group_id" not in payload.model_fields_set:
+                folder_changed = "folder_id" in payload.model_fields_set
+                group_changed = "group_id" in payload.model_fields_set
+                if folder_changed and not group_changed:
                     next_group_id = None
                 else:
                     raise HTTPException(

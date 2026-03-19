@@ -150,7 +150,9 @@ Internal authenticated user managed by administrators.
 Fields:
 
 * id
-* display_name
+* first_name
+* last_name
+* patronymic optional
 * email
 * password_hash
 * role

@@ -1,15 +1,13 @@
 # metroLog
 
-Foundation stage for the equipment accounting and repair tracking system.
+Equipment accounting and repair tracking system.
 
-## Included in this stage
+## Current state
 
-- FastAPI backend skeleton with health endpoints
-- Alembic configuration
-- React + TypeScript frontend skeleton with a shared application shell
-- Docker Compose definition for PostgreSQL, Redis, backend, and frontend
-- Base test and lint configuration
-- Stage 1 auth foundation with internal login, bootstrap admin, and administrator-managed user accounts
+- Stage 1 auth and user management are working
+- Stage 2 registry foundation is in progress
+- folder colors were removed from the product
+- folder list now relies on compact cards plus search, not color coding
 
 ## Project structure
 
@@ -24,33 +22,55 @@ Foundation stage for the equipment accounting and repair tracking system.
   development.md
   docker-compose.yml
   .env.example
+  scripts/
 ```
 
-## Local commands
+## Recommended workflow
 
-From the project root:
+For active development, run backend and frontend locally in separate processes.
+Use Docker for integration checks and deployment-style smoke tests.
+
+## Local development
+
+Initial setup:
 
 ```bash
-npm run dev:frontend
-npm run build:frontend
-npm run test:frontend
+npm run setup:local
+```
 
-npm run dev:backend
-npm run test:backend
-npm run lint:backend
+Run backend:
+
+```bash
+npm run start:backend
+```
+
+Run frontend:
+
+```bash
+npm run start:frontend
+```
+
+Checks:
+
+```bash
+npm run check
 ```
 
 ## Docker
 
-When Docker is available:
+When Docker is available and you want a full stack rebuild with migrations:
 
 ```bash
-cp .env.example .env
-docker compose up --build
+npm run deploy:docker
 ```
 
-Dependencies are installed at image build time, so container startup should go straight into
-database migrations and app boot without rerunning `uv sync` or `npm install`.
+This script:
+
+- ensures `.env` exists,
+- rebuilds containers,
+- starts the stack,
+- waits for backend health,
+- checks frontend reachability.
 
 ### Bootstrap administrator
 
@@ -65,8 +85,7 @@ BOOTSTRAP_ADMIN_EMAIL=admin@metrolog.local
 BOOTSTRAP_ADMIN_PASSWORD=ChangeMe123
 ```
 
-If no administrator exists, this account is created automatically and is forced to change its
-password on first login.
+If no administrator exists, this account is created automatically and must change its password on first login.
 
 ### API access in browser
 
@@ -74,6 +93,19 @@ The frontend uses a same-origin `/api/v1` base URL by default.
 In Docker and remote access scenarios, Vite proxies `/api` requests to the backend service, which
 avoids mixed-content and `localhost` issues when the UI is opened through HTTPS or a public domain.
 
+## Useful commands
+
+```bash
+npm run lint:backend
+npm run test:backend
+npm run lint:frontend
+npm run test:frontend
+npm run build:frontend
+npm run smoke:docker
+```
+
 ## Notes
 
-- The backend defaults to SQLite locally if `DATABASE_URL` is not set.
+- local backend can use SQLite for fast development
+- Docker uses PostgreSQL and Redis from `docker-compose.yml`
+- the shared specification lives in `codex.md`, `backend/codex.md`, `frontend/codex.md`, and `development.md`

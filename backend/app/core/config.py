@@ -16,8 +16,8 @@ class Settings(BaseSettings):
     bootstrap_admin_email: str = "admin@metrolog.local"
     bootstrap_admin_password: str = "ChangeMe123"
     frontend_app_url: str = "http://localhost:5173"
-    database_url: str = "sqlite+pysqlite:///./metrolog.db"
-    redis_url: str = "redis://localhost:6379/0"
+    database_url: str = "postgresql+psycopg://metrolog:metrolog@127.0.0.1:5432/metrolog"
+    redis_url: str = "redis://127.0.0.1:6379/0"
     backend_cors_origins_raw: str = Field(
         default="http://localhost:5173",
         alias="BACKEND_CORS_ORIGINS",

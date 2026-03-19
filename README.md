@@ -106,6 +106,7 @@ npm run smoke:docker
 
 ## Notes
 
-- local backend can use SQLite for fast development
+- runtime and local development use PostgreSQL and Redis
+- SQLite remains only in backend tests as an isolated test fixture
 - Docker uses PostgreSQL and Redis from `docker-compose.yml`
 - the shared specification lives in `codex.md`, `backend/codex.md`, `frontend/codex.md`, and `development.md`

@@ -169,6 +169,13 @@ class Repair(Base):
     route_destination: Mapped[str] = mapped_column(String(255), nullable=False)
     sent_to_repair_at: Mapped[date] = mapped_column(Date, nullable=False)
     repair_deadline_at: Mapped[date] = mapped_column(Date, nullable=False)
+    arrived_to_destination_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    sent_from_repair_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    sent_from_irkutsk_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    arrived_to_lensk_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    actually_received_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    incoming_control_at: Mapped[date | None] = mapped_column(Date, nullable=True)
+    paid_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

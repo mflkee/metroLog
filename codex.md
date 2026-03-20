@@ -451,8 +451,9 @@ Rules:
 - grouped repair or grouped verification may also be completed in bulk,
 - when a process is completed, its active dialog panel disappears from the card,
 - instead of the active panel, the card should show a compact archive record,
+- the archive list entry may stay compact by default but should support expansion for informative details such as group composition and milestone dates,
 - the archive record should include a download action in the top-right corner,
-- downloading should return a ZIP archive containing only the dialog and the attachments from that dialog.
+- downloading should return a ZIP archive containing `dialog.txt` plus a `files/` folder with the dialog attachments.
 
 ### Repair page presentation
 

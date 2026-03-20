@@ -28,11 +28,18 @@ import {
   type VerificationMessageAttachment,
   type VerificationQueueItem,
 } from "@/api/equipment";
+import { DateInput } from "@/components/DateInput";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
+import {
+  ProcessTimelineStrip,
+  type ProcessTimelineStripItem,
+  type ProcessTimelineStripSegment,
+} from "@/components/ProcessTimelineStrip";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { validateVerificationMilestoneOrder } from "@/lib/milestoneValidation";
 import { useAuthStore } from "@/store/auth";
 
 type VerificationTab = "active" | "archived";
@@ -52,10 +59,18 @@ type VerificationGroup = {
   items: VerificationQueueItem[];
 };
 
+type VerificationTimelineModel = {
+  items: ProcessTimelineStripItem[];
+  segments: ProcessTimelineStripSegment[];
+};
+
 const tabButtonClass =
   "inline-flex items-center gap-2 rounded-full border border-line px-3 py-1.5 text-sm text-steel transition hover:border-signal-info hover:text-ink";
 const activeTabButtonClass =
   "inline-flex items-center gap-2 rounded-full border border-signal-info bg-[color:var(--accent-soft)] px-3 py-1.5 text-sm font-medium text-ink";
+const actionButtonCompactClass = "btn-secondary btn-sm";
+const actionButtonClass = "btn-secondary";
+const actionAccentButtonClass = "btn-accent";
 
 const verificationMilestoneDefinitions = [
   {
@@ -237,9 +252,10 @@ function VerificationBatchCard({
   const [form, setForm] = useState<VerificationMilestonesFormState>(() =>
     buildMilestonesFormState(anchor),
   );
-  const [dialogExpanded, setDialogExpanded] = useState(true);
+  const [dialogExpanded, setDialogExpanded] = useState(false);
   const [messageDraft, setMessageDraft] = useState("");
   const [messageFiles, setMessageFiles] = useState<File[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
@@ -277,6 +293,7 @@ function VerificationBatchCard({
       }),
     onSuccess: async (updatedBatch) => {
       setForm(buildMilestonesFormState(updatedBatch[0]));
+      setFormError(null);
       setActionError(null);
       await onUpdated();
     },
@@ -321,11 +338,33 @@ function VerificationBatchCard({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await handleSaveMilestones();
+  }
+
+  async function handleSaveMilestones() {
+    setFormError(null);
     setActionError(null);
+
+    const validationError = validateVerificationMilestoneOrder({
+      routeDestination: anchor.routeDestination,
+      sentToVerificationAt: anchor.sentToVerificationAt,
+      receivedAtDestinationAt: form.receivedAtDestinationAt,
+      handedToCsmAt: form.handedToCsmAt,
+      verificationCompletedAt: form.verificationCompletedAt,
+      pickedUpFromCsmAt: form.pickedUpFromCsmAt,
+      shippedBackAt: form.shippedBackAt,
+      returnedFromVerificationAt: form.returnedFromVerificationAt,
+    });
+
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
     try {
       await updateMilestonesMutation.mutateAsync();
     } catch (error) {
-      setActionError(
+      setFormError(
         error instanceof Error ? error.message : "Не удалось обновить этапы поверки.",
       );
     }
@@ -471,11 +510,11 @@ function VerificationBatchCard({
             </span>
           </div>
         </button>
-        <div className="mt-3 grid gap-2 text-sm text-ink md:grid-cols-2 xl:grid-cols-4">
-          <QueueField label="Маршрут" value={`${anchor.routeCity} → ${anchor.routeDestination}`} />
-          <QueueField label="Отправлено" value={formatDateOnly(anchor.sentToVerificationAt)} />
-          <QueueField label="Закрыто" value={anchor.closedAt ? formatDateOnly(anchor.closedAt) : "Не указано"} />
-          <QueueField label="Количество" value={`${batch.items.length} СИ`} />
+        <div className="mt-3">
+          <ProcessTimelineStrip
+            items={buildVerificationBatchTimeline(batch, lifecycleStatus).items}
+            segments={buildVerificationBatchTimeline(batch, lifecycleStatus).segments}
+          />
         </div>
         {expanded ? (
           <div className="mt-4 space-y-4 border-t border-line pt-4">
@@ -499,7 +538,7 @@ function VerificationBatchCard({
                         </Link>
                         {groupItem.arshinUrl ? (
                           <a
-                            className="rounded-full border border-line px-2 py-0.5 text-[11px] text-steel transition hover:border-signal-info hover:text-ink"
+                            className={actionButtonCompactClass}
                             href={groupItem.arshinUrl}
                             rel="noreferrer"
                             target="_blank"
@@ -585,16 +624,10 @@ function VerificationBatchCard({
         </span>
       </button>
 
-      <div className="mt-3 grid gap-2 text-sm text-ink md:grid-cols-2 xl:grid-cols-4">
-        <QueueField label="Маршрут" value={`${anchor.routeCity} → ${anchor.routeDestination}`} />
-        <QueueField label="Отправлено в поверку" value={formatDateOnly(anchor.sentToVerificationAt)} />
-        <QueueField
-          label="Состояние"
-          value={getVerificationProgressLabel(anchor)}
-        />
-        <QueueField
-          label="Количество"
-          value={`${batch.items.length} приборов`}
+      <div className="mt-3">
+        <ProcessTimelineStrip
+          items={buildVerificationBatchTimeline(batch, lifecycleStatus).items}
+          segments={buildVerificationBatchTimeline(batch, lifecycleStatus).segments}
         />
       </div>
 
@@ -623,7 +656,7 @@ function VerificationBatchCard({
                       </Link>
                       {item.arshinUrl ? (
                         <a
-                          className="rounded-full border border-line px-2 py-0.5 text-[11px] text-steel transition hover:border-signal-info hover:text-ink"
+                          className={actionButtonCompactClass}
                           href={item.arshinUrl}
                           rel="noreferrer"
                           target="_blank"
@@ -654,9 +687,10 @@ function VerificationBatchCard({
                     Даты заполняются для всей группы сразу.
                   </p>
                 </div>
+                {formError ? <p className="text-sm text-[#b04c43]">{formError}</p> : null}
                 {verificationMilestoneDefinitions.map((milestone) => (
                   <div
-                    className="tone-child grid items-center gap-2 rounded-2xl border border-line px-3 py-3 md:grid-cols-[minmax(0,1fr)_180px_96px]"
+                    className="tone-child grid items-center gap-3 rounded-2xl border border-line px-3 py-3 md:grid-cols-[minmax(0,0.88fr)_minmax(196px,0.92fr)_84px]"
                     key={milestone.key}
                   >
                     <div className="min-w-0">
@@ -664,19 +698,20 @@ function VerificationBatchCard({
                         {milestone.buildLabel(anchor.routeDestination)}
                       </p>
                     </div>
-                    <input
-                      className="form-input py-2"
+                    <DateInput
+                      className="form-input form-input--compact"
                       disabled={!canManage}
-                      onChange={(event) =>
+                      onChange={(value) => {
+                        setFormError(null);
                         setForm((current) => ({
                           ...current,
-                          [milestone.key]: event.target.value,
-                        }))
-                      }
-                      type="date"
+                          [milestone.key]: value,
+                        }));
+                      }}
+                      onEnter={() => void handleSaveMilestones()}
                       value={form[milestone.key]}
                     />
-                    <div className="text-xs text-steel">
+                    <div className="text-xs text-steel md:text-right">
                       {form[milestone.key] ? "Ок" : "Ждет"}
                     </div>
                   </div>
@@ -685,7 +720,7 @@ function VerificationBatchCard({
                 {canManage ? (
                   <div className="flex justify-end gap-2">
                     <button
-                      className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info disabled:cursor-not-allowed disabled:opacity-60"
+                      className={actionButtonClass}
                       disabled={closeBatchMutation.isPending}
                       onClick={() => setCloseConfirmOpen(true)}
                       type="button"
@@ -693,7 +728,7 @@ function VerificationBatchCard({
                       {closeBatchMutation.isPending ? "Завершаем..." : "Завершить поверку"}
                     </button>
                     <button
-                      className="rounded-full border border-signal-info bg-[color:var(--accent-soft)] px-4 py-2 text-sm text-ink transition hover:border-signal-info disabled:cursor-not-allowed disabled:opacity-60"
+                      className={actionAccentButtonClass}
                       disabled={updateMilestonesMutation.isPending}
                       type="submit"
                     >
@@ -908,17 +943,38 @@ function VerificationQueueRow({
   onUpdated: () => Promise<void>;
 }) {
   const isArchived = lifecycleStatus === "archived";
+  const currentUserId = useAuthStore((state) => state.user?.id);
   const [expanded, setExpanded] = useState(false);
   const [form, setForm] = useState<VerificationMilestonesFormState>(() =>
     buildMilestonesFormState(item),
   );
+  const [dialogExpanded, setDialogExpanded] = useState(false);
+  const [messageDraft, setMessageDraft] = useState("");
+  const [messageFiles, setMessageFiles] = useState<File[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const filesInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     setForm(buildMilestonesFormState(item));
   }, [item]);
+
+  useEffect(() => {
+    if (!messageInputRef.current) {
+      return;
+    }
+    resizeTextarea(messageInputRef.current);
+  }, [messageDraft]);
+
+  const messagesQuery = useQuery({
+    queryKey: ["verification-messages", item.equipmentId],
+    queryFn: () => fetchEquipmentVerificationMessages(token, item.equipmentId),
+    enabled: Boolean(token) && expanded && dialogExpanded && !isArchived,
+  });
 
   const updateMilestonesMutation = useMutation({
     mutationFn: () =>
@@ -932,6 +988,7 @@ function VerificationQueueRow({
       }),
     onSuccess: async (updated) => {
       setForm(buildMilestonesFormState(updated));
+      setFormError(null);
       setActionError(null);
       await onUpdated();
     },
@@ -945,13 +1002,61 @@ function VerificationQueueRow({
     },
   });
 
+  const createMessageMutation = useMutation({
+    mutationFn: () =>
+      createEquipmentVerificationMessage(token, item.equipmentId, {
+        text: messageDraft,
+        files: messageFiles,
+      }),
+    onSuccess: async () => {
+      setMessageDraft("");
+      setMessageFiles([]);
+      setActionError(null);
+      if (filesInputRef.current) {
+        filesInputRef.current.value = "";
+      }
+      await Promise.all([messagesQuery.refetch(), onUpdated()]);
+    },
+  });
+
+  const deleteMessageMutation = useMutation({
+    mutationFn: (messageId: number) =>
+      deleteEquipmentVerificationMessage(token, item.equipmentId, messageId),
+    onSuccess: async () => {
+      setActionError(null);
+      await Promise.all([messagesQuery.refetch(), onUpdated()]);
+    },
+  });
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    await handleSaveMilestones();
+  }
+
+  async function handleSaveMilestones() {
+    setFormError(null);
     setActionError(null);
+
+    const validationError = validateVerificationMilestoneOrder({
+      routeDestination: item.routeDestination,
+      sentToVerificationAt: item.sentToVerificationAt,
+      receivedAtDestinationAt: form.receivedAtDestinationAt,
+      handedToCsmAt: form.handedToCsmAt,
+      verificationCompletedAt: form.verificationCompletedAt,
+      pickedUpFromCsmAt: form.pickedUpFromCsmAt,
+      shippedBackAt: form.shippedBackAt,
+      returnedFromVerificationAt: form.returnedFromVerificationAt,
+    });
+
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
     try {
       await updateMilestonesMutation.mutateAsync();
     } catch (error) {
-      setActionError(
+      setFormError(
         error instanceof Error ? error.message : "Не удалось обновить этапы поверки.",
       );
     }
@@ -989,6 +1094,51 @@ function VerificationQueueRow({
         error instanceof Error ? error.message : "Не удалось завершить поверку.",
       );
     }
+  }
+
+  async function handleCreateMessage(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setActionError(null);
+    try {
+      await createMessageMutation.mutateAsync();
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Не удалось отправить сообщение поверки.",
+      );
+    }
+  }
+
+  async function handleAttachmentDownload(
+    message: VerificationMessage,
+    attachment: VerificationMessageAttachment,
+  ) {
+    setDownloadingAttachmentId(attachment.id);
+    try {
+      const { blob, fileName } = await downloadVerificationMessageAttachment(
+        token,
+        item.equipmentId,
+        message.id,
+        attachment.id,
+      );
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      document.body.append(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Не удалось скачать вложение поверки.",
+      );
+    } finally {
+      setDownloadingAttachmentId(null);
+    }
+  }
+
+  function handleFilesPick(event: ChangeEvent<HTMLInputElement>) {
+    setMessageFiles(Array.from(event.target.files ?? []));
   }
 
   if (isArchived) {
@@ -1057,12 +1207,12 @@ function VerificationQueueRow({
             </span>
           </div>
         </button>
-        <div className="mt-3 grid gap-2 text-sm text-ink md:grid-cols-2 xl:grid-cols-4">
-          <QueueField label="Маршрут" value={`${item.routeCity} → ${item.routeDestination}`} />
-          <QueueField label="Отправлено" value={formatDateOnly(item.sentToVerificationAt)} />
-          <QueueField label="Свидетельство" value={item.resultDocnum || "Не указано"} />
-          <QueueField label="Закрыто" value={item.closedAt ? formatDateOnly(item.closedAt) : "Не указано"} />
-        </div>
+      <div className="mt-3">
+        <ProcessTimelineStrip
+          items={buildVerificationTimeline(item, lifecycleStatus).items}
+          segments={buildVerificationTimeline(item, lifecycleStatus).segments}
+        />
+      </div>
         {expanded ? (
           <div className="mt-4 space-y-2 border-t border-line pt-4">
             <ArchiveMilestoneRow label={`Получение в ${item.routeDestination}`} value={item.receivedAtDestinationAt} />
@@ -1117,7 +1267,7 @@ function VerificationQueueRow({
         <div className="flex flex-wrap items-center gap-2">
           {item.arshinUrl ? (
             <a
-              className="rounded-full border border-line px-3 py-1 text-xs text-steel transition hover:border-signal-info hover:text-ink"
+              className={actionButtonCompactClass}
               href={item.arshinUrl}
               rel="noreferrer"
               target="_blank"
@@ -1126,7 +1276,7 @@ function VerificationQueueRow({
             </a>
           ) : null}
           <Link
-            className="rounded-full border border-line px-3 py-1 text-xs text-steel transition hover:border-signal-info hover:text-ink"
+            className={actionButtonCompactClass}
             onClick={(event) => event.stopPropagation()}
             to={`/equipment/${item.equipmentId}`}
           >
@@ -1146,68 +1296,290 @@ function VerificationQueueRow({
         </div>
       </button>
 
-      <div className="mt-3 grid gap-2 text-sm text-ink md:grid-cols-2 xl:grid-cols-4">
-        <QueueField label="Маршрут" value={`${item.routeCity} → ${item.routeDestination}`} />
-        <QueueField label="Отправлен в поверку" value={formatDateOnly(item.sentToVerificationAt)} />
-        <QueueField label="Свидетельство" value={item.resultDocnum || "Не указано"} />
-        <QueueField
-          label="Действительно до"
-          value={item.validDate ? formatDateOnly(item.validDate) : "Не указано"}
+      <div className="mt-3">
+        <ProcessTimelineStrip
+          items={buildVerificationTimeline(item, lifecycleStatus).items}
+          segments={buildVerificationTimeline(item, lifecycleStatus).segments}
         />
       </div>
 
       {expanded && lifecycleStatus === "active" ? (
-        <form className="mt-4 space-y-3 border-t border-line pt-4" onSubmit={(event) => void handleSubmit(event)}>
-          {verificationMilestoneDefinitions.map((milestone) => (
-            <div
-              className="tone-child grid items-center gap-2 rounded-2xl border border-line px-3 py-3 md:grid-cols-[minmax(0,1fr)_180px_120px]"
-              key={milestone.key}
-            >
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-ink">
-                  {milestone.buildLabel(item.routeDestination)}
-                </p>
+        <div className="mt-4 space-y-4 border-t border-line pt-4">
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
+            <section className="tone-child rounded-2xl border border-line p-4 shadow-panel">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-ink">Прибор</h4>
+                  <p className="text-xs text-steel">Краткая информация и быстрый переход в карточку.</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  {item.arshinUrl ? (
+                    <a
+                      className={actionButtonCompactClass}
+                      href={item.arshinUrl}
+                      rel="noreferrer"
+                      target="_blank"
+                    >
+                      Arshin
+                    </a>
+                  ) : null}
+                  <Link
+                    className={actionButtonCompactClass}
+                    to={`/equipment/${item.equipmentId}`}
+                  >
+                    Открыть карточку
+                  </Link>
+                </div>
               </div>
-              <input
-                className="form-input py-2"
-                disabled={!canManage}
-                onChange={(event) =>
-                  setForm((current) => ({
-                    ...current,
-                    [milestone.key]: event.target.value,
-                  }))
-                }
-                type="date"
-                value={form[milestone.key]}
-              />
-              <div className="text-xs text-steel">
-                {form[milestone.key] ? "Выполнено" : "Ожидает"}
+
+              <dl className="mt-4 space-y-2 text-sm">
+                <VerificationInfoRow label="Объект" value={item.objectName} />
+                <VerificationInfoRow label="Наименование" value={item.equipmentName} />
+                <VerificationInfoRow label="Модификация" value={item.modification} />
+                <VerificationInfoRow label="Серийный номер" value={item.serialNumber} />
+                <VerificationInfoRow
+                  label="Год выпуска"
+                  value={item.manufactureYear ? String(item.manufactureYear) : null}
+                />
+                <VerificationInfoRow label="Свидетельство" value={item.resultDocnum} />
+                <VerificationInfoRow
+                  label="Действительно до"
+                  value={item.validDate ? formatDateOnly(item.validDate) : null}
+                />
+                <VerificationInfoRow
+                  label="Состояние"
+                  value={getVerificationProgressLabel(item)}
+                />
+              </dl>
+            </section>
+
+            <section className="tone-child rounded-2xl border border-line p-4 shadow-panel">
+              <form className="space-y-3" onSubmit={(event) => void handleSubmit(event)}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h4 className="text-sm font-semibold text-ink">Этапы поверки</h4>
+                    <p className="text-xs text-steel">Даты движения и текущий статус поверки.</p>
+                  </div>
+                  {canManage ? (
+                    <div className="flex justify-end gap-2">
+                      <button
+                        className={actionButtonClass}
+                        disabled={closeVerificationMutation.isPending}
+                        onClick={() => setCloseConfirmOpen(true)}
+                        type="button"
+                      >
+                        {closeVerificationMutation.isPending ? "Завершаем..." : "Завершить поверку"}
+                      </button>
+                      <button
+                        className={actionAccentButtonClass}
+                        disabled={updateMilestonesMutation.isPending}
+                        type="submit"
+                      >
+                        {updateMilestonesMutation.isPending ? "Сохраняем..." : "Сохранить этапы"}
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                {formError ? <p className="text-sm text-[#b04c43]">{formError}</p> : null}
+
+                {verificationMilestoneDefinitions.map((milestone) => (
+                  <div
+                    className="tone-grandchild grid items-center gap-3 rounded-2xl border border-line px-3 py-3 md:grid-cols-[minmax(0,0.88fr)_minmax(196px,0.92fr)_104px]"
+                    key={milestone.key}
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-medium text-ink">
+                        {milestone.buildLabel(item.routeDestination)}
+                      </p>
+                    </div>
+                    <DateInput
+                      className="form-input form-input--compact"
+                      disabled={!canManage}
+                      onChange={(value) => {
+                        setFormError(null);
+                        setForm((current) => ({
+                          ...current,
+                          [milestone.key]: value,
+                        }));
+                      }}
+                      onEnter={() => void handleSaveMilestones()}
+                      value={form[milestone.key]}
+                    />
+                    <div className="text-xs text-steel md:text-right">
+                      {form[milestone.key] ? "Выполнено" : "Ожидает"}
+                    </div>
+                  </div>
+                ))}
+              </form>
+            </section>
+          </div>
+
+          <section className="tone-child overflow-hidden rounded-3xl border border-line">
+            <div className="tone-grandchild border-b border-line px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  aria-expanded={dialogExpanded}
+                  className="flex min-w-0 flex-1 items-start justify-between gap-3 text-left"
+                  onClick={() => setDialogExpanded((current) => !current)}
+                  type="button"
+                >
+                  <div>
+                    <h4 className="text-sm font-semibold text-ink">Диалог поверки</h4>
+                    <p className="mt-1 text-xs text-steel">Сообщения, фото и документы по одиночной поверке.</p>
+                  </div>
+                  <svg
+                    className={["mt-0.5 h-4 w-4 shrink-0 text-steel transition-transform", dialogExpanded ? "rotate-180" : ""].join(" ")}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
+                  </svg>
+                </button>
+                <span className="tone-parent rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
+                  {messagesQuery.data?.length ?? 0}
+                </span>
               </div>
             </div>
-          ))}
 
-          {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
+            {dialogExpanded ? (
+              <div className="space-y-3 px-4 py-4">
+                {messagesQuery.isLoading ? (
+                  <p className="text-sm text-steel">Загружаем диалог поверки...</p>
+                ) : null}
+                {messagesQuery.isError ? (
+                  <p className="text-sm text-[#b04c43]">
+                    {messagesQuery.error instanceof Error
+                      ? messagesQuery.error.message
+                      : "Не удалось загрузить сообщения поверки."}
+                  </p>
+                ) : null}
+                {!messagesQuery.isLoading && !messagesQuery.data?.length ? (
+                  <p className="text-sm text-steel">Диалог поверки пока пуст.</p>
+                ) : null}
+                {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
 
-          {canManage ? (
-            <div className="flex justify-end gap-2">
-              <button
-                className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={closeVerificationMutation.isPending}
-                onClick={() => setCloseConfirmOpen(true)}
-                type="button"
-              >
-                {closeVerificationMutation.isPending ? "Завершаем..." : "Завершить поверку"}
-              </button>
-              <button
-                className="rounded-full border border-signal-info bg-[color:var(--accent-soft)] px-4 py-2 text-sm text-ink transition hover:border-signal-info disabled:cursor-not-allowed disabled:opacity-60"
-                disabled={updateMilestonesMutation.isPending}
-                type="submit"
-              >
-                {updateMilestonesMutation.isPending ? "Сохраняем..." : "Сохранить этапы"}
-              </button>
-            </div>
-          ) : null}
-        </form>
+                {messagesQuery.data?.map((message) => (
+                  <article className="tone-grandchild rounded-2xl border border-line px-4 py-3" key={message.id}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="text-xs text-steel">{formatVerificationMessageMeta(message)}</div>
+                      {canManage || message.authorUserId === currentUserId ? (
+                        <IconActionButton
+                          icon={
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                            </svg>
+                          }
+                          label="Удалить сообщение поверки"
+                          onClick={() => void deleteMessageMutation.mutateAsync(message.id)}
+                          size="tiny"
+                        />
+                      ) : null}
+                    </div>
+                    {message.text ? (
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
+                        {message.text}
+                      </p>
+                    ) : null}
+                    {message.attachments.length ? (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {message.attachments.map((attachment) => (
+                          <button
+                            className="tone-child inline-flex max-w-full items-center gap-2 rounded-full border border-line px-3 py-2 text-xs text-ink transition hover:border-signal-info"
+                            key={attachment.id}
+                            onClick={() => void handleAttachmentDownload(message, attachment)}
+                            type="button"
+                          >
+                            {downloadingAttachmentId === attachment.id ? (
+                              <span className="text-sm leading-none">…</span>
+                            ) : (
+                              <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4m-5 7.5h18" />
+                              </svg>
+                            )}
+                            <span className="truncate">{attachment.fileName}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
+                  </article>
+                ))}
+              </div>
+            ) : null}
+
+            {canManage && dialogExpanded ? (
+              <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateMessage(event)}>
+                <textarea
+                  className="form-input min-h-[56px] resize-none overflow-hidden py-3"
+                  maxLength={4000}
+                  onChange={(event) => setMessageDraft(event.target.value)}
+                  onInput={(event) => resizeTextarea(event.currentTarget)}
+                  onKeyDown={handleTextareaSubmitShortcut}
+                  placeholder="Новое сообщение по поверке"
+                  ref={messageInputRef}
+                  rows={2}
+                  value={messageDraft}
+                />
+                <input
+                  className="sr-only"
+                  multiple
+                  onChange={handleFilesPick}
+                  ref={filesInputRef}
+                  type="file"
+                />
+                {messageFiles.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {messageFiles.map((file) => (
+                      <span
+                        className="tone-child rounded-full border border-line px-3 py-2 text-xs text-ink"
+                        key={`${file.name}-${file.size}-${file.lastModified}`}
+                      >
+                        {file.name}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+
+                <div className="mt-3 flex justify-end gap-2">
+                  <EmojiPickerButton
+                    disabled={createMessageMutation.isPending}
+                    onPick={(emoji) =>
+                      setMessageDraft((current) =>
+                        insertEmojiAtCursor(messageInputRef.current, current, emoji),
+                      )
+                    }
+                  />
+                  <IconActionButton
+                    className="h-10 w-10"
+                    icon={
+                      <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.44 11.05 12.25 20.25a6 6 0 0 1-8.49-8.49l9.9-9.9a4.5 4.5 0 1 1 6.36 6.36l-9.2 9.19a3 3 0 0 1-4.24-4.24l8.49-8.49" />
+                      </svg>
+                    }
+                    label="Прикрепить файлы к сообщению поверки"
+                    onClick={() => filesInputRef.current?.click()}
+                  />
+                  <IconActionButton
+                    className="h-10 w-10"
+                    disabled={createMessageMutation.isPending || (!messageDraft.trim() && !messageFiles.length)}
+                    icon={
+                      createMessageMutation.isPending ? (
+                        <span className="text-sm leading-none">…</span>
+                      ) : (
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3 21l18-9L3 3l3 9Zm0 0h7.5" />
+                        </svg>
+                      )
+                    }
+                    label="Отправить сообщение поверки"
+                    type="submit"
+                  />
+                </div>
+              </form>
+            ) : null}
+          </section>
+        </div>
       ) : null}
       <DeleteConfirmModal
         confirmLabel="Завершить поверку"
@@ -1224,13 +1596,199 @@ function VerificationQueueRow({
   );
 }
 
-function QueueField({ label, value }: { label: string; value: string }) {
+function VerificationInfoRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | null;
+}) {
   return (
-    <div className="tone-child rounded-2xl border border-line px-3 py-2">
-      <p className="text-[11px] uppercase tracking-[0.08em] text-steel">{label}</p>
-      <p className="mt-1 text-sm text-ink">{value}</p>
+    <div className="flex flex-col gap-1 border-b border-line pb-2 last:border-b-0 last:pb-0">
+      <dt className="text-[11px] uppercase tracking-[0.14em] text-steel">{label}</dt>
+      <dd className="text-ink">{value || "—"}</dd>
     </div>
   );
+}
+
+function buildVerificationTimeline(
+  item: VerificationQueueItem,
+  lifecycleStatus: VerificationTab,
+): VerificationTimelineModel {
+  const milestones = [
+    {
+      key: "receivedAtDestinationAt",
+      label: `Получение в ${item.routeDestination}`,
+      value: item.receivedAtDestinationAt,
+    },
+    {
+      key: "handedToCsmAt",
+      label: "Передано в ЦСМ",
+      value: item.handedToCsmAt,
+    },
+    {
+      key: "verificationCompletedAt",
+      label: "Поверка выполнена",
+      value: item.verificationCompletedAt,
+    },
+    {
+      key: "pickedUpFromCsmAt",
+      label: "Получено в ЦСМ",
+      value: item.pickedUpFromCsmAt,
+    },
+    {
+      key: "shippedBackAt",
+      label: "Упаковано и отправлено обратно",
+      value: item.shippedBackAt,
+    },
+    {
+      key: "returnedFromVerificationAt",
+      label: "Получено обратно",
+      value: item.returnedFromVerificationAt,
+    },
+  ];
+
+  const currentKey = lifecycleStatus === "active" ? milestones.find((stage) => !stage.value)?.key ?? null : null;
+
+  const items = milestones.map((stage) => {
+    const position = milestones.length > 1 ? milestones.findIndex((item) => item.key === stage.key) / (milestones.length - 1) : 0;
+
+    if (stage.value) {
+      return {
+        key: stage.key,
+        label: stage.label,
+        value: formatDateOnly(stage.value),
+        status: "done" as const,
+        position,
+      };
+    }
+
+    if (currentKey === stage.key) {
+      return {
+        key: stage.key,
+        label: stage.label,
+        value: "Текущий этап",
+        status: "current" as const,
+        position,
+      };
+    }
+
+    return {
+      key: stage.key,
+      label: stage.label,
+      status: "pending" as const,
+      position,
+    };
+  });
+
+  return {
+    items,
+    segments: buildVerificationTimelineSegments(milestones),
+  };
+}
+
+function buildVerificationBatchTimeline(
+  batch: VerificationGroup,
+  lifecycleStatus: VerificationTab,
+): VerificationTimelineModel {
+  const anchor = batch.items[0];
+  const milestones = [
+    {
+      key: "receivedAtDestinationAt",
+      label: `Получение в ${anchor.routeDestination}`,
+      value: anchor.receivedAtDestinationAt,
+    },
+    {
+      key: "handedToCsmAt",
+      label: "Передано в ЦСМ",
+      value: anchor.handedToCsmAt,
+    },
+    {
+      key: "verificationCompletedAt",
+      label: "Поверка выполнена",
+      value: anchor.verificationCompletedAt,
+    },
+    {
+      key: "pickedUpFromCsmAt",
+      label: "Получено в ЦСМ",
+      value: anchor.pickedUpFromCsmAt,
+    },
+    {
+      key: "shippedBackAt",
+      label: "Упаковано и отправлено обратно",
+      value: anchor.shippedBackAt,
+    },
+    {
+      key: "returnedFromVerificationAt",
+      label: "Получено обратно",
+      value: anchor.returnedFromVerificationAt,
+    },
+  ];
+
+  const currentKey = lifecycleStatus === "active" ? milestones.find((stage) => !stage.value)?.key ?? null : null;
+
+  const items = milestones.map((stage) => {
+    const position = milestones.length > 1 ? milestones.findIndex((item) => item.key === stage.key) / (milestones.length - 1) : 0;
+
+    if (stage.value) {
+      return {
+        key: stage.key,
+        label: stage.label,
+        value: formatDateOnly(stage.value),
+        status: "done" as const,
+        position,
+      };
+    }
+
+    if (currentKey === stage.key) {
+      return {
+        key: stage.key,
+        label: stage.label,
+        value: "Текущий этап",
+        status: "current" as const,
+        position,
+      };
+    }
+
+    return {
+      key: stage.key,
+      label: stage.label,
+      status: "pending" as const,
+      position,
+    };
+  });
+
+  return {
+    items,
+    segments: buildVerificationTimelineSegments(milestones),
+  };
+}
+
+function buildVerificationTimelineSegments(
+  milestones: ReadonlyArray<{
+    key: string;
+    label: string;
+    value: string | null;
+  }>,
+): ProcessTimelineStripSegment[] {
+  const segments: ProcessTimelineStripSegment[] = [];
+  for (let index = 1; index < milestones.length; index += 1) {
+    const previous = milestones[index - 1];
+    const current = milestones[index];
+    if (!previous.value || !current.value) {
+      continue;
+    }
+
+    segments.push({
+      key: `${previous.key}-${current.key}`,
+      start: milestones.length > 1 ? (index - 1) / (milestones.length - 1) : 0,
+      end: milestones.length > 1 ? index / (milestones.length - 1) : 1,
+      tone: "success",
+      label: `${previous.label} → ${current.label}`,
+      value: formatTimelineDurationValue(previous.value, current.value),
+    });
+  }
+  return segments;
 }
 
 function ArchiveMilestoneRow({ label, value }: { label: string; value: string | null }) {
@@ -1272,6 +1830,21 @@ function formatDateOnly(value: string): string {
     return value;
   }
   return new Intl.DateTimeFormat("ru-RU").format(date);
+}
+
+function formatTimelineDurationValue(start: string, end: string): string {
+  const startDate = new Date(start);
+  const endDate = new Date(end);
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
+    return `${formatDateOnly(start)} — ${formatDateOnly(end)}`;
+  }
+  const normalizedStart = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const normalizedEnd = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  const days = Math.max(
+    0,
+    Math.round((normalizedEnd.getTime() - normalizedStart.getTime()) / (24 * 60 * 60 * 1000)),
+  );
+  return `${days} дн. · ${formatDateOnly(start)} — ${formatDateOnly(end)}`;
 }
 
 function emptyToNull(value: string | null | undefined): string | null {

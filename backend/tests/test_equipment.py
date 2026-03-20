@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import date, timedelta
+
 import pytest
 from httpx import AsyncClient
 from openpyxl import Workbook, load_workbook
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
+from app.models.equipment import Repair
 from app.schemas.arshin import ArshinSearchResultRead, ArshinVriDetailRead
 from app.services.arshin_service import ArshinService
 from app.services.user_service import UserService
@@ -1097,6 +1100,282 @@ async def test_operator_can_create_active_repair_with_route_and_dialog_messages(
 
 
 @pytest.mark.anyio
+async def test_repair_queue_lists_active_and_archived_repairs(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Очередь ремонтов"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Комната ремонта",
+            "equipment_type": "SI",
+            "name": "Калибратор",
+            "serial_number": "REP-001",
+            "status": "IN_WORK",
+            "current_location_manual": "Склад",
+            "si_verification": {
+                "vri_id": "repair-queue-si-1",
+                "arshin_url": "https://fgis.gost.ru/fundmetrology/cm/results/repair-queue-si-1",
+                "mit_number": "20000-01",
+                "mit_title": "Калибратор",
+                "mit_notation": "CAL-100",
+                "mi_number": "REP-001",
+                "result_docnum": "CERT-REP-001",
+                "verification_date": "2026-03-01T00:00:00",
+                "valid_date": "2027-03-01T00:00:00",
+                "raw_payload_json": {"source": "test"},
+                "detail_payload_json": {
+                    "miInfo": {
+                        "singleMI": {
+                            "mitypeNumber": "20000-01",
+                            "mitypeTitle": "Калибратор",
+                            "mitypeType": "CAL-100",
+                            "manufactureNum": "REP-001",
+                            "manufactureYear": 2024,
+                            "modification": "серия R",
+                        }
+                    }
+                },
+            },
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    sent_to_repair_at = date.today() - timedelta(days=120)
+    create_repair_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/repair",
+        headers=headers,
+        data={
+            "route_city": "Тюмень",
+            "route_destination": "Иркутск",
+            "sent_to_repair_at": sent_to_repair_at.isoformat(),
+        },
+    )
+    assert create_repair_response.status_code == 201
+    repair = create_repair_response.json()
+
+    active_queue_response = await client.get(
+        "/api/v1/equipment/repairs?lifecycle_status=active&query=Иркутск",
+        headers=headers,
+    )
+    assert active_queue_response.status_code == 200
+    active_items = active_queue_response.json()
+    assert len(active_items) == 1
+    assert active_items[0]["repair_id"] == repair["id"]
+    assert active_items[0]["equipment_id"] == equipment["id"]
+    assert active_items[0]["equipment_type"] == "SI"
+    assert active_items[0]["route_city"] == "Тюмень"
+    assert active_items[0]["route_destination"] == "Иркутск"
+    assert active_items[0]["current_stage_label"] == "В ремонте"
+    assert active_items[0]["repair_overdue_days"] == 20
+    assert active_items[0]["registration_overdue_days"] == 0
+    assert active_items[0]["control_overdue_days"] == 0
+    assert active_items[0]["payment_overdue_days"] == 0
+    assert active_items[0]["max_overdue_days"] == 20
+    assert active_items[0]["has_active_verification"] is False
+    assert active_items[0]["result_docnum"] == "CERT-REP-001"
+
+    update_repair_response = await client.patch(
+        f"/api/v1/equipment/{equipment['id']}/repair",
+        headers=headers,
+        json={
+            "arrived_to_destination_at": (sent_to_repair_at + timedelta(days=3)).isoformat(),
+            "sent_from_repair_at": (sent_to_repair_at + timedelta(days=110)).isoformat(),
+            "sent_from_irkutsk_at": (sent_to_repair_at + timedelta(days=112)).isoformat(),
+            "arrived_to_lensk_at": (sent_to_repair_at + timedelta(days=117)).isoformat(),
+            "actually_received_at": (sent_to_repair_at + timedelta(days=119)).isoformat(),
+            "incoming_control_at": (sent_to_repair_at + timedelta(days=161)).isoformat(),
+            "paid_at": (sent_to_repair_at + timedelta(days=233)).isoformat(),
+        },
+    )
+    assert update_repair_response.status_code == 200
+    updated_repair = update_repair_response.json()
+    assert updated_repair["sent_from_repair_at"] == (
+        sent_to_repair_at + timedelta(days=110)
+    ).isoformat()
+    assert updated_repair["arrived_to_lensk_at"] == (
+        sent_to_repair_at + timedelta(days=117)
+    ).isoformat()
+    assert updated_repair["paid_at"] == (sent_to_repair_at + timedelta(days=233)).isoformat()
+
+    active_queue_after_update_response = await client.get(
+        "/api/v1/equipment/repairs?lifecycle_status=active&query=Калибратор",
+        headers=headers,
+    )
+    assert active_queue_after_update_response.status_code == 200
+    active_item = active_queue_after_update_response.json()[0]
+    assert active_item["sent_from_repair_at"] == (
+        sent_to_repair_at + timedelta(days=110)
+    ).isoformat()
+    assert active_item["registration_deadline_at"] == (
+        sent_to_repair_at + timedelta(days=122)
+    ).isoformat()
+    assert active_item["control_deadline_at"] == (
+        sent_to_repair_at + timedelta(days=159)
+    ).isoformat()
+    assert active_item["payment_deadline_at"] == (
+        sent_to_repair_at + timedelta(days=231)
+    ).isoformat()
+    assert active_item["current_stage_label"] == "Оплата выполнена"
+    assert active_item["repair_overdue_days"] == 10
+    assert active_item["registration_overdue_days"] == 0
+    assert active_item["control_overdue_days"] == 2
+    assert active_item["payment_overdue_days"] == 2
+    assert active_item["max_overdue_days"] == 10
+
+    testing_session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    with testing_session() as session:
+        repair_row = session.get(Repair, repair["id"])
+        assert repair_row is not None
+        repair_row.closed_at = date.today()
+        session.commit()
+
+    archived_queue_response = await client.get(
+        "/api/v1/equipment/repairs?lifecycle_status=archived&query=Калибратор",
+        headers=headers,
+    )
+    assert archived_queue_response.status_code == 200
+    archived_items = archived_queue_response.json()
+    assert len(archived_items) == 1
+    assert archived_items[0]["repair_id"] == repair["id"]
+    assert archived_items[0]["closed_at"] == date.today().isoformat()
+    assert archived_items[0]["current_stage_label"] == "Ремонт завершен"
+
+
+@pytest.mark.anyio
+async def test_repair_milestones_reject_invalid_stage_order(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Валидация ремонта"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Лаборатория",
+            "equipment_type": "OTHER",
+            "name": "Источник питания",
+            "serial_number": "R-ORDER-1",
+            "status": "IN_WORK",
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    create_repair_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/repair",
+        headers=headers,
+        data={
+            "route_city": "Ленск",
+            "route_destination": "Иркутск",
+            "sent_to_repair_at": "2026-03-20",
+        },
+    )
+    assert create_repair_response.status_code == 201
+
+    invalid_update_response = await client.patch(
+        f"/api/v1/equipment/{equipment['id']}/repair",
+        headers=headers,
+        json={
+            "arrived_to_lensk_at": "2026-03-22",
+            "sent_from_irkutsk_at": "2026-03-21",
+        },
+    )
+    assert invalid_update_response.status_code == 422
+    assert (
+        invalid_update_response.json()["detail"]
+        == "Этап «Отправлено в Ленск» нельзя указать раньше, чем этап «Прибыло в Иркутск»."
+    )
+
+
+@pytest.mark.anyio
+async def test_operator_can_create_repair_batch(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Массовый ремонт"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_ids: list[int] = []
+    for index in range(2):
+        equipment_response = await client.post(
+            "/api/v1/equipment",
+            headers=headers,
+            json={
+                "folder_id": folder["id"],
+                "object_name": "Комната подготовки воды",
+                "equipment_type": "OTHER",
+                "name": f"Прибор ремонта #{index + 1}",
+                "status": "IN_WORK",
+            },
+        )
+        assert equipment_response.status_code == 201
+        equipment_ids.append(equipment_response.json()["id"])
+
+    batch_response = await client.post(
+        "/api/v1/equipment/repairs/bulk",
+        headers=headers,
+        json={
+            "equipment_ids": equipment_ids,
+            "route_city": "Ленск",
+            "route_destination": "Тюмень",
+            "sent_to_repair_at": "2026-03-20",
+            "initial_message_text": "Партия приборов отправлена в ремонт.",
+        },
+    )
+    assert batch_response.status_code == 201
+    payload = batch_response.json()
+    assert len(payload) == 2
+    assert {item["equipment_id"] for item in payload} == set(equipment_ids)
+
+    repair_queue_response = await client.get(
+        "/api/v1/equipment/repairs?lifecycle_status=active&query=Тюмень",
+        headers=headers,
+    )
+    assert repair_queue_response.status_code == 200
+    repair_queue = repair_queue_response.json()
+    assert len(repair_queue) == 2
+    assert all(item["route_city"] == "Ленск" for item in repair_queue)
+    assert all(item["route_destination"] == "Тюмень" for item in repair_queue)
+
+
+@pytest.mark.anyio
 async def test_si_can_have_independent_active_verification_with_its_own_dialog(
     client: AsyncClient,
     db_engine,
@@ -1372,6 +1651,77 @@ async def test_verification_queue_lists_active_si_verifications(
     assert payload[0]["route_destination"] == "Поверочная лаборатория"
     assert payload[0]["result_docnum"] == "С-АСГ/07-03-2026/509468383"
     assert payload[0]["has_active_repair"] is True
+
+
+@pytest.mark.anyio
+async def test_verification_milestones_reject_invalid_stage_order(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Валидация поверки"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Комната СИ",
+            "equipment_type": "SI",
+            "name": "Манометр",
+            "serial_number": "V-ORDER-1",
+            "status": "IN_WORK",
+            "si_verification": {
+                "vri_id": "verification-order-si-1",
+                "arshin_url": "https://fgis.gost.ru/fundmetrology/cm/results/verification-order-si-1",
+                "mit_number": "20000-99",
+                "mit_title": "Манометр",
+                "mit_notation": "M-10",
+                "mi_number": "V-ORDER-1",
+                "result_docnum": "CERT-V-ORDER-1",
+                "verification_date": "2026-03-01T00:00:00",
+                "valid_date": "2027-03-01T00:00:00",
+                "raw_payload_json": {"source": "test"},
+                "detail_payload_json": {"miInfo": {"singleMI": {"manufactureYear": 2025}}},
+            },
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    create_verification_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/verification",
+        headers=headers,
+        data={
+            "route_city": "Ленск",
+            "route_destination": "Иркутск",
+            "sent_to_verification_at": "2026-03-20",
+        },
+    )
+    assert create_verification_response.status_code == 201
+
+    invalid_update_response = await client.patch(
+        f"/api/v1/equipment/{equipment['id']}/verification",
+        headers=headers,
+        json={
+            "handed_to_csm_at": "2026-03-21",
+            "received_at_destination_at": None,
+        },
+    )
+    assert invalid_update_response.status_code == 422
+    assert (
+        invalid_update_response.json()["detail"]
+        == "Этап «Передано в ЦСМ» нельзя указать раньше, чем этап «Получение в Иркутск»."
+    )
 
 
 @pytest.mark.anyio

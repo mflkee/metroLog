@@ -2,7 +2,7 @@ from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, File, Form, Query, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import Response
 
 from app.api.deps import CurrentUser, DbSession, OperatorUser
 from app.models.equipment import EquipmentStatus, EquipmentType
@@ -22,9 +22,12 @@ from app.schemas.equipment import (
     EquipmentSIBulkImportResultRead,
     EquipmentSIRefreshRequest,
     EquipmentUpdateRequest,
+    RepairBulkCreateRequest,
     RepairCreateRequest,
     RepairMessageCreateRequest,
     RepairMessageRead,
+    RepairMilestonesUpdateRequest,
+    RepairQueueItemRead,
     RepairRead,
     VerificationBulkCreateRequest,
     VerificationCreateRequest,
@@ -147,6 +150,19 @@ async def list_verification_queue(
     )
 
 
+@router.get("/repairs", response_model=list[RepairQueueItemRead])
+async def list_repair_queue(
+    _: CurrentUser,
+    db: DbSession,
+    lifecycle_status: Annotated[str, Query()] = "active",
+    query: Annotated[str | None, Query()] = None,
+) -> list[RepairQueueItemRead]:
+    return EquipmentService(db).list_repair_queue(
+        lifecycle_status=lifecycle_status,
+        query=query,
+    )
+
+
 @router.get(
     "/{equipment_id}/verification/history",
     response_model=list[VerificationQueueItemRead],
@@ -174,6 +190,19 @@ async def create_verification_batch(
     return [VerificationRead.model_validate(item) for item in verifications]
 
 
+@router.post("/repairs/bulk", response_model=list[RepairRead], status_code=201)
+async def create_repair_batch(
+    payload: RepairBulkCreateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> list[RepairRead]:
+    repairs = EquipmentService(db).create_repair_batch(
+        payload=payload,
+        current_user=current_user,
+    )
+    return [RepairRead.model_validate(item) for item in repairs]
+
+
 @router.get("/export/xlsx")
 async def export_equipment_registry_xlsx(
     _: CurrentUser,
@@ -183,7 +212,7 @@ async def export_equipment_registry_xlsx(
     query: Annotated[str | None, Query()] = None,
     status: Annotated[EquipmentStatus | None, Query()] = None,
     equipment_type: Annotated[EquipmentType | None, Query()] = None,
-) -> StreamingResponse:
+) -> Response:
     content = EquipmentService(db).export_equipment_registry_xlsx(
         folder_id=folder_id,
         group_id=group_id,
@@ -191,8 +220,8 @@ async def export_equipment_registry_xlsx(
         status_value=status,
         equipment_type=equipment_type,
     )
-    return StreamingResponse(
-        iter([content]),
+    return Response(
+        content=content,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
             "Content-Disposition": 'attachment; filename="equipment-registry.xlsx"',
@@ -337,6 +366,21 @@ async def create_equipment_repair(
     return RepairRead.model_validate(repair)
 
 
+@router.patch("/{equipment_id}/repair", response_model=RepairRead)
+async def update_equipment_repair_milestones(
+    equipment_id: int,
+    payload: RepairMilestonesUpdateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> RepairRead:
+    repair = EquipmentService(db).update_repair_milestones(
+        equipment_id=equipment_id,
+        payload=payload,
+        current_user=current_user,
+    )
+    return RepairRead.model_validate(repair)
+
+
 @router.get("/{equipment_id}/repair/messages", response_model=list[RepairMessageRead])
 async def list_equipment_repair_messages(
     equipment_id: int,
@@ -382,6 +426,23 @@ async def create_equipment_repair_message(
         files=uploaded_files,
     )
     return RepairMessageRead.model_validate(message)
+
+
+@router.delete(
+    "/{equipment_id}/repair/messages/{message_id}",
+    status_code=204,
+)
+async def delete_equipment_repair_message(
+    equipment_id: int,
+    message_id: int,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> None:
+    EquipmentService(db).delete_repair_message(
+        equipment_id=equipment_id,
+        message_id=message_id,
+        current_user=current_user,
+    )
 
 
 @router.post(
@@ -432,16 +493,18 @@ async def download_equipment_repair_message_attachment(
     attachment_id: int,
     _: CurrentUser,
     db: DbSession,
-) -> FileResponse:
+) -> Response:
     attachment, file_path = EquipmentService(db).get_repair_message_attachment_file(
         equipment_id=equipment_id,
         message_id=message_id,
         attachment_id=attachment_id,
     )
-    return FileResponse(
-        file_path,
-        filename=attachment.file_name,
+    return Response(
+        content=file_path.read_bytes(),
         media_type=attachment.file_mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{attachment.file_name}"',
+        },
     )
 
 
@@ -454,16 +517,18 @@ async def download_equipment_verification_message_attachment(
     attachment_id: int,
     _: CurrentUser,
     db: DbSession,
-) -> FileResponse:
+) -> Response:
     attachment, file_path = EquipmentService(db).get_verification_message_attachment_file(
         equipment_id=equipment_id,
         message_id=message_id,
         attachment_id=attachment_id,
     )
-    return FileResponse(
-        file_path,
-        filename=attachment.file_name,
+    return Response(
+        content=file_path.read_bytes(),
         media_type=attachment.file_mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{attachment.file_name}"',
+        },
     )
 
 
@@ -472,12 +537,12 @@ async def download_verification_archive(
     verification_id: int,
     _: CurrentUser,
     db: DbSession,
-) -> StreamingResponse:
+) -> Response:
     file_name, content = EquipmentService(db).export_verification_archive_zip(
         verification_id=verification_id
     )
-    return StreamingResponse(
-        iter([content]),
+    return Response(
+        content=content,
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
     )
@@ -535,15 +600,17 @@ async def download_equipment_attachment(
     attachment_id: int,
     _: CurrentUser,
     db: DbSession,
-) -> FileResponse:
+) -> Response:
     attachment, file_path = EquipmentService(db).get_attachment_file(
         equipment_id=equipment_id,
         attachment_id=attachment_id,
     )
-    return FileResponse(
-        file_path,
-        filename=attachment.file_name,
+    return Response(
+        content=file_path.read_bytes(),
         media_type=attachment.file_mime_type or "application/octet-stream",
+        headers={
+            "Content-Disposition": f'attachment; filename="{attachment.file_name}"',
+        },
     )
 
 

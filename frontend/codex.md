@@ -45,6 +45,11 @@ Compactness is a hard requirement:
 - avoid oversized cards, oversized empty zones, and decorative spacing,
 - action-heavy workflows should prefer dense layouts and icon-based controls where clarity is preserved.
 
+Date input formatting is a hard UI rule:
+- every date field, date input, and date picker in the application must use the Russian-style `dd.mm.yyyy` presentation,
+- `mm/dd/yyyy` style is not allowed anywhere in the product UI,
+- this rule applies consistently across registry forms, repair workflows, verification workflows, filters, and modal dialogs.
+
 ### 2. Backend-driven business logic
 Frontend may display derived values, but critical rules must come from backend:
 - stage,
@@ -264,15 +269,22 @@ Card workflow behavior:
 Process panel behavior:
 
 * each active process panel should behave like a compact messenger-style thread,
+* expandable process panels and secondary detail blocks should be collapsed by default and opened explicitly by the user,
 * users can add messages with author and timestamp,
 * messages may include inline attachments,
 * the equipment card verification panel should keep the dialog and compact current-state summary,
 * milestone date editing belongs to the dedicated `/verification/si` page inside an expandable verification record,
 * on the collapsed verification panel the user should see the current derived state instead of only the send date,
+* collapsed verification and repair records should prefer one process-strip that places milestone events directly on a horizontal line; the strip should not be wrapped in a heavy outer card,
+* the strip should render as one clean axis with hover/focus tooltips for events and deadline markers instead of permanently expanded cards,
+* the strip should also show colored intervals between completed milestones; completed operations should be visible as green segments with hover duration, while overdue intervals should be visible as red segments with explicit reason on hover,
+* verification strips may use milestone-progress only, while repair strips should treat the repair-production deadline as an internal milestone and use a longer baseline window for the whole process rather than ending the axis at the `100-day` repair deadline,
 * the repair send modal should ask for route fields such as city and destination, not repair organization,
 * the first repair message with attachments may be created during send-to-repair, but it is optional,
-* after completion, the active process panel is replaced by a compact archive record with ZIP download action,
-* one grouped batch should display one shared dialog thread for every included card.
+* after completion, the active process panel is replaced by an archive record with ZIP download action,
+* archive entries on `/verification/si` may be expanded to show informative details such as route, milestone dates, and grouped SI membership,
+* one grouped batch should display one shared dialog thread for every included card,
+* stage forms must reject impossible chronology immediately in the UI: a later milestone cannot be filled before the previous one exists, and a stage date cannot be earlier than the previous completed stage.
 
 ### `/verification/si`
 
@@ -303,7 +315,8 @@ Workflow rules:
 * only `SI` items can enter verification,
 * grouped verification is allowed only when all selected items are `SI`,
 * completion should move verification panels into archive state,
-* grouped verification membership may be adjusted later.
+* grouped verification membership may be adjusted later,
+* milestone editing must preserve chronological order.
 
 Adding `SI` behavior:
 
@@ -331,7 +344,8 @@ Workflow rules:
 * repair completion is available only after payment,
 * grouped repair completion should also be supported,
 * after completion, the active repair panel on the card becomes a compact archive record,
-* grouped repair membership may be adjusted later.
+* grouped repair membership may be adjusted later,
+* repair milestone editing must preserve chronological order.
 
 ### Excel export
 
@@ -487,6 +501,7 @@ Suggested components:
 * `RepairCard`
 * `RepairForm`
 * `RepairTimeline`
+* `ProcessTimelineStrip`
 * `RepairStageBadge`
 * `DeadlineBadge`
 * `OverdueIndicator`
@@ -495,6 +510,7 @@ Suggested components:
 
 * `VerificationCard`
 * `VerificationSummary`
+* `ProcessTimelineStrip`
 * `VerificationMatchBadge`
 * `ManualReviewPanel`
 * `ArshinLinkButton`
@@ -972,7 +988,7 @@ Additional shell styling rules:
 * the sidebar must support a collapsed icon-only mode,
 * the sidebar collapse control should live inside the sidebar itself,
 * the top bar title should stay short: `metroLog`,
-* the shell should support both theme selection and font selection,
+* the shell should support theme selection,
 * theme selection should be restored from the authenticated user's profile, not only from local browser state.
 * `/settings` should let the user toggle which theme presets remain visible in the top-right switcher.
 * the default visible presets should be `light`, `gray`, and `dark`, while extra presets may be inspired by common GTK/NVim palettes.
@@ -980,9 +996,9 @@ Additional shell styling rules:
 
 Theme tuning rules:
 
-* the default white theme must be softer and less glaring than a pure bright white workspace,
-* the blueberry theme should keep a desaturated background rather than an aggressive saturated blue fill,
-* the old-book theme should remain darker and denser than the current soft beige direction.
+* `light` should be a calm light-gray workspace rather than a harsh bright white theme,
+* `gray` should stay denser and darker than `light`, but not collapse into the dark theme,
+* nested bordered blocks should not arbitrarily shift hue; they should primarily read through stepwise darkening by depth.
 
 Do not overload the interface with too many accent colors.
 

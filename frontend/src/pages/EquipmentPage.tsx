@@ -13,6 +13,7 @@ import {
   buildSIVerificationPayloadFromArshin,
   createEquipment,
   createEquipmentFolder,
+  createRepairBatch,
   createVerificationBatch,
   deleteEquipmentBatch,
   deleteEquipment,
@@ -34,7 +35,9 @@ import {
   type EquipmentType,
   type UpdateEquipmentPayload,
 } from "@/api/equipment";
+import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -42,8 +45,10 @@ import { useAuthStore } from "@/store/auth";
 
 const equipmentTypeOptions: EquipmentType[] = ["SI", "IO", "VO", "OTHER"];
 const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "ARCHIVED"];
-const subtleButtonClass =
-  "rounded-full border border-line px-4 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink";
+const subtleButtonClass = "btn-secondary";
+const batchDangerButtonClass = "btn-danger";
+const batchRepairButtonClass = "btn-secondary";
+const batchVerificationButtonClass = "btn-accent";
 
 type FolderFormState = {
   name: string;
@@ -75,6 +80,13 @@ type VerificationBatchFormState = {
   initialMessageText: string;
 };
 
+type RepairBatchFormState = {
+  routeCity: string;
+  routeDestination: string;
+  sentToRepairAt: string;
+  initialMessageText: string;
+};
+
 type DeleteTarget =
   | { kind: "folder"; id: number; title: string; message: string }
   | { kind: "equipment"; id: number; title: string; message: string }
@@ -85,6 +97,7 @@ type ActiveModal =
   | { kind: "folder"; mode: "create" | "edit"; folderId?: number }
   | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number }
   | { kind: "si-import" }
+  | { kind: "repair-batch" }
   | { kind: "verification-batch" };
 
 const defaultFolderForm: FolderFormState = {
@@ -131,6 +144,13 @@ const defaultVerificationBatchForm: VerificationBatchFormState = {
   initialMessageText: "",
 };
 
+const defaultRepairBatchForm: RepairBatchFormState = {
+  routeCity: "",
+  routeDestination: "",
+  sentToRepairAt: getTodayDateInputValue(),
+  initialMessageText: "",
+};
+
 export function EquipmentPage() {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
@@ -153,6 +173,9 @@ export function EquipmentPage() {
   const [siImportForm, setSiImportForm] = useState<SIImportFormState>(defaultSIImportForm);
   const [verificationBatchForm, setVerificationBatchForm] = useState<VerificationBatchFormState>(
     defaultVerificationBatchForm,
+  );
+  const [repairBatchForm, setRepairBatchForm] = useState<RepairBatchFormState>(
+    defaultRepairBatchForm,
   );
   const [siImportResult, setSiImportResult] = useState<EquipmentSIBulkImportResult | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -373,6 +396,24 @@ export function EquipmentPage() {
     },
   });
 
+  const createRepairBatchMutation = useMutation({
+    mutationFn: () =>
+      createRepairBatch(token ?? "", {
+        equipmentIds: selectedEquipmentIds,
+        routeCity: repairBatchForm.routeCity,
+        routeDestination: repairBatchForm.routeDestination,
+        sentToRepairAt: repairBatchForm.sentToRepairAt,
+        initialMessageText: repairBatchForm.initialMessageText,
+      }),
+    onSuccess: async () => {
+      setSelectedEquipmentIds([]);
+      setRepairBatchForm(defaultRepairBatchForm);
+      setActiveModal(null);
+      await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
+      await queryClient.invalidateQueries({ queryKey: ["repair-queue"] });
+    },
+  });
+
   const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
   const equipmentItems = useMemo(() => equipmentQuery.data ?? [], [equipmentQuery.data]);
   const selectedEquipmentItems = useMemo(
@@ -473,6 +514,12 @@ export function EquipmentPage() {
     setActiveModal(null);
   }
 
+  function closeRepairBatchModal() {
+    setRepairBatchForm(defaultRepairBatchForm);
+    createRepairBatchMutation.reset();
+    setActiveModal(null);
+  }
+
   function leaveFolderWorkspace() {
     setSelectedFolderId(null);
     setSelectedEquipmentIds([]);
@@ -523,6 +570,12 @@ export function EquipmentPage() {
     });
     createVerificationBatchMutation.reset();
     setActiveModal({ kind: "verification-batch" });
+  }
+
+  function openRepairBatchModal() {
+    setRepairBatchForm(defaultRepairBatchForm);
+    createRepairBatchMutation.reset();
+    setActiveModal({ kind: "repair-batch" });
   }
 
   function handleEquipmentTypeChange(nextType: EquipmentType) {
@@ -584,6 +637,11 @@ export function EquipmentPage() {
   async function handleVerificationBatchSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     await createVerificationBatchMutation.mutateAsync();
+  }
+
+  async function handleRepairBatchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await createRepairBatchMutation.mutateAsync();
   }
 
   async function handleExportEquipment() {
@@ -673,9 +731,7 @@ export function EquipmentPage() {
               {canManage ? (
                 <button className={subtleButtonClass} type="button" onClick={openCreateFolderModal}>
                   <span className="sr-only">Новая папка</span>
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
-                  </svg>
+                  <Icon className="h-4 w-4" name="plus" />
                 </button>
               ) : null}
             </div>
@@ -836,9 +892,7 @@ export function EquipmentPage() {
                 <IconActionButton
                   className="h-10 w-10"
                   icon={
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
-                    </svg>
+                    <Icon className="h-4 w-4" name="plus" />
                   }
                   label="Добавить прибор"
                   onClick={openCreateEquipmentModal}
@@ -931,7 +985,7 @@ export function EquipmentPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
-                    className="inline-flex items-center justify-center rounded-full border border-[#b04c43] px-4 py-2 text-sm font-medium text-[#b04c43] transition hover:bg-[#fff1ef] disabled:opacity-60"
+                    className={batchDangerButtonClass}
                     disabled={selectedEquipmentIds.length === 0}
                     type="button"
                     onClick={() =>
@@ -946,7 +1000,15 @@ export function EquipmentPage() {
                     Удалить отмеченные
                   </button>
                   <button
-                    className="inline-flex items-center justify-center rounded-full border border-signal-info bg-[color:var(--accent-soft)] px-4 py-2 text-sm font-medium text-ink transition hover:border-signal-info disabled:opacity-60"
+                    className={batchRepairButtonClass}
+                    disabled={selectedEquipmentIds.length === 0}
+                    type="button"
+                    onClick={openRepairBatchModal}
+                  >
+                    Отправить в ремонт
+                  </button>
+                  <button
+                    className={batchVerificationButtonClass}
                     disabled={selectedEquipmentIds.length === 0 || !areAllSelectedItemsSi}
                     type="button"
                     onClick={openVerificationBatchModal}
@@ -967,10 +1029,10 @@ export function EquipmentPage() {
             ) : null}
 
             {equipmentItems.length ? (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-y-2">
+              <div className="tone-parent overflow-x-auto rounded-3xl border border-line shadow-panel">
+                <table className="min-w-full">
                   <thead>
-                    <tr className="text-left text-xs uppercase tracking-[0.16em] text-steel">
+                    <tr className="tone-child text-left text-xs uppercase tracking-[0.16em] text-steel">
                       {canManage ? (
                         <th className="px-3 py-2">
                           <input
@@ -991,13 +1053,14 @@ export function EquipmentPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {equipmentItems.map((item) => (
+                    {equipmentItems.map((item, index) => (
                       <EquipmentRow
                         key={item.id}
                         item={item}
                         canManage={canManage}
                         isSelected={selectedEquipmentIds.includes(item.id)}
                         onToggleSelected={() => toggleEquipmentSelection(item.id)}
+                        rowIndex={index}
                       />
                     ))}
                   </tbody>
@@ -1060,13 +1123,9 @@ export function EquipmentPage() {
               {createFolderMutation.isPending || updateFolderMutation.isPending ? (
                 "…"
               ) : activeModal?.kind === "folder" && activeModal.mode === "edit" ? (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
+                <Icon className="h-4 w-4" name="check" />
               ) : (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
-                </svg>
+                <Icon className="h-4 w-4" name="plus" />
               )}
             </button>
           </div>
@@ -1557,14 +1616,100 @@ export function EquipmentPage() {
               {createEquipmentMutation.isPending || updateEquipmentMutation.isPending ? (
                 "…"
               ) : activeModal?.kind === "equipment" && activeModal.mode === "edit" ? (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                </svg>
+                <Icon className="h-4 w-4" name="check" />
               ) : (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
-                </svg>
+                <Icon className="h-4 w-4" name="plus" />
               )}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal
+        description="Массовая отправка создаст активный ремонт для всех отмеченных приборов с общим маршрутом и стартовой датой."
+        open={activeModal?.kind === "repair-batch"}
+        title="Массовая отправка в ремонт"
+        onClose={closeRepairBatchModal}
+      >
+        <form className="space-y-4" onSubmit={(event) => void handleRepairBatchSubmit(event)}>
+          <div className="grid gap-3 md:grid-cols-3">
+            <label className="block text-sm text-steel">
+              Откуда
+              <input
+                className="form-input"
+                type="text"
+                value={repairBatchForm.routeCity}
+                onChange={(event) =>
+                  setRepairBatchForm((current) => ({ ...current, routeCity: event.target.value }))
+                }
+              />
+            </label>
+            <label className="block text-sm text-steel">
+              Куда
+              <input
+                className="form-input"
+                type="text"
+                value={repairBatchForm.routeDestination}
+                onChange={(event) =>
+                  setRepairBatchForm((current) => ({
+                    ...current,
+                    routeDestination: event.target.value,
+                  }))
+                }
+              />
+            </label>
+            <label className="block text-sm text-steel">
+              Дата отправки
+              <DateInput
+                className="form-input form-input--compact"
+                value={repairBatchForm.sentToRepairAt}
+                onChange={(value) =>
+                  setRepairBatchForm((current) => ({
+                    ...current,
+                    sentToRepairAt: value,
+                  }))
+                }
+              />
+            </label>
+          </div>
+          <label className="block text-sm text-steel">
+            Первое сообщение
+            <textarea
+              className="form-input min-h-[88px] resize-none py-3"
+              placeholder="Например: партия приборов упакована и отправлена в ремонт."
+              value={repairBatchForm.initialMessageText}
+              onChange={(event) =>
+                setRepairBatchForm((current) => ({
+                  ...current,
+                  initialMessageText: event.target.value,
+                }))
+              }
+            />
+          </label>
+          <div className="tone-parent rounded-2xl border border-line px-4 py-3 text-sm text-steel">
+            В ремонт сейчас уйдет {selectedEquipmentIds.length} прибор(ов).
+          </div>
+          {createRepairBatchMutation.isError ? (
+            <p className="text-sm text-[#b04c43]">
+              {getMutationErrorMessage(
+                createRepairBatchMutation.error,
+                "Не удалось отправить отмеченные приборы в ремонт.",
+              )}
+            </p>
+          ) : null}
+          <div className="flex justify-end">
+            <button
+              className="btn-primary px-4 py-2 text-sm disabled:opacity-60"
+              disabled={
+                createRepairBatchMutation.isPending
+                || selectedEquipmentIds.length === 0
+                || !repairBatchForm.routeCity.trim()
+                || !repairBatchForm.routeDestination.trim()
+                || !repairBatchForm.sentToRepairAt
+              }
+              type="submit"
+            >
+              {createRepairBatchMutation.isPending ? "Создаем..." : "Отправить в ремонт"}
             </button>
           </div>
         </form>
@@ -1616,14 +1761,13 @@ export function EquipmentPage() {
             </label>
             <label className="block text-sm text-steel">
               Дата отправки
-              <input
-                className="form-input"
-                type="date"
+              <DateInput
+                className="form-input form-input--compact"
                 value={verificationBatchForm.sentToVerificationAt}
-                onChange={(event) =>
+                onChange={(value) =>
                   setVerificationBatchForm((current) => ({
                     ...current,
-                    sentToVerificationAt: event.target.value,
+                    sentToVerificationAt: value,
                   }))
                 }
               />
@@ -1667,7 +1811,14 @@ export function EquipmentPage() {
               }
               type="submit"
             >
-              {createVerificationBatchMutation.isPending ? "Создаем..." : "Создать группу поверки"}
+              {createVerificationBatchMutation.isPending ? (
+                "Создаем..."
+              ) : (
+                <>
+                  <Icon className="h-4 w-4" name="plus" />
+                  Создать группу поверки
+                </>
+              )}
             </button>
           </div>
         </form>
@@ -1676,15 +1827,19 @@ export function EquipmentPage() {
       <DeleteConfirmModal
         description={deleteTarget?.message}
         errorMessage={
-          deleteFolderMutation.isError || deleteEquipmentMutation.isError
+          deleteFolderMutation.isError || deleteEquipmentMutation.isError || deleteEquipmentBatchMutation.isError
             ? getMutationErrorMessage(
-                deleteFolderMutation.error ?? deleteEquipmentMutation.error,
+                deleteFolderMutation.error ?? deleteEquipmentMutation.error ?? deleteEquipmentBatchMutation.error,
                 "Не удалось выполнить удаление.",
               )
             : null
         }
         isOpen={deleteTarget !== null}
-        isPending={deleteFolderMutation.isPending || deleteEquipmentMutation.isPending}
+        isPending={
+          deleteFolderMutation.isPending
+          || deleteEquipmentMutation.isPending
+          || deleteEquipmentBatchMutation.isPending
+        }
         title={deleteTarget?.title ?? "Подтверждение удаления"}
         onClose={() => setDeleteTarget(null)}
         onConfirm={() => void handleConfirmDelete()}
@@ -1698,16 +1853,18 @@ function EquipmentRow({
   canManage,
   isSelected,
   onToggleSelected,
+  rowIndex,
 }: {
   item: EquipmentItem;
   canManage: boolean;
   isSelected: boolean;
   onToggleSelected: () => void;
+  rowIndex: number;
 }) {
   return (
-    <tr className="tone-parent rounded-2xl border border-line text-sm text-ink shadow-panel">
+    <tr className={`${rowIndex % 2 === 0 ? "tone-parent" : "tone-child"} text-sm text-ink`}>
       {canManage ? (
-        <td className="rounded-l-2xl px-3 py-3 align-top">
+        <td className="px-3 py-3 align-top">
           <input
             checked={isSelected}
             className="mt-1 h-4 w-4 accent-[var(--accent)]"
@@ -1716,7 +1873,7 @@ function EquipmentRow({
           />
         </td>
       ) : null}
-      <td className={`${canManage ? "" : "rounded-l-2xl "}px-3 py-3 align-top`}>
+      <td className="px-3 py-3 align-top">
         <Link className="font-semibold text-ink transition hover:text-signal-info" to={`/equipment/${item.id}`}>
           {item.name}
         </Link>
@@ -1731,7 +1888,7 @@ function EquipmentRow({
       <td className="px-3 py-3 align-top">{item.serialNumber || "—"}</td>
       <td className="px-3 py-3 align-top">{item.manufactureYear || "—"}</td>
       <td className="px-3 py-3 align-top">{item.objectName}</td>
-      <td className="px-3 py-3 align-top rounded-r-2xl">{item.currentLocationManual || "Не указано"}</td>
+      <td className="px-3 py-3 align-top">{item.currentLocationManual || "Не указано"}</td>
     </tr>
   );
 }

@@ -50,8 +50,10 @@ import {
   uploadEquipmentAttachment,
   updateEquipment,
 } from "@/api/equipment";
+import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
+import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -127,10 +129,10 @@ export function EquipmentDetailsPage() {
   const [verificationMessageDraft, setVerificationMessageDraft] = useState("");
   const [repairMessageFiles, setRepairMessageFiles] = useState<File[]>([]);
   const [verificationMessageFiles, setVerificationMessageFiles] = useState<File[]>([]);
-  const [repairExpanded, setRepairExpanded] = useState(true);
-  const [verificationExpanded, setVerificationExpanded] = useState(true);
-  const [repairDialogExpanded, setRepairDialogExpanded] = useState(true);
-  const [verificationDialogExpanded, setVerificationDialogExpanded] = useState(true);
+  const [repairExpanded, setRepairExpanded] = useState(false);
+  const [verificationExpanded, setVerificationExpanded] = useState(false);
+  const [repairDialogExpanded, setRepairDialogExpanded] = useState(false);
+  const [verificationDialogExpanded, setVerificationDialogExpanded] = useState(false);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [siExpanded, setSiExpanded] = useState(false);
   const [siRefreshCertificate, setSiRefreshCertificate] = useState("");
@@ -568,8 +570,10 @@ export function EquipmentDetailsPage() {
     setSelectedSiRefreshDetail(null);
     setRepairActionError(null);
     setVerificationActionError(null);
-    setRepairExpanded(true);
-    setVerificationExpanded(true);
+    setRepairExpanded(false);
+    setVerificationExpanded(false);
+    setRepairDialogExpanded(false);
+    setVerificationDialogExpanded(false);
   }, [parsedEquipmentId]);
 
   if (!token) {
@@ -1853,9 +1857,7 @@ export function EquipmentDetailsPage() {
                   <IconActionButton
                     className="shrink-0"
                     icon={
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                      </svg>
+                      <Icon className="h-5 w-5" name="plus" />
                     }
                     label="Добавить вложение"
                     onClick={() => attachmentInputRef.current?.click()}
@@ -2035,12 +2037,11 @@ export function EquipmentDetailsPage() {
             </div>
             <label className="block text-sm text-steel">
               Дата отправки
-              <input
-                className="form-input"
-                type="date"
+              <DateInput
+                className="form-input form-input--compact"
                 value={repairForm.sentToRepairAt}
-                onChange={(event) =>
-                  setRepairForm((current) => ({ ...current, sentToRepairAt: event.target.value }))
+                onChange={(value) =>
+                  setRepairForm((current) => ({ ...current, sentToRepairAt: value }))
                 }
               />
             </label>
@@ -2173,14 +2174,13 @@ export function EquipmentDetailsPage() {
             </div>
             <label className="block text-sm text-steel">
               Дата отправки
-              <input
-                className="form-input"
-                type="date"
+              <DateInput
+                className="form-input form-input--compact"
                 value={verificationForm.sentToVerificationAt}
-                onChange={(event) =>
+                onChange={(value) =>
                   setVerificationForm((current) => ({
                     ...current,
-                    sentToVerificationAt: event.target.value,
+                    sentToVerificationAt: value,
                   }))
                 }
               />

@@ -56,6 +56,13 @@ type RawEquipmentRepair = {
   route_destination: string;
   sent_to_repair_at: string;
   repair_deadline_at: string;
+  arrived_to_destination_at: string | null;
+  sent_from_repair_at: string | null;
+  sent_from_irkutsk_at: string | null;
+  arrived_to_lensk_at: string | null;
+  actually_received_at: string | null;
+  incoming_control_at: string | null;
+  paid_at: string | null;
   closed_at: string | null;
   created_at: string;
   updated_at: string;
@@ -212,6 +219,13 @@ export type EquipmentRepair = {
   routeDestination: string;
   sentToRepairAt: string;
   repairDeadlineAt: string;
+  arrivedToDestinationAt: string | null;
+  sentFromRepairAt: string | null;
+  sentFromIrkutskAt: string | null;
+  arrivedToLenskAt: string | null;
+  actuallyReceivedAt: string | null;
+  incomingControlAt: string | null;
+  paidAt: string | null;
   closedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -261,6 +275,44 @@ export type VerificationQueueItem = {
   resultDocnum: string | null;
   validDate: string | null;
   arshinUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RepairQueueItem = {
+  repairId: number;
+  equipmentId: number;
+  folderId: number | null;
+  objectName: string;
+  equipmentType: EquipmentType;
+  equipmentName: string;
+  modification: string | null;
+  serialNumber: string | null;
+  manufactureYear: number | null;
+  currentLocationManual: string | null;
+  routeCity: string;
+  routeDestination: string;
+  sentToRepairAt: string;
+  repairDeadlineAt: string;
+  arrivedToDestinationAt: string | null;
+  sentFromRepairAt: string | null;
+  sentFromIrkutskAt: string | null;
+  arrivedToLenskAt: string | null;
+  registrationDeadlineAt: string | null;
+  actuallyReceivedAt: string | null;
+  controlDeadlineAt: string | null;
+  incomingControlAt: string | null;
+  paymentDeadlineAt: string | null;
+  paidAt: string | null;
+  closedAt: string | null;
+  hasActiveVerification: boolean;
+  resultDocnum: string | null;
+  currentStageLabel: string;
+  repairOverdueDays: number;
+  registrationOverdueDays: number;
+  controlOverdueDays: number;
+  paymentOverdueDays: number;
+  maxOverdueDays: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -398,9 +450,28 @@ export type CreateEquipmentRepairPayload = {
   files: File[];
 };
 
+export type CreateRepairBatchPayload = {
+  equipmentIds: number[];
+  routeCity: string;
+  routeDestination: string;
+  sentToRepairAt: string;
+  initialMessageText: string;
+};
+
 export type CreateRepairMessagePayload = {
   text: string;
   files: File[];
+};
+
+export type UpdateRepairMilestonesPayload = {
+  sentToRepairAt?: string | null;
+  arrivedToDestinationAt?: string | null;
+  sentFromRepairAt?: string | null;
+  sentFromIrkutskAt?: string | null;
+  arrivedToLenskAt?: string | null;
+  actuallyReceivedAt?: string | null;
+  incomingControlAt?: string | null;
+  paidAt?: string | null;
 };
 
 export type CreateEquipmentVerificationPayload = {
@@ -493,6 +564,44 @@ type RawVerificationQueueItem = {
   result_docnum: string | null;
   valid_date: string | null;
   arshin_url: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+type RawRepairQueueItem = {
+  repair_id: number;
+  equipment_id: number;
+  folder_id: number | null;
+  object_name: string;
+  equipment_type: EquipmentType;
+  equipment_name: string;
+  modification: string | null;
+  serial_number: string | null;
+  manufacture_year: number | null;
+  current_location_manual: string | null;
+  route_city: string;
+  route_destination: string;
+  sent_to_repair_at: string;
+  repair_deadline_at: string;
+  arrived_to_destination_at: string | null;
+  sent_from_repair_at: string | null;
+  sent_from_irkutsk_at: string | null;
+  arrived_to_lensk_at: string | null;
+  registration_deadline_at: string | null;
+  actually_received_at: string | null;
+  control_deadline_at: string | null;
+  incoming_control_at: string | null;
+  payment_deadline_at: string | null;
+  paid_at: string | null;
+  closed_at: string | null;
+  has_active_verification: boolean;
+  result_docnum: string | null;
+  current_stage_label: string;
+  repair_overdue_days: number;
+  registration_overdue_days: number;
+  control_overdue_days: number;
+  payment_overdue_days: number;
+  max_overdue_days: number;
   created_at: string;
   updated_at: string;
 };
@@ -632,6 +741,28 @@ export async function fetchVerificationQueue(
   return response.map(mapVerificationQueueItem);
 }
 
+export async function fetchRepairQueue(
+  token: string,
+  {
+    lifecycleStatus,
+    query,
+  }: {
+    lifecycleStatus: "active" | "archived";
+    query?: string;
+  },
+): Promise<RepairQueueItem[]> {
+  const search = new URLSearchParams();
+  search.set("lifecycle_status", lifecycleStatus);
+  if (query?.trim()) {
+    search.set("query", query.trim());
+  }
+  const response = await apiRequest<RawRepairQueueItem[]>(`/equipment/repairs?${search.toString()}`, {
+    method: "GET",
+    token,
+  });
+  return response.map(mapRepairQueueItem);
+}
+
 export async function fetchEquipmentVerificationHistory(
   token: string,
   equipmentId: number,
@@ -703,6 +834,46 @@ export async function createEquipmentRepair(
     method: "POST",
     token,
     body: formData,
+  });
+  return mapEquipmentRepair(response);
+}
+
+export async function createRepairBatch(
+  token: string,
+  payload: CreateRepairBatchPayload,
+): Promise<EquipmentRepair[]> {
+  const response = await apiRequest<RawEquipmentRepair[]>("/equipment/repairs/bulk", {
+    method: "POST",
+    token,
+    body: {
+      equipment_ids: payload.equipmentIds,
+      route_city: payload.routeCity,
+      route_destination: payload.routeDestination,
+      sent_to_repair_at: payload.sentToRepairAt,
+      initial_message_text: payload.initialMessageText.trim() || null,
+    },
+  });
+  return response.map(mapEquipmentRepair);
+}
+
+export async function updateEquipmentRepairMilestones(
+  token: string,
+  equipmentId: number,
+  payload: UpdateRepairMilestonesPayload,
+): Promise<EquipmentRepair> {
+  const response = await apiRequest<RawEquipmentRepair>(`/equipment/${equipmentId}/repair`, {
+    method: "PATCH",
+    token,
+    body: {
+      sent_to_repair_at: payload.sentToRepairAt ?? null,
+      arrived_to_destination_at: payload.arrivedToDestinationAt ?? null,
+      sent_from_repair_at: payload.sentFromRepairAt ?? null,
+      sent_from_irkutsk_at: payload.sentFromIrkutskAt ?? null,
+      arrived_to_lensk_at: payload.arrivedToLenskAt ?? null,
+      actually_received_at: payload.actuallyReceivedAt ?? null,
+      incoming_control_at: payload.incomingControlAt ?? null,
+      paid_at: payload.paidAt ?? null,
+    },
   });
   return mapEquipmentRepair(response);
 }
@@ -895,6 +1066,17 @@ export async function createEquipmentVerificationMessage(
     },
   );
   return mapVerificationMessage(response);
+}
+
+export async function deleteEquipmentRepairMessage(
+  token: string,
+  equipmentId: number,
+  messageId: number,
+): Promise<void> {
+  await apiRequest(`/equipment/${equipmentId}/repair/messages/${messageId}`, {
+    method: "DELETE",
+    token,
+  });
 }
 
 export async function deleteEquipmentVerificationMessage(
@@ -1302,6 +1484,15 @@ export function getVerificationProgressLabel(
   return "Ожидает получения в пункте назначения";
 }
 
+export function getRepairProgressLabel(
+  repair: Pick<RepairQueueItem, "closedAt" | "currentStageLabel">,
+): string {
+  if (repair.closedAt) {
+    return "Ремонт завершен";
+  }
+  return repair.currentStageLabel;
+}
+
 export function buildSIVerificationPayloadFromArshin(
   result: ArshinSearchResult,
   detail: ArshinVriDetail | null,
@@ -1378,6 +1569,13 @@ function mapEquipmentRepair(repair: RawEquipmentRepair): EquipmentRepair {
     routeDestination: repair.route_destination,
     sentToRepairAt: repair.sent_to_repair_at,
     repairDeadlineAt: repair.repair_deadline_at,
+    arrivedToDestinationAt: repair.arrived_to_destination_at,
+    sentFromRepairAt: repair.sent_from_repair_at,
+    sentFromIrkutskAt: repair.sent_from_irkutsk_at,
+    arrivedToLenskAt: repair.arrived_to_lensk_at,
+    actuallyReceivedAt: repair.actually_received_at,
+    incomingControlAt: repair.incoming_control_at,
+    paidAt: repair.paid_at,
     closedAt: repair.closed_at,
     createdAt: repair.created_at,
     updatedAt: repair.updated_at,
@@ -1448,6 +1646,46 @@ function mapVerificationQueueItem(item: RawVerificationQueueItem): VerificationQ
     resultDocnum: item.result_docnum,
     validDate: item.valid_date,
     arshinUrl: item.arshin_url,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
+  };
+}
+
+function mapRepairQueueItem(item: RawRepairQueueItem): RepairQueueItem {
+  return {
+    repairId: item.repair_id,
+    equipmentId: item.equipment_id,
+    folderId: item.folder_id,
+    objectName: item.object_name,
+    equipmentType: item.equipment_type,
+    equipmentName: item.equipment_name,
+    modification: item.modification,
+    serialNumber: item.serial_number,
+    manufactureYear: item.manufacture_year,
+    currentLocationManual: item.current_location_manual,
+    routeCity: item.route_city,
+    routeDestination: item.route_destination,
+    sentToRepairAt: item.sent_to_repair_at,
+    repairDeadlineAt: item.repair_deadline_at,
+    arrivedToDestinationAt: item.arrived_to_destination_at,
+    sentFromRepairAt: item.sent_from_repair_at,
+    sentFromIrkutskAt: item.sent_from_irkutsk_at,
+    arrivedToLenskAt: item.arrived_to_lensk_at,
+    registrationDeadlineAt: item.registration_deadline_at,
+    actuallyReceivedAt: item.actually_received_at,
+    controlDeadlineAt: item.control_deadline_at,
+    incomingControlAt: item.incoming_control_at,
+    paymentDeadlineAt: item.payment_deadline_at,
+    paidAt: item.paid_at,
+    closedAt: item.closed_at,
+    hasActiveVerification: item.has_active_verification,
+    resultDocnum: item.result_docnum,
+    currentStageLabel: item.current_stage_label,
+    repairOverdueDays: item.repair_overdue_days,
+    registrationOverdueDays: item.registration_overdue_days,
+    controlOverdueDays: item.control_overdue_days,
+    paymentOverdueDays: item.payment_overdue_days,
+    maxOverdueDays: item.max_overdue_days,
     createdAt: item.created_at,
     updatedAt: item.updated_at,
   };

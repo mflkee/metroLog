@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { UserRole } from "@/api/auth";
 import { createUser, fetchUsers, resetUserPassword, updateUser } from "@/api/users";
+import { Icon } from "@/components/Icon";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { roleLabels } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
@@ -234,9 +235,7 @@ export function AdminUsersPage() {
               {createUserMutation.isPending ? (
                 "…"
               ) : (
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
-                </svg>
+                <Icon className="h-4 w-4" name="plus" />
               )}
             </button>
           </div>

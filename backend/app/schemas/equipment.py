@@ -78,6 +78,13 @@ class RepairRead(BaseModel):
     route_destination: str
     sent_to_repair_at: date
     repair_deadline_at: date
+    arrived_to_destination_at: date | None = None
+    sent_from_repair_at: date | None = None
+    sent_from_irkutsk_at: date | None = None
+    arrived_to_lensk_at: date | None = None
+    actually_received_at: date | None = None
+    incoming_control_at: date | None = None
+    paid_at: date | None = None
     closed_at: date | None
     created_at: datetime
     updated_at: datetime
@@ -129,6 +136,44 @@ class VerificationQueueItemRead(BaseModel):
     result_docnum: str | None
     valid_date: datetime | None
     arshin_url: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
+class RepairQueueItemRead(BaseModel):
+    repair_id: int
+    equipment_id: int
+    folder_id: int | None
+    object_name: str
+    equipment_type: EquipmentType
+    equipment_name: str
+    modification: str | None
+    serial_number: str | None
+    manufacture_year: int | None
+    current_location_manual: str | None
+    route_city: str
+    route_destination: str
+    sent_to_repair_at: date
+    repair_deadline_at: date
+    arrived_to_destination_at: date | None = None
+    sent_from_repair_at: date | None = None
+    sent_from_irkutsk_at: date | None = None
+    arrived_to_lensk_at: date | None = None
+    registration_deadline_at: date | None = None
+    actually_received_at: date | None = None
+    control_deadline_at: date | None = None
+    incoming_control_at: date | None = None
+    payment_deadline_at: date | None = None
+    paid_at: date | None = None
+    closed_at: date | None
+    has_active_verification: bool
+    result_docnum: str | None
+    current_stage_label: str
+    repair_overdue_days: int
+    registration_overdue_days: int
+    control_overdue_days: int
+    payment_overdue_days: int
+    max_overdue_days: int
     created_at: datetime
     updated_at: datetime
 
@@ -247,12 +292,31 @@ class RepairMessageCreateRequest(BaseModel):
     text: str | None = None
 
 
+class RepairMilestonesUpdateRequest(BaseModel):
+    sent_to_repair_at: date | None = None
+    arrived_to_destination_at: date | None = None
+    sent_from_repair_at: date | None = None
+    sent_from_irkutsk_at: date | None = None
+    arrived_to_lensk_at: date | None = None
+    actually_received_at: date | None = None
+    incoming_control_at: date | None = None
+    paid_at: date | None = None
+
+
 class VerificationCreateRequest(BaseModel):
     batch_key: str | None = None
     batch_name: str | None = None
     route_city: str
     route_destination: str
     sent_to_verification_at: date
+    initial_message_text: str | None = None
+
+
+class RepairBulkCreateRequest(BaseModel):
+    equipment_ids: list[int]
+    route_city: str
+    route_destination: str
+    sent_to_repair_at: date
     initial_message_text: str | None = None
 
 

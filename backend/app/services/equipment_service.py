@@ -57,8 +57,11 @@ from app.schemas.equipment import (
     EquipmentSIBulkImportRowRead,
     EquipmentSIRefreshRequest,
     EquipmentUpdateRequest,
+    RepairBulkCreateRequest,
     RepairCreateRequest,
     RepairMessageCreateRequest,
+    RepairMilestonesUpdateRequest,
+    RepairQueueItemRead,
     VerificationBulkCreateRequest,
     VerificationCreateRequest,
     VerificationMessageCreateRequest,
@@ -204,6 +207,33 @@ class EquipmentService:
             for verification, equipment, si_verification, has_active_repair in rows
         ]
 
+    def list_repair_queue(
+        self,
+        *,
+        lifecycle_status: str,
+        query: str | None = None,
+    ) -> list[RepairQueueItemRead]:
+        normalized_lifecycle_status = lifecycle_status.strip().lower()
+        if normalized_lifecycle_status not in {"active", "archived"}:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Repair lifecycle status must be active or archived.",
+            )
+
+        rows = self.repairs.list_queue_items(
+            lifecycle_status=normalized_lifecycle_status,
+            query=query.strip() if query else None,
+        )
+        return [
+            self._build_repair_queue_item(
+                repair=repair,
+                equipment=equipment,
+                si_verification=si_verification,
+                has_active_verification=has_active_verification,
+            )
+            for repair, equipment, si_verification, has_active_verification in rows
+        ]
+
     def list_equipment_verification_history(
         self,
         *,
@@ -235,7 +265,7 @@ class EquipmentService:
         group = self._get_group(payload.group_id) if payload.group_id is not None else None
         if group is not None and group.folder_id != folder.id:
             raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                 detail="Group does not belong to the selected folder.",
             )
         self._validate_si_payload_for_create(payload)
@@ -666,6 +696,165 @@ class EquipmentService:
         self.session.refresh(repair)
         return repair
 
+    def create_repair_batch(
+        self,
+        *,
+        payload: RepairBulkCreateRequest,
+        current_user: User,
+    ) -> list[Repair]:
+        equipment_ids = list(dict.fromkeys(payload.equipment_ids))
+        if not equipment_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нужно выбрать хотя бы один прибор для ремонта.",
+            )
+
+        created: list[Repair] = []
+        normalized_initial_text = _normalize_message_text(payload.initial_message_text)
+        for equipment_id in equipment_ids:
+            equipment = self.get_equipment(equipment_id=equipment_id)
+            existing_repair = self.repairs.get_active_by_equipment_id(equipment_id=equipment.id)
+            if existing_repair is not None:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"Для прибора «{equipment.name}» уже есть активный ремонт.",
+                )
+
+            repair = Repair(
+                equipment_id=equipment.id,
+                route_city=_normalize_required_text(
+                    payload.route_city,
+                    field_label="Repair route city",
+                ),
+                route_destination=_normalize_required_text(
+                    payload.route_destination,
+                    field_label="Repair route destination",
+                ),
+                sent_to_repair_at=payload.sent_to_repair_at,
+                repair_deadline_at=payload.sent_to_repair_at + timedelta(days=100),
+            )
+            equipment.status = EquipmentStatus.IN_REPAIR
+            self.repairs.add(repair)
+            if normalized_initial_text is not None:
+                self._create_repair_message_record(
+                    repair=repair,
+                    author=current_user,
+                    payload=RepairMessageCreateRequest(text=normalized_initial_text),
+                    files=[],
+                )
+            created.append(repair)
+
+        self.session.commit()
+        for repair in created:
+            self.session.refresh(repair)
+        return created
+
+    def update_repair_milestones(
+        self,
+        *,
+        equipment_id: int,
+        payload: RepairMilestonesUpdateRequest,
+        current_user: User,
+    ) -> Repair:
+        repair = self._get_active_repair(equipment_id=equipment_id)
+        next_sent_to_repair_at = (
+            payload.sent_to_repair_at
+            if "sent_to_repair_at" in payload.model_fields_set
+            else repair.sent_to_repair_at
+        )
+        if next_sent_to_repair_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Дата отправки в ремонт обязательна.",
+            )
+        _validate_repair_milestone_order(
+            route_city=repair.route_city,
+            route_destination=repair.route_destination,
+            sent_to_repair_at=next_sent_to_repair_at,
+            arrived_to_destination_at=(
+                payload.arrived_to_destination_at
+                if "arrived_to_destination_at" in payload.model_fields_set
+                else repair.arrived_to_destination_at
+            ),
+            sent_from_repair_at=(
+                payload.sent_from_repair_at
+                if "sent_from_repair_at" in payload.model_fields_set
+                else repair.sent_from_repair_at
+            ),
+            sent_from_irkutsk_at=(
+                payload.sent_from_irkutsk_at
+                if "sent_from_irkutsk_at" in payload.model_fields_set
+                else repair.sent_from_irkutsk_at
+            ),
+            arrived_to_lensk_at=(
+                payload.arrived_to_lensk_at
+                if "arrived_to_lensk_at" in payload.model_fields_set
+                else repair.arrived_to_lensk_at
+            ),
+            actually_received_at=(
+                payload.actually_received_at
+                if "actually_received_at" in payload.model_fields_set
+                else repair.actually_received_at
+            ),
+            incoming_control_at=(
+                payload.incoming_control_at
+                if "incoming_control_at" in payload.model_fields_set
+                else repair.incoming_control_at
+            ),
+            paid_at=(
+                payload.paid_at
+                if "paid_at" in payload.model_fields_set
+                else repair.paid_at
+            ),
+        )
+        if "sent_to_repair_at" in payload.model_fields_set:
+            new_sent_to_repair_at = payload.sent_to_repair_at
+            if new_sent_to_repair_at is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Дата отправки в ремонт обязательна.",
+                )
+            if repair.sent_to_repair_at != new_sent_to_repair_at:
+                repair.sent_to_repair_at = new_sent_to_repair_at
+                repair.repair_deadline_at = new_sent_to_repair_at + timedelta(days=100)
+                self._create_repair_message_record(
+                    repair=repair,
+                    author=current_user,
+                    payload=RepairMessageCreateRequest(
+                        text=_build_repair_milestone_message(
+                            current_user=current_user,
+                            milestone_label=f"Отправлено в {repair.route_destination}",
+                            milestone_date=new_sent_to_repair_at,
+                        )
+                    ),
+                    files=[],
+                )
+        for field_name, milestone_label in _REPAIR_MILESTONE_LABELS:
+            if field_name not in payload.model_fields_set:
+                continue
+            new_value = getattr(payload, field_name)
+            current_value = getattr(repair, field_name)
+            if current_value == new_value:
+                continue
+            setattr(repair, field_name, new_value)
+            if new_value is not None:
+                self._create_repair_message_record(
+                    repair=repair,
+                    author=current_user,
+                    payload=RepairMessageCreateRequest(
+                        text=_build_repair_milestone_message(
+                            current_user=current_user,
+                            milestone_label=milestone_label,
+                            milestone_date=new_value,
+                        )
+                    ),
+                    files=[],
+                )
+
+        self.session.commit()
+        self.session.refresh(repair)
+        return repair
+
     def create_verification(
         self,
         *,
@@ -801,6 +990,40 @@ class EquipmentService:
         current_user: User,
     ) -> Verification:
         verification = self._get_active_verification(equipment_id=equipment_id)
+        _validate_verification_milestone_order(
+            route_destination=verification.route_destination,
+            sent_to_verification_at=verification.sent_to_verification_at,
+            received_at_destination_at=(
+                payload.received_at_destination_at
+                if "received_at_destination_at" in payload.model_fields_set
+                else verification.received_at_destination_at
+            ),
+            handed_to_csm_at=(
+                payload.handed_to_csm_at
+                if "handed_to_csm_at" in payload.model_fields_set
+                else verification.handed_to_csm_at
+            ),
+            verification_completed_at=(
+                payload.verification_completed_at
+                if "verification_completed_at" in payload.model_fields_set
+                else verification.verification_completed_at
+            ),
+            picked_up_from_csm_at=(
+                payload.picked_up_from_csm_at
+                if "picked_up_from_csm_at" in payload.model_fields_set
+                else verification.picked_up_from_csm_at
+            ),
+            shipped_back_at=(
+                payload.shipped_back_at
+                if "shipped_back_at" in payload.model_fields_set
+                else verification.shipped_back_at
+            ),
+            returned_from_verification_at=(
+                payload.returned_from_verification_at
+                if "returned_from_verification_at" in payload.model_fields_set
+                else verification.returned_from_verification_at
+            ),
+        )
         for field_name, milestone_label in _VERIFICATION_MILESTONE_LABELS:
             if field_name not in payload.model_fields_set:
                 continue
@@ -847,6 +1070,40 @@ class EquipmentService:
             )
 
         anchor = verifications[0]
+        _validate_verification_milestone_order(
+            route_destination=anchor.route_destination,
+            sent_to_verification_at=anchor.sent_to_verification_at,
+            received_at_destination_at=(
+                payload.received_at_destination_at
+                if "received_at_destination_at" in payload.model_fields_set
+                else anchor.received_at_destination_at
+            ),
+            handed_to_csm_at=(
+                payload.handed_to_csm_at
+                if "handed_to_csm_at" in payload.model_fields_set
+                else anchor.handed_to_csm_at
+            ),
+            verification_completed_at=(
+                payload.verification_completed_at
+                if "verification_completed_at" in payload.model_fields_set
+                else anchor.verification_completed_at
+            ),
+            picked_up_from_csm_at=(
+                payload.picked_up_from_csm_at
+                if "picked_up_from_csm_at" in payload.model_fields_set
+                else anchor.picked_up_from_csm_at
+            ),
+            shipped_back_at=(
+                payload.shipped_back_at
+                if "shipped_back_at" in payload.model_fields_set
+                else anchor.shipped_back_at
+            ),
+            returned_from_verification_at=(
+                payload.returned_from_verification_at
+                if "returned_from_verification_at" in payload.model_fields_set
+                else anchor.returned_from_verification_at
+            ),
+        )
         for field_name, milestone_label in _VERIFICATION_MILESTONE_LABELS:
             if field_name not in payload.model_fields_set:
                 continue
@@ -912,6 +1169,36 @@ class EquipmentService:
         self.session.commit()
         self.session.refresh(message)
         return message
+
+    def delete_repair_message(
+        self,
+        *,
+        equipment_id: int,
+        message_id: int,
+        current_user: User,
+    ) -> None:
+        repair = self._get_active_repair(equipment_id=equipment_id)
+        message = self._get_repair_message(
+            repair_id=repair.id,
+            message_id=message_id,
+        )
+        self._assert_repair_message_owner(
+            message=message,
+            current_user=current_user,
+        )
+
+        attachment_paths = [
+            settings.attachment_storage_path / attachment.storage_path
+            for attachment in message.attachments
+        ]
+        for attachment in message.attachments:
+            self.repair_message_attachments.delete(attachment)
+        self.repair_messages.delete(message)
+        self.session.commit()
+
+        for file_path in attachment_paths:
+            if file_path.exists() and file_path.is_file():
+                file_path.unlink()
 
     def create_verification_message(
         self,
@@ -1483,6 +1770,20 @@ class EquipmentService:
                 detail="You cannot modify this comment.",
             )
 
+    def _assert_repair_message_owner(
+        self,
+        *,
+        message: RepairMessage,
+        current_user: User,
+    ) -> None:
+        if current_user.role in {UserRole.ADMINISTRATOR, UserRole.MKAIR}:
+            return
+        if message.author_user_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You cannot delete this repair message.",
+            )
+
     def _assert_verification_message_owner(
         self,
         *,
@@ -1534,6 +1835,84 @@ class EquipmentService:
             updated_at=verification.updated_at,
         )
 
+    def _build_repair_queue_item(
+        self,
+        *,
+        repair: Repair,
+        equipment: Equipment,
+        si_verification: SIVerification | None,
+        has_active_verification: bool,
+    ) -> RepairQueueItemRead:
+        registration_deadline_at = _calculate_registration_deadline_at(
+            arrived_to_lensk_at=repair.arrived_to_lensk_at
+        )
+        control_deadline_at = _calculate_control_deadline_at(
+            actually_received_at=repair.actually_received_at,
+            registration_deadline_at=registration_deadline_at,
+        )
+        payment_deadline_at = _calculate_payment_deadline_at(
+            incoming_control_at=repair.incoming_control_at,
+            control_deadline_at=control_deadline_at,
+        )
+        repair_overdue_days = _calculate_repair_overdue_days(
+            repair_deadline_at=repair.repair_deadline_at,
+            sent_from_repair_at=repair.sent_from_repair_at,
+        )
+        registration_overdue_days = _calculate_stage_overdue_days(
+            deadline_at=registration_deadline_at,
+            completed_at=repair.actually_received_at,
+        )
+        control_overdue_days = _calculate_stage_overdue_days(
+            deadline_at=control_deadline_at,
+            completed_at=repair.incoming_control_at,
+        )
+        payment_overdue_days = _calculate_stage_overdue_days(
+            deadline_at=payment_deadline_at,
+            completed_at=repair.paid_at,
+        )
+        return RepairQueueItemRead(
+            repair_id=repair.id,
+            equipment_id=equipment.id,
+            folder_id=equipment.folder_id,
+            object_name=equipment.object_name,
+            equipment_type=equipment.equipment_type,
+            equipment_name=equipment.name,
+            modification=equipment.modification,
+            serial_number=equipment.serial_number,
+            manufacture_year=equipment.manufacture_year,
+            current_location_manual=equipment.current_location_manual,
+            route_city=repair.route_city,
+            route_destination=repair.route_destination,
+            sent_to_repair_at=repair.sent_to_repair_at,
+            repair_deadline_at=repair.repair_deadline_at,
+            arrived_to_destination_at=repair.arrived_to_destination_at,
+            sent_from_repair_at=repair.sent_from_repair_at,
+            sent_from_irkutsk_at=repair.sent_from_irkutsk_at,
+            arrived_to_lensk_at=repair.arrived_to_lensk_at,
+            registration_deadline_at=registration_deadline_at,
+            actually_received_at=repair.actually_received_at,
+            control_deadline_at=control_deadline_at,
+            incoming_control_at=repair.incoming_control_at,
+            payment_deadline_at=payment_deadline_at,
+            paid_at=repair.paid_at,
+            closed_at=repair.closed_at,
+            has_active_verification=has_active_verification,
+            result_docnum=si_verification.result_docnum if si_verification else None,
+            current_stage_label=_build_repair_progress_label(repair=repair),
+            repair_overdue_days=repair_overdue_days,
+            registration_overdue_days=registration_overdue_days,
+            control_overdue_days=control_overdue_days,
+            payment_overdue_days=payment_overdue_days,
+            max_overdue_days=max(
+                repair_overdue_days,
+                registration_overdue_days,
+                control_overdue_days,
+                payment_overdue_days,
+            ),
+            created_at=repair.created_at,
+            updated_at=repair.updated_at,
+        )
+
     def _build_existing_si_message(
         self,
         existing: SIVerification,
@@ -1559,12 +1938,12 @@ class EquipmentService:
         if payload.equipment_type == EquipmentType.SI:
             if payload.si_verification is None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="SI equipment must be created from an Arshin search result.",
                 )
             if payload.si_verification.detail_payload_json is None:
                 raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
                     detail="SI equipment creation requires Arshin detail fetch by vri_id.",
                 )
 
@@ -1586,6 +1965,160 @@ class EquipmentService:
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="SI verification data is allowed only for SI equipment.",
             )
+
+
+def _build_repair_progress_label(*, repair: Repair) -> str:
+    if repair.closed_at is not None:
+        return "Ремонт завершен"
+    if repair.paid_at is not None:
+        return "Оплата выполнена"
+    if repair.incoming_control_at is not None:
+        return "Ожидает оплаты"
+    if repair.actually_received_at is not None:
+        return "На входном контроле"
+    if repair.arrived_to_lensk_at is not None:
+        return "Ожидает получения"
+    if repair.sent_from_irkutsk_at is not None:
+        return "В пути обратно"
+    if repair.sent_from_repair_at is not None:
+        return "Ремонт произведен"
+    if repair.arrived_to_destination_at is not None:
+        return "В ремонте"
+    return "В ремонте"
+
+
+def _calculate_repair_overdue_days(
+    *,
+    repair_deadline_at: date,
+    sent_from_repair_at: date | None,
+) -> int:
+    comparison_date = sent_from_repair_at or date.today()
+    return max((comparison_date - repair_deadline_at).days, 0)
+
+
+def _calculate_registration_deadline_at(*, arrived_to_lensk_at: date | None) -> date | None:
+    if arrived_to_lensk_at is None:
+        return None
+    return arrived_to_lensk_at + timedelta(days=5)
+
+
+def _calculate_control_deadline_at(
+    *,
+    actually_received_at: date | None,
+    registration_deadline_at: date | None,
+) -> date | None:
+    anchor = actually_received_at or registration_deadline_at
+    if anchor is None:
+        return None
+    return anchor + timedelta(days=40)
+
+
+def _calculate_payment_deadline_at(
+    *,
+    incoming_control_at: date | None,
+    control_deadline_at: date | None,
+) -> date | None:
+    anchor = incoming_control_at or control_deadline_at
+    if anchor is None:
+        return None
+    return anchor + timedelta(days=70)
+
+
+def _calculate_stage_overdue_days(
+    *,
+    deadline_at: date | None,
+    completed_at: date | None,
+) -> int:
+    if deadline_at is None:
+        return 0
+    comparison_date = completed_at or date.today()
+    return max((comparison_date - deadline_at).days, 0)
+
+
+def _validate_repair_milestone_order(
+    *,
+    route_city: str,
+    route_destination: str,
+    sent_to_repair_at: date,
+    arrived_to_destination_at: date | None,
+    sent_from_repair_at: date | None,
+    sent_from_irkutsk_at: date | None,
+    arrived_to_lensk_at: date | None,
+    actually_received_at: date | None,
+    incoming_control_at: date | None,
+    paid_at: date | None,
+) -> None:
+    _validate_milestone_order(
+        milestones=(
+            (f"Отправлено в {route_destination}", sent_to_repair_at),
+            (f"Прибыло в {route_destination}", arrived_to_destination_at),
+            ("Ремонт произведен", sent_from_repair_at),
+            (f"Отправлено в {route_city}", sent_from_irkutsk_at),
+            (f"Прибыло в {route_city}", arrived_to_lensk_at),
+            (f"Получено в {route_city}", actually_received_at),
+            ("Входной контроль выполнен", incoming_control_at),
+            ("Оплата выполнена", paid_at),
+        )
+    )
+
+
+def _validate_verification_milestone_order(
+    *,
+    route_destination: str,
+    sent_to_verification_at: date,
+    received_at_destination_at: date | None,
+    handed_to_csm_at: date | None,
+    verification_completed_at: date | None,
+    picked_up_from_csm_at: date | None,
+    shipped_back_at: date | None,
+    returned_from_verification_at: date | None,
+) -> None:
+    _validate_milestone_order(
+        milestones=(
+            ("Отправлено в поверку", sent_to_verification_at),
+            (f"Получение в {route_destination}", received_at_destination_at),
+            ("Передано в ЦСМ", handed_to_csm_at),
+            ("Поверка выполнена", verification_completed_at),
+            ("Получено в ЦСМ", picked_up_from_csm_at),
+            ("Упаковано и отправлено обратно", shipped_back_at),
+            ("Получено обратно", returned_from_verification_at),
+        )
+    )
+
+
+def _validate_milestone_order(
+    *, milestones: tuple[tuple[str, date | None], ...]
+) -> None:
+    missing_previous_label: str | None = None
+    previous_label: str | None = None
+    previous_value: date | None = None
+
+    for label, value in milestones:
+        if value is None:
+            if missing_previous_label is None:
+                missing_previous_label = label
+            continue
+
+        if missing_previous_label is not None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"Этап «{label}» нельзя указать раньше, чем этап "
+                    f"«{missing_previous_label}»."
+                ),
+            )
+
+        if previous_value is not None and value < previous_value:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                detail=(
+                    f"Этап «{label}» не может быть раньше этапа "
+                    f"«{previous_label}»."
+                ),
+            )
+
+        previous_label = label
+        previous_value = value
 
 
 def _normalize_required_text(value: str | None, *, field_label: str) -> str:
@@ -1874,6 +2407,16 @@ _VERIFICATION_MILESTONE_LABELS: tuple[tuple[str, str], ...] = (
     ("returned_from_verification_at", "Получено обратно"),
 )
 
+_REPAIR_MILESTONE_LABELS: tuple[tuple[str, str], ...] = (
+    ("arrived_to_destination_at", "Прибыло в пункт назначения"),
+    ("sent_from_repair_at", "Ремонт произведен"),
+    ("sent_from_irkutsk_at", "Отправлено в пункт отправления"),
+    ("arrived_to_lensk_at", "Прибыло в пункт отправления"),
+    ("actually_received_at", "Получено"),
+    ("incoming_control_at", "Входной контроль выполнен"),
+    ("paid_at", "Оплата выполнена"),
+)
+
 
 def _build_verification_milestone_message(
     *,
@@ -1888,6 +2431,18 @@ def _build_verification_milestone_message(
     return (
         f"{_format_user_display_name(current_user)} отметил этап "
         f"«{resolved_label}» ({_format_short_date(milestone_date)})."
+    )
+
+
+def _build_repair_milestone_message(
+    *,
+    current_user: User,
+    milestone_label: str,
+    milestone_date,
+) -> str:
+    return (
+        f"{_format_user_display_name(current_user)} отметил этап "
+        f"«{milestone_label}» ({_format_short_date(milestone_date)})."
     )
 
 

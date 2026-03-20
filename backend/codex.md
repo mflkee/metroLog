@@ -312,7 +312,8 @@ Repair creation rules for the equipment card:
 * repair organization field is not required in MVP,
 * operator specifies route fields such as city and destination instead,
 * operator may optionally attach the first repair dialog message and files during creation,
-* the repair may also be created without an initial message and populated later through the dialog.
+* the repair may also be created without an initial message and populated later through the dialog,
+* repair milestones must be stored in chronological order; backend should reject missing-gap and reverse-date updates with explicit validation errors.
 
 ### EventLog
 
@@ -485,7 +486,8 @@ Backend rules for the milestone tracker:
 - the current short verification state is derived from the latest completed milestone,
 - updating a milestone date must append a system message to the verification dialog,
 - milestone tracking must not replace the free dialog,
-- milestone editing is primarily handled from the dedicated verification workspace, while the equipment card shows only compact current-state summary plus dialog.
+- milestone editing is primarily handled from the dedicated verification workspace, while the equipment card shows only compact current-state summary plus dialog,
+- milestone dates must remain chronological; backend should reject missing-gap and reverse-date updates with explicit validation errors.
 
 ### Rule 2.3 - Folder-scoped manual suggestions
 
@@ -611,7 +613,9 @@ Rules:
 * grouped repair or grouped verification may also be completed in bulk,
 * after completion, active process data becomes archived,
 * the card must expose archive metadata and ZIP download link for completed processes,
-* ZIP contents should include only the process dialog and its attachments.
+* ZIP contents should include only the process dialog and its attachments,
+* the generated archive ZIP should contain `dialog.txt` plus a `files/` folder,
+* archive list entries may remain compact initially, but backend responses must expose enough data for an expandable archive view with grouped membership and milestone dates.
 
 ### Rule 10 - Event log as audit trail
 

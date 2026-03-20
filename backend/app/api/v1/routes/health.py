@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status
+from sqlalchemy import text
 
+from app.api.deps import DbSession
 from app.core.config import settings
-from app.db.session import check_database_connection
 from app.schemas.health import HealthStatus, ReadinessStatus
 
 router = APIRouter()
@@ -13,12 +14,13 @@ async def healthcheck() -> HealthStatus:
 
 
 @router.get("/health/ready", response_model=ReadinessStatus)
-async def readiness_check() -> ReadinessStatus:
-    database_ok = check_database_connection()
-    if not database_ok:
+async def readiness_check(db: DbSession) -> ReadinessStatus:
+    try:
+        db.execute(text("SELECT 1"))
+    except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Database connection failed.",
-        )
+        ) from exc
 
     return ReadinessStatus(status="ready", database="ok", redis="not_checked")

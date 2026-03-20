@@ -44,14 +44,13 @@ BOOTSTRAP_ADMIN_PASSWORD=ChangeMe123
 FRONTEND_APP_URL=http://localhost:5173
 BACKEND_CORS_ORIGINS=http://localhost:5173
 
-# Для локального запуска без Docker:
-# либо удаляй DATABASE_URL совсем,
-# либо укажи SQLite явно.
-DATABASE_URL=sqlite+pysqlite:///./metrolog.db
-
-# Redis сейчас не критичен для локального старта,
-# но можно оставить локальное значение.
-REDIS_URL=redis://localhost:6379/0
+# Для локального запуска backend работает локально,
+# но PostgreSQL и Redis поднимаются через docker compose.
+POSTGRES_DB=metrolog
+POSTGRES_USER=metrolog
+POSTGRES_PASSWORD=metrolog
+POSTGRES_PORT=5432
+REDIS_PORT=6379
 
 VITE_API_BASE_URL=/api/v1
 VITE_API_PROXY_TARGET=http://localhost:8000
@@ -59,8 +58,9 @@ VITE_API_PROXY_TARGET=http://localhost:8000
 
 Критично:
 
+- локальный `backend`-скрипт сам поднимает `postgres` и `redis` через `docker compose`;
 - `postgres` и `backend` как hostname работают только внутри Docker Compose;
-- для локального dev лучше держать backend и frontend отдельно, так быстрее и проще отлаживать.
+- для локального dev сам `app` лучше держать отдельно от Docker, так быстрее и проще отлаживать.
 
 ### 2. Поднять backend
 
@@ -196,28 +196,20 @@ docker info
 
 ### Локально backend не может подключиться к БД
 
-Скорее всего, в `.env` остался Docker-host `postgres`. Для локального запуска используй SQLite или локальный PostgreSQL.
+Скорее всего, в `.env` остался Docker-host `postgres`, а backend поднят вне Compose. Для локального запуска используй `npm run start:backend`: он сам поднимет `postgres` и `redis` в Docker и подставит локальный `127.0.0.1`-URL.
 
 ## Самый короткий путь запустить прямо сейчас
 
-Если не хочешь разбираться с Docker на этом этапе:
+Если не хочешь вручную собирать локальную среду:
 
 ```bash
 cp .env.example .env
 ```
 
-Потом в `.env` поставь:
-
-```dotenv
-DATABASE_URL=sqlite+pysqlite:///./metrolog.db
-VITE_API_PROXY_TARGET=http://localhost:8000
-```
-
-И дальше:
+Потом просто:
 
 ```bash
-uv sync --directory backend --dev
-npm --prefix frontend ci
-npm run dev:backend
-npm run dev:frontend
+npm run setup:local
+npm run start:backend
+npm run start:frontend
 ```

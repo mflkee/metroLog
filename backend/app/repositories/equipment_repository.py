@@ -287,6 +287,70 @@ class RepairRepository:
         statement = select(Repair).where(Repair.id == repair_id)
         return self.session.scalar(statement)
 
+    def list_queue_items(
+        self,
+        *,
+        lifecycle_status: str,
+        query: str | None = None,
+    ) -> list[tuple[Repair, Equipment, SIVerification | None, bool]]:
+        has_active_verification = exists(
+            select(Verification.id).where(
+                Verification.equipment_id == Repair.equipment_id,
+                Verification.closed_at.is_(None),
+            )
+        )
+        statement = (
+            select(
+                Repair,
+                Equipment,
+                SIVerification,
+                has_active_verification.label("has_active_verification"),
+            )
+            .join(Equipment, Equipment.id == Repair.equipment_id)
+            .outerjoin(SIVerification, SIVerification.equipment_id == Equipment.id)
+        )
+
+        if lifecycle_status == "active":
+            statement = statement.where(Repair.closed_at.is_(None)).order_by(
+                Repair.sent_to_repair_at.desc(),
+                Repair.created_at.desc(),
+                Repair.id.desc(),
+            )
+        else:
+            statement = statement.where(Repair.closed_at.is_not(None)).order_by(
+                Repair.closed_at.desc(),
+                Repair.updated_at.desc(),
+                Repair.id.desc(),
+            )
+
+        if query:
+            pattern = f"%{query}%"
+            statement = statement.where(
+                or_(
+                    Equipment.object_name.ilike(pattern),
+                    Equipment.name.ilike(pattern),
+                    Equipment.modification.ilike(pattern),
+                    Equipment.serial_number.ilike(pattern),
+                    Equipment.current_location_manual.ilike(pattern),
+                    SIVerification.result_docnum.ilike(pattern),
+                    SIVerification.mit_number.ilike(pattern),
+                    SIVerification.mi_number.ilike(pattern),
+                    Repair.route_city.ilike(pattern),
+                    Repair.route_destination.ilike(pattern),
+                )
+            )
+
+        rows = self.session.execute(statement).all()
+        return [
+            (
+                row[0],
+                row[1],
+                row[2],
+                bool(row[3]),
+            )
+            for row in rows
+        ]
+
     def list_distinct_route_cities(self, *, folder_id: int) -> list[str]:
         statement = (
             select(distinct(Repair.route_city))
@@ -332,6 +396,9 @@ class RepairMessageRepository:
         )
         return self.session.scalar(statement)
 
+    def delete(self, message: RepairMessage) -> None:
+        self.session.delete(message)
+
 
 class RepairMessageAttachmentRepository:
     def __init__(self, session: Session) -> None:
@@ -347,6 +414,9 @@ class RepairMessageAttachmentRepository:
             RepairMessageAttachment.id == attachment_id
         )
         return self.session.scalar(statement)
+
+    def delete(self, attachment: RepairMessageAttachment) -> None:
+        self.session.delete(attachment)
 
 
 class VerificationRepository:

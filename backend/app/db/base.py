@@ -28,4 +28,5 @@ from app.models.equipment import (  # noqa: E402,F401
     VerificationMessage,
     VerificationMessageAttachment,
 )
+from app.models.event import EventLog  # noqa: E402,F401
 from app.models.user import User  # noqa: E402,F401

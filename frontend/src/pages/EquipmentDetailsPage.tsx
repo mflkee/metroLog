@@ -51,6 +51,8 @@ import {
   uploadEquipmentAttachment,
   updateEquipment,
 } from "@/api/equipment";
+import { AutocompleteInput } from "@/components/AutocompleteInput";
+import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
@@ -58,6 +60,7 @@ import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { useAuthStore } from "@/store/auth";
 
 type EquipmentFormState = {
@@ -493,6 +496,56 @@ export function EquipmentDetailsPage() {
   const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
   const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data]);
   const folderSuggestions = folderSuggestionsQuery.data;
+  const objectNameSuggestions = useMemo(
+    () => Array.from(new Set(folderSuggestions?.objectNames ?? [])).sort(),
+    [folderSuggestions?.objectNames],
+  );
+  const currentLocationSuggestions = useMemo(
+    () => Array.from(new Set(folderSuggestions?.currentLocations ?? [])).sort(),
+    [folderSuggestions?.currentLocations],
+  );
+  const routeCitySuggestions = useMemo(
+    () => Array.from(new Set(folderSuggestions?.repairRouteCities ?? [])).sort(),
+    [folderSuggestions?.repairRouteCities],
+  );
+  const routeDestinationSuggestions = useMemo(
+    () => Array.from(new Set(folderSuggestions?.repairRouteDestinations ?? [])).sort(),
+    [folderSuggestions?.repairRouteDestinations],
+  );
+  const processTextSuggestions = useMemo(
+    () =>
+      sortAutocompleteSuggestions([
+        folders.find((folder) => folder.id === equipmentQuery.data?.folderId)?.name,
+        equipmentQuery.data?.objectName,
+        equipmentQuery.data?.name,
+        equipmentQuery.data?.modification,
+        equipmentQuery.data?.serialNumber,
+        equipmentQuery.data?.currentLocationManual,
+        equipmentQuery.data?.siVerification?.resultDocnum,
+        equipmentQuery.data?.siVerification?.mitNumber,
+        equipmentQuery.data?.siVerification?.miNumber,
+        ...objectNameSuggestions,
+        ...currentLocationSuggestions,
+        ...routeCitySuggestions,
+        ...routeDestinationSuggestions,
+      ]),
+    [
+      currentLocationSuggestions,
+      equipmentQuery.data?.currentLocationManual,
+      equipmentQuery.data?.folderId,
+      equipmentQuery.data?.modification,
+      equipmentQuery.data?.name,
+      equipmentQuery.data?.objectName,
+      equipmentQuery.data?.serialNumber,
+      equipmentQuery.data?.siVerification?.miNumber,
+      equipmentQuery.data?.siVerification?.mitNumber,
+      equipmentQuery.data?.siVerification?.resultDocnum,
+      folders,
+      objectNameSuggestions,
+      routeCitySuggestions,
+      routeDestinationSuggestions,
+    ],
+  );
   const selectedFolderGroups = useMemo(
     () => groups.filter((group) => group.folderId === Number(form?.folderId ?? equipmentQuery.data?.folderId ?? 0)),
     [equipmentQuery.data?.folderId, form?.folderId, groups],
@@ -1089,14 +1142,15 @@ export function EquipmentDetailsPage() {
 
                     {canManage && repairDialogExpanded ? (
                       <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateRepairMessage(event)}>
-                        <textarea
+                        <AutocompleteTextarea
                           ref={repairMessageInputRef}
                           className="form-input min-h-[56px] resize-none overflow-hidden py-3"
                           maxLength={4000}
                           placeholder="Новое сообщение по ремонту"
                           rows={2}
+                          suggestions={processTextSuggestions}
                           value={repairMessageDraft}
-                          onChange={(event) => setRepairMessageDraft(event.target.value)}
+                          onChange={setRepairMessageDraft}
                           onKeyDown={handleTextareaSubmitShortcut}
                           onInput={(event) => resizeCommentInput(event.currentTarget)}
                         />
@@ -1326,14 +1380,15 @@ export function EquipmentDetailsPage() {
 
                     {canManage && verificationDialogExpanded ? (
                       <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateVerificationMessage(event)}>
-                        <textarea
+                        <AutocompleteTextarea
                           ref={verificationMessageInputRef}
                           className="form-input min-h-[56px] resize-none overflow-hidden py-3"
                           maxLength={4000}
                           placeholder="Новое сообщение по поверке"
                           rows={2}
+                          suggestions={processTextSuggestions}
                           value={verificationMessageDraft}
-                          onChange={(event) => setVerificationMessageDraft(event.target.value)}
+                          onChange={setVerificationMessageDraft}
                           onKeyDown={handleTextareaSubmitShortcut}
                           onInput={(event) => resizeCommentInput(event.currentTarget)}
                         />
@@ -1714,14 +1769,15 @@ export function EquipmentDetailsPage() {
                 {commentsExpanded ? (
                   <>
                     <form className="mt-4 space-y-2 border-t border-line pt-4" onSubmit={(event) => void handleCreateComment(event)}>
-                      <textarea
+                      <AutocompleteTextarea
                         ref={commentInputRef}
                         className="form-input min-h-[56px] overflow-hidden py-3 resize-none"
                         maxLength={4000}
                         placeholder="Новая заметка по прибору"
                         rows={2}
+                        suggestions={processTextSuggestions}
                         value={commentDraft}
-                        onChange={(event) => setCommentDraft(event.target.value)}
+                        onChange={setCommentDraft}
                         onKeyDown={handleTextareaSubmitShortcut}
                         onInput={(event) =>
                           resizeCommentInput(event.currentTarget)
@@ -1797,13 +1853,14 @@ export function EquipmentDetailsPage() {
                           </div>
                           {editingCommentId === comment.id ? (
                             <form className="mt-2 space-y-2" onSubmit={(event) => void handleUpdateComment(event, comment.id)}>
-                              <textarea
+                              <AutocompleteTextarea
                                 ref={editCommentInputRef}
                                 className="form-input min-h-[56px] overflow-hidden py-3 resize-none"
                                 maxLength={4000}
                                 rows={2}
+                                suggestions={processTextSuggestions}
                                 value={commentEditDraft}
-                                onChange={(event) => setCommentEditDraft(event.target.value)}
+                                onChange={setCommentEditDraft}
                                 onKeyDown={handleTextareaSubmitShortcut}
                                 onInput={(event) => resizeCommentInput(event.currentTarget)}
                               />
@@ -1983,7 +2040,11 @@ export function EquipmentDetailsPage() {
                       {latestArchivedVerification ? (
                         <Link
                           className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
-                          to="/verification/si?tab=archived"
+                          to={`/verification/si?tab=archived${
+                            latestArchivedVerification.batchKey
+                              ? `&batchKey=${encodeURIComponent(latestArchivedVerification.batchKey)}`
+                              : `&verificationId=${latestArchivedVerification.verificationId}`
+                          }`}
                         >
                           <div className="min-w-0">
                             <p className="font-medium text-ink">Архив поверки</p>
@@ -2024,7 +2085,11 @@ export function EquipmentDetailsPage() {
                   {latestArchivedRepair ? (
                     <Link
                       className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
-                      to="/repairs?tab=archived"
+                      to={`/repairs?tab=archived${
+                        latestArchivedRepair.batchKey
+                          ? `&batchKey=${encodeURIComponent(latestArchivedRepair.batchKey)}`
+                          : `&repairId=${latestArchivedRepair.repairId}`
+                      }`}
                     >
                       <div className="min-w-0">
                         <p className="font-medium text-ink">Архив ремонта</p>
@@ -2072,40 +2137,26 @@ export function EquipmentDetailsPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block text-sm text-steel">
                 Откуда
-                <input
+                <AutocompleteInput
                   className="form-input"
-                  list={`repair-route-cities-${parsedEquipmentId}`}
-                  type="text"
+                  suggestions={routeCitySuggestions}
                   value={repairForm.routeCity}
-                  onChange={(event) =>
-                    setRepairForm((current) => ({ ...current, routeCity: event.target.value }))
-                  }
+                  onChange={(value) => setRepairForm((current) => ({ ...current, routeCity: value }))}
                 />
-                <datalist id={`repair-route-cities-${parsedEquipmentId}`}>
-                  {(folderSuggestions?.repairRouteCities ?? []).map((value) => (
-                    <option key={value} value={value} />
-                  ))}
-                </datalist>
               </label>
               <label className="block text-sm text-steel">
                 Куда
-                <input
+                <AutocompleteInput
                   className="form-input"
-                  list={`repair-route-destinations-${parsedEquipmentId}`}
-                  type="text"
+                  suggestions={routeDestinationSuggestions}
                   value={repairForm.routeDestination}
-                  onChange={(event) =>
+                  onChange={(value) =>
                     setRepairForm((current) => ({
                       ...current,
-                      routeDestination: event.target.value,
+                      routeDestination: value,
                     }))
                   }
                 />
-                <datalist id={`repair-route-destinations-${parsedEquipmentId}`}>
-                  {(folderSuggestions?.repairRouteDestinations ?? []).map((value) => (
-                    <option key={value} value={value} />
-                  ))}
-                </datalist>
               </label>
             </div>
             <label className="block text-sm text-steel">
@@ -2120,14 +2171,15 @@ export function EquipmentDetailsPage() {
             </label>
             <label className="block text-sm text-steel">
               Первое сообщение
-              <textarea
+              <AutocompleteTextarea
                 className="form-input min-h-[92px] resize-none py-3"
                 placeholder="Прибор упакован и отправлен в ремонт"
+                suggestions={processTextSuggestions}
                 value={repairForm.initialMessageText}
-                onChange={(event) =>
+                onChange={(value) =>
                   setRepairForm((current) => ({
                     ...current,
-                    initialMessageText: event.target.value,
+                    initialMessageText: value,
                   }))
                 }
                 onKeyDown={handleTextareaSubmitShortcut}
@@ -2209,40 +2261,28 @@ export function EquipmentDetailsPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block text-sm text-steel">
                 Откуда
-                <input
+                <AutocompleteInput
                   className="form-input"
-                  list={`verification-route-cities-${parsedEquipmentId}`}
-                  type="text"
+                  suggestions={routeCitySuggestions}
                   value={verificationForm.routeCity}
-                  onChange={(event) =>
-                    setVerificationForm((current) => ({ ...current, routeCity: event.target.value }))
+                  onChange={(value) =>
+                    setVerificationForm((current) => ({ ...current, routeCity: value }))
                   }
                 />
-                <datalist id={`verification-route-cities-${parsedEquipmentId}`}>
-                  {(folderSuggestions?.repairRouteCities ?? []).map((value) => (
-                    <option key={value} value={value} />
-                  ))}
-                </datalist>
               </label>
               <label className="block text-sm text-steel">
                 Куда
-                <input
+                <AutocompleteInput
                   className="form-input"
-                  list={`verification-route-destinations-${parsedEquipmentId}`}
-                  type="text"
+                  suggestions={routeDestinationSuggestions}
                   value={verificationForm.routeDestination}
-                  onChange={(event) =>
+                  onChange={(value) =>
                     setVerificationForm((current) => ({
                       ...current,
-                      routeDestination: event.target.value,
+                      routeDestination: value,
                     }))
                   }
                 />
-                <datalist id={`verification-route-destinations-${parsedEquipmentId}`}>
-                  {(folderSuggestions?.repairRouteDestinations ?? []).map((value) => (
-                    <option key={value} value={value} />
-                  ))}
-                </datalist>
               </label>
             </div>
             <label className="block text-sm text-steel">
@@ -2260,14 +2300,15 @@ export function EquipmentDetailsPage() {
             </label>
             <label className="block text-sm text-steel">
               Первое сообщение
-              <textarea
+              <AutocompleteTextarea
                 className="form-input min-h-[92px] resize-none py-3"
                 placeholder="Прибор упакован и отправлен в поверку"
+                suggestions={processTextSuggestions}
                 value={verificationForm.initialMessageText}
-                onChange={(event) =>
+                onChange={(value) =>
                   setVerificationForm((current) => ({
                     ...current,
-                    initialMessageText: event.target.value,
+                    initialMessageText: value,
                   }))
                 }
                 onKeyDown={handleTextareaSubmitShortcut}
@@ -2427,22 +2468,16 @@ export function EquipmentDetailsPage() {
               </label>
               <label className="block text-sm text-steel">
                 Объект
-                <input
+                <AutocompleteInput
                   className="form-input"
-                  list={`object-names-${parsedEquipmentId}`}
-                  type="text"
+                  suggestions={objectNameSuggestions}
                   value={form.objectName}
-                  onChange={(event) =>
+                  onChange={(value) =>
                     setForm((current) =>
-                      current ? { ...current, objectName: event.target.value } : current,
+                      current ? { ...current, objectName: value } : current,
                     )
                   }
                 />
-                <datalist id={`object-names-${parsedEquipmentId}`}>
-                  {(folderSuggestions?.objectNames ?? []).map((value) => (
-                    <option key={value} value={value} />
-                  ))}
-                </datalist>
               </label>
               <label className="block text-sm text-steel">
                 Наименование
@@ -2499,22 +2534,16 @@ export function EquipmentDetailsPage() {
             </div>
             <label className="block text-sm text-steel">
               Текущее местоположение
-              <input
+              <AutocompleteInput
                 className="form-input"
-                list={`current-locations-${parsedEquipmentId}`}
-                type="text"
+                suggestions={currentLocationSuggestions}
                 value={form.currentLocationManual}
-                onChange={(event) =>
+                onChange={(value) =>
                   setForm((current) =>
-                    current ? { ...current, currentLocationManual: event.target.value } : current,
+                    current ? { ...current, currentLocationManual: value } : current,
                   )
                 }
               />
-              <datalist id={`current-locations-${parsedEquipmentId}`}>
-                {(folderSuggestions?.currentLocations ?? []).map((value) => (
-                  <option key={value} value={value} />
-                ))}
-              </datalist>
             </label>
             {updateEquipmentMutation.isError ? (
               <p className="text-sm text-[#b04c43]">

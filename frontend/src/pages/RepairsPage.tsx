@@ -32,6 +32,8 @@ import {
   type RepairMessageAttachment,
   type RepairQueueItem,
 } from "@/api/equipment";
+import { AutocompleteInput } from "@/components/AutocompleteInput";
+import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
@@ -45,6 +47,7 @@ import {
   type ProcessTimelineStripSegment,
 } from "@/components/ProcessTimelineStrip";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { validateRepairMilestoneOrder } from "@/lib/milestoneValidation";
 import { useAuthStore } from "@/store/auth";
 
@@ -90,6 +93,9 @@ export function RepairsPage() {
   const [exportError, setExportError] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const tab: RepairTab = searchParams.get("tab") === "archived" ? "archived" : "active";
+  const targetRepairId = Number(searchParams.get("repairId") ?? "");
+  const targetEquipmentId = Number(searchParams.get("equipmentId") ?? "");
+  const targetBatchKey = searchParams.get("batchKey");
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
 
   const repairsQuery = useQuery({
@@ -129,6 +135,11 @@ export function RepairsPage() {
     }
     return Array.from(groups.values());
   }, [repairsQuery.data]);
+
+  const searchSuggestions = useMemo(
+    () => buildRepairTextSuggestions(repairsQuery.data ?? []),
+    [repairsQuery.data],
+  );
 
   const exportRepairMutation = useMutation({
     mutationFn: () =>
@@ -191,12 +202,12 @@ export function RepairsPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
             </svg>
-            <input
+            <AutocompleteInput
               className="w-full bg-transparent text-ink outline-none placeholder:text-steel"
-              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Поиск по прибору, месту, свидетельству, маршруту"
-              type="search"
+              suggestions={searchSuggestions}
               value={searchQuery}
+              onChange={setSearchQuery}
             />
           </label>
           <IconActionButton
@@ -252,6 +263,7 @@ export function RepairsPage() {
               <RepairBatchCard
                 batch={group}
                 canManage={canManage}
+                isTarget={Boolean(targetBatchKey) && group.key === targetBatchKey}
                 key={`${tab}-${group.key}`}
                 lifecycleStatus={tab}
                 token={token ?? ""}
@@ -259,6 +271,17 @@ export function RepairsPage() {
             ) : (
               <RepairQueueRow
                 canManage={canManage}
+                isTarget={
+                  !targetBatchKey
+                  && (
+                    (Number.isInteger(targetRepairId)
+                      && group.items[0].repairId === targetRepairId)
+                    || (
+                      Number.isInteger(targetEquipmentId)
+                      && group.items[0].equipmentId === targetEquipmentId
+                    )
+                  )
+                }
                 item={group.items[0]}
                 key={`${tab}-${group.items[0].repairId}`}
                 lifecycleStatus={tab}
@@ -277,11 +300,13 @@ function RepairQueueRow({
   token,
   canManage,
   lifecycleStatus,
+  isTarget,
 }: {
   item: RepairQueueItem;
   token: string;
   canManage: boolean;
   lifecycleStatus: RepairTab;
+  isTarget: boolean;
 }) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -298,7 +323,9 @@ function RepairQueueRow({
   const isArchived = lifecycleStatus === "archived";
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
   const repairTimeline = buildRepairTimeline(item, isArchived);
+  const textSuggestions = useMemo(() => buildRepairTextSuggestions([item]), [item]);
 
   useEffect(() => {
     setForm(buildRepairFormState(item));
@@ -310,6 +337,17 @@ function RepairQueueRow({
     }
     resizeTextarea(messageInputRef.current);
   }, [messageDraft]);
+
+  useEffect(() => {
+    if (!isTarget) {
+      return;
+    }
+    setExpanded(true);
+    window.setTimeout(() => {
+      articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      articleRef.current?.focus({ preventScroll: true });
+    }, 60);
+  }, [isTarget]);
 
   const messagesQuery = useQuery({
     queryKey: ["repair-messages", item.equipmentId],
@@ -477,7 +515,11 @@ function RepairQueueRow({
   const stageRows = buildRepairStageRows(item, form);
 
   return (
-    <article className="tone-parent rounded-3xl border border-line shadow-panel">
+    <article
+      className="tone-parent rounded-3xl border border-line shadow-panel"
+      ref={articleRef}
+      tabIndex={-1}
+    >
       <button
         className="flex w-full flex-col gap-4 px-4 py-4 text-left md:px-5"
         onClick={() => setExpanded((current) => !current)}
@@ -791,15 +833,16 @@ function RepairQueueRow({
 
               {canManage && dialogExpanded ? (
                 <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateMessage(event)}>
-                  <textarea
+                  <AutocompleteTextarea
                     className="form-input min-h-[56px] resize-none overflow-hidden py-3"
                     maxLength={4000}
-                    onChange={(event) => setMessageDraft(event.target.value)}
+                    onChange={setMessageDraft}
                     onInput={(event) => resizeTextarea(event.currentTarget)}
                     onKeyDown={handleTextareaSubmitShortcut}
                     placeholder="Новое сообщение по ремонту"
                     ref={messageInputRef}
                     rows={2}
+                    suggestions={textSuggestions}
                     value={messageDraft}
                   />
                   <input className="sr-only" multiple onChange={handleFilesPick} ref={filesInputRef} type="file" />
@@ -878,11 +921,13 @@ function RepairBatchCard({
   token,
   canManage,
   lifecycleStatus,
+  isTarget,
 }: {
   batch: RepairGroup;
   token: string;
   canManage: boolean;
   lifecycleStatus: RepairTab;
+  isTarget: boolean;
 }) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -906,7 +951,9 @@ function RepairBatchCard({
   );
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
   const repairTimeline = buildRepairTimeline(anchor, isArchived);
+  const textSuggestions = useMemo(() => buildRepairTextSuggestions(batch.items), [batch.items]);
 
   useEffect(() => {
     setForm(buildRepairFormState(anchor));
@@ -918,6 +965,17 @@ function RepairBatchCard({
     }
     resizeTextarea(messageInputRef.current);
   }, [messageDraft]);
+
+  useEffect(() => {
+    if (!isTarget) {
+      return;
+    }
+    setExpanded(true);
+    window.setTimeout(() => {
+      articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      articleRef.current?.focus({ preventScroll: true });
+    }, 60);
+  }, [isTarget]);
 
   const messagesQuery = useQuery({
     queryKey: ["repair-batch-messages", anchor.batchKey, anchor.equipmentId],
@@ -947,6 +1005,13 @@ function RepairBatchCard({
         meta: item.currentLocationManual ? `Местонахождение: ${item.currentLocationManual}` : null,
       }));
   }, [batch.items, candidateEquipmentQuery.data]);
+  const candidateSearchSuggestions = useMemo(
+    () =>
+      sortAutocompleteSuggestions(
+        candidateItems.flatMap((item) => [item.title, item.subtitle, item.meta]),
+      ),
+    [candidateItems],
+  );
 
   const updateMilestonesMutation = useMutation({
     mutationFn: () =>
@@ -1185,7 +1250,11 @@ function RepairBatchCard({
 
   if (isArchived) {
     return (
-      <article className="tone-parent rounded-3xl border border-line shadow-panel">
+      <article
+        className="tone-parent rounded-3xl border border-line shadow-panel"
+        ref={articleRef}
+        tabIndex={-1}
+      >
         <button
           className="flex w-full flex-col gap-4 px-4 py-4 text-left md:px-5"
           onClick={() => setExpanded((current) => !current)}
@@ -1623,15 +1692,16 @@ function RepairBatchCard({
 
             {canManage && dialogExpanded ? (
               <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateMessage(event)}>
-                <textarea
+                <AutocompleteTextarea
                   className="form-input min-h-[56px] resize-none overflow-hidden py-3"
                   maxLength={4000}
-                  onChange={(event) => setMessageDraft(event.target.value)}
+                  onChange={setMessageDraft}
                   onInput={(event) => resizeTextarea(event.currentTarget)}
                   onKeyDown={handleTextareaSubmitShortcut}
                   placeholder="Новое сообщение по ремонту"
                   ref={messageInputRef}
                   rows={2}
+                  suggestions={textSuggestions}
                   value={messageDraft}
                 />
                 <input className="sr-only" multiple onChange={handleFilesPick} ref={filesInputRef} type="file" />
@@ -1719,6 +1789,7 @@ function RepairBatchCard({
             onSearchChange={setItemsSearchQuery}
             open={itemsModalOpen}
             pendingEquipmentId={pendingMembershipEquipmentId}
+            searchSuggestions={candidateSearchSuggestions}
             searchValue={itemsSearchQuery}
             title="Добавить прибор в группу ремонта"
           />
@@ -2377,6 +2448,22 @@ function buildCompletedTimelineSegments({
     });
   }
   return segments;
+}
+
+function buildRepairTextSuggestions(items: RepairQueueItem[]): string[] {
+  return sortAutocompleteSuggestions(
+    items.flatMap((item) => [
+      item.batchName,
+      item.objectName,
+      item.equipmentName,
+      item.modification,
+      item.serialNumber,
+      item.currentLocationManual,
+      item.routeCity,
+      item.routeDestination,
+      item.resultDocnum,
+    ]),
+  );
 }
 
 function parseIsoDate(value: string | null | undefined): Date | null {

@@ -23,6 +23,7 @@ class EquipmentFolderSuggestionsRead(BaseModel):
     current_locations: list[str]
     repair_route_cities: list[str]
     repair_route_destinations: list[str]
+    process_batch_names: list[str]
 
 
 class EquipmentFolderCreateRequest(BaseModel):

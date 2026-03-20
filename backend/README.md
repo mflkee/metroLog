@@ -2,6 +2,12 @@
 
 FastAPI backend for metroLog.
 
+Current backend scope already includes:
+- equipment registry and equipment card APIs,
+- repair and verification process APIs with archive ZIP export,
+- Arshin-backed SI onboarding,
+- application-level event journal under `/api/v1/events`.
+
 ## Quick start
 
 Runtime expects PostgreSQL and Redis. For the recommended local dev flow,

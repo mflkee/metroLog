@@ -438,6 +438,19 @@ class RepairRepository:
         )
         return [value for value in self.session.scalars(statement) if value]
 
+    def list_distinct_batch_names(self, *, folder_id: int) -> list[str]:
+        statement = (
+            select(distinct(Repair.batch_name))
+            .join(Equipment, Equipment.id == Repair.equipment_id)
+            .where(
+                Equipment.folder_id == folder_id,
+                Repair.batch_name.is_not(None),
+                Repair.batch_name != "",
+            )
+            .order_by(Repair.batch_name.asc())
+        )
+        return [value for value in self.session.scalars(statement) if value]
+
 
 class RepairMessageRepository:
     def __init__(self, session: Session) -> None:
@@ -621,6 +634,19 @@ class VerificationRepository:
             )
             for row in rows
         ]
+
+    def list_distinct_batch_names(self, *, folder_id: int) -> list[str]:
+        statement = (
+            select(distinct(Verification.batch_name))
+            .join(Equipment, Equipment.id == Verification.equipment_id)
+            .where(
+                Equipment.folder_id == folder_id,
+                Verification.batch_name.is_not(None),
+                Verification.batch_name != "",
+            )
+            .order_by(Verification.batch_name.asc())
+        )
+        return [value for value in self.session.scalars(statement) if value]
 
 
 class VerificationMessageRepository:

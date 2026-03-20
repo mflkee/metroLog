@@ -254,6 +254,49 @@ body {
   padding: 0 12px;
 }
 
+.autocomplete-input {
+  position: relative;
+  width: 100%;
+}
+
+.autocomplete-input__menu {
+  position: absolute;
+  z-index: 220;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  overflow: hidden auto;
+  max-height: 228px;
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--tone-child-bg) 96%, transparent);
+  box-shadow: var(--panel-shadow-value);
+  padding: 6px;
+}
+
+.autocomplete-input__option {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-primary);
+  padding: 10px 12px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
+}
+
+.autocomplete-input__option:hover,
+.autocomplete-input__option:focus-visible,
+.autocomplete-input__option--active {
+  background: color-mix(in srgb, var(--tone-grandchild-bg) 72%, var(--accent-soft));
+  color: var(--text-primary);
+}
+
 .date-input {
   display: flex;
   width: 100%;

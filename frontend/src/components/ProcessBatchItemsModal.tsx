@@ -1,3 +1,4 @@
+import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { Modal } from "@/components/Modal";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
@@ -14,6 +15,7 @@ type ProcessBatchItemsModalProps = {
   title: string;
   description: string;
   searchValue: string;
+  searchSuggestions?: string[];
   onSearchChange: (value: string) => void;
   onClose: () => void;
   items: ProcessBatchItemCandidate[];
@@ -29,6 +31,7 @@ export function ProcessBatchItemsModal({
   title,
   description,
   searchValue,
+  searchSuggestions = [],
   onSearchChange,
   onClose,
   items,
@@ -63,12 +66,12 @@ export function ProcessBatchItemsModal({
               d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z"
             />
           </svg>
-          <input
+          <AutocompleteInput
             className="w-full bg-transparent text-ink outline-none placeholder:text-steel"
-            onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Поиск по прибору, объекту, серийному номеру"
-            type="search"
+            suggestions={searchSuggestions}
             value={searchValue}
+            onChange={onSearchChange}
           />
         </label>
 

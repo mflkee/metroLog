@@ -30,6 +30,7 @@ from app.models.equipment import (
     VerificationMessage,
     VerificationMessageAttachment,
 )
+from app.models.event import EventCategory, EventLog
 from app.models.user import User, UserRole
 from app.repositories.equipment_repository import (
     EquipmentAttachmentRepository,
@@ -45,6 +46,7 @@ from app.repositories.equipment_repository import (
     VerificationMessageRepository,
     VerificationRepository,
 )
+from app.repositories.event_repository import EventLogRepository
 from app.schemas.arshin import ArshinSearchResultRead, ArshinVriDetailRead
 from app.schemas.equipment import (
     EquipmentCommentCreateRequest,
@@ -87,11 +89,17 @@ class EquipmentService:
         self.verification_messages = VerificationMessageRepository(session)
         self.verification_message_attachments = VerificationMessageAttachmentRepository(session)
         self.si_verifications = SIVerificationRepository(session)
+        self.events = EventLogRepository(session)
 
     def list_folders(self) -> list[EquipmentFolder]:
         return self.folders.list_all()
 
-    def create_folder(self, payload: EquipmentFolderCreateRequest) -> EquipmentFolder:
+    def create_folder(
+        self,
+        payload: EquipmentFolderCreateRequest,
+        *,
+        current_user: User,
+    ) -> EquipmentFolder:
         name = _normalize_required_text(payload.name, field_label="Folder name")
         description = _normalize_optional_text(payload.description)
         if self.folders.get_by_name(name) is not None:
@@ -106,6 +114,19 @@ class EquipmentService:
             sort_order=payload.sort_order,
         )
         self.folders.add(folder)
+        self._record_event(
+            category=EventCategory.EQUIPMENT,
+            action="folder_created",
+            user=current_user,
+            title=f"Создана папка «{folder.name}»",
+            description=_build_nonempty_description(
+                [
+                    _build_named_detail("Описание", folder.description),
+                ]
+            ),
+            folder_id=folder.id,
+            folder_name=folder.name,
+        )
         self.session.commit()
         self.session.refresh(folder)
         return folder
@@ -115,8 +136,10 @@ class EquipmentService:
         *,
         folder_id: int,
         payload: EquipmentFolderUpdateRequest,
+        current_user: User,
     ) -> EquipmentFolder:
         folder = self._get_folder(folder_id)
+        changed_fields: list[str] = []
 
         if "name" in payload.model_fields_set:
             name = _normalize_required_text(payload.name, field_label="Folder name")
@@ -127,19 +150,41 @@ class EquipmentService:
                     detail="A folder with this name already exists.",
                 )
             folder.name = name
+            changed_fields.append("название")
 
         if "description" in payload.model_fields_set:
             folder.description = _normalize_optional_text(payload.description)
+            changed_fields.append("описание")
 
         if "sort_order" in payload.model_fields_set:
             folder.sort_order = payload.sort_order
+            changed_fields.append("порядок")
+
+        if changed_fields:
+            self._record_event(
+                category=EventCategory.EQUIPMENT,
+                action="folder_updated",
+                user=current_user,
+                title=f"Обновлена папка «{folder.name}»",
+                description="Изменено: " + ", ".join(changed_fields) + ".",
+                folder_id=folder.id,
+                folder_name=folder.name,
+            )
 
         self.session.commit()
         self.session.refresh(folder)
         return folder
 
-    def delete_folder(self, *, folder_id: int) -> None:
+    def delete_folder(self, *, folder_id: int, current_user: User) -> None:
         folder = self._get_folder(folder_id)
+        self._record_event(
+            category=EventCategory.EQUIPMENT,
+            action="folder_deleted",
+            user=current_user,
+            title=f"Удалена папка «{folder.name}»",
+            folder_id=folder.id,
+            folder_name=folder.name,
+        )
         self.equipment.delete_by_folder_id(folder_id=folder.id)
         self.folders.delete(folder)
         self.session.commit()
@@ -151,6 +196,12 @@ class EquipmentService:
 
     def get_folder_suggestions(self, *, folder_id: int) -> EquipmentFolderSuggestionsRead:
         self._get_folder(folder_id)
+        process_batch_names = sorted(
+            {
+                *self.repairs.list_distinct_batch_names(folder_id=folder_id),
+                *self.verifications.list_distinct_batch_names(folder_id=folder_id),
+            }
+        )
         return EquipmentFolderSuggestionsRead(
             object_names=self.equipment.list_distinct_object_names(folder_id=folder_id),
             current_locations=self.equipment.list_distinct_locations(folder_id=folder_id),
@@ -158,6 +209,7 @@ class EquipmentService:
             repair_route_destinations=self.repairs.list_distinct_route_destinations(
                 folder_id=folder_id
             ),
+            process_batch_names=process_batch_names,
         )
 
     def list_equipment(
@@ -278,7 +330,12 @@ class EquipmentService:
             )
         return equipment
 
-    def create_equipment(self, payload: EquipmentCreateRequest) -> Equipment:
+    def create_equipment(
+        self,
+        payload: EquipmentCreateRequest,
+        *,
+        current_user: User | None = None,
+    ) -> Equipment:
         folder = self._get_folder(payload.folder_id)
         group = self._get_group(payload.group_id) if payload.group_id is not None else None
         if group is not None and group.folder_id != folder.id:
@@ -322,6 +379,20 @@ class EquipmentService:
                     detail_payload_json=payload.si_verification.detail_payload_json,
                 )
             )
+        if current_user is not None:
+            self._record_equipment_event(
+                action="equipment_created",
+                user=current_user,
+                equipment=equipment,
+                title=f"Создан прибор «{equipment.name}»",
+                description=_build_nonempty_description(
+                    [
+                        _build_named_detail("Объект", equipment.object_name),
+                        _build_named_detail("Категория", equipment.equipment_type.value),
+                        _build_named_detail("Серийный номер", equipment.serial_number),
+                    ]
+                ),
+            )
         self.session.commit()
         self.session.refresh(equipment)
         return equipment
@@ -331,10 +402,12 @@ class EquipmentService:
         *,
         equipment_id: int,
         payload: EquipmentUpdateRequest,
+        current_user: User | None = None,
     ) -> Equipment:
         equipment = self.get_equipment(equipment_id=equipment_id)
         next_folder_id = equipment.folder_id
         next_group_id = equipment.group_id
+        changed_fields: list[str] = []
 
         if "folder_id" in payload.model_fields_set:
             if payload.folder_id is None:
@@ -367,12 +440,15 @@ class EquipmentService:
 
         equipment.folder_id = next_folder_id
         equipment.group_id = next_group_id
+        if {"folder_id", "group_id"} & payload.model_fields_set:
+            changed_fields.append("папка/группа")
 
         if "object_name" in payload.model_fields_set:
             equipment.object_name = _normalize_required_text(
                 payload.object_name,
                 field_label="Object name",
             )
+            changed_fields.append("объект")
 
         if "equipment_type" in payload.model_fields_set:
             if payload.equipment_type != equipment.equipment_type:
@@ -384,22 +460,37 @@ class EquipmentService:
 
         if "name" in payload.model_fields_set:
             equipment.name = _normalize_required_text(payload.name, field_label="Equipment name")
+            changed_fields.append("наименование")
 
         if "modification" in payload.model_fields_set:
             equipment.modification = _normalize_optional_text(payload.modification)
+            changed_fields.append("модификация")
 
         if "serial_number" in payload.model_fields_set:
             equipment.serial_number = _normalize_optional_text(payload.serial_number)
+            changed_fields.append("заводской номер")
 
         if "manufacture_year" in payload.model_fields_set:
             equipment.manufacture_year = _validate_manufacture_year(payload.manufacture_year)
+            changed_fields.append("год выпуска")
 
         if "status" in payload.model_fields_set:
             equipment.status = payload.status
+            changed_fields.append("статус")
 
         if "current_location_manual" in payload.model_fields_set:
             equipment.current_location_manual = _normalize_optional_text(
                 payload.current_location_manual
+            )
+            changed_fields.append("местонахождение")
+
+        if current_user is not None and changed_fields:
+            self._record_equipment_event(
+                action="equipment_updated",
+                user=current_user,
+                equipment=equipment,
+                title=f"Обновлен прибор «{equipment.name}»",
+                description="Изменено: " + ", ".join(changed_fields) + ".",
             )
 
         self.session.commit()
@@ -411,6 +502,7 @@ class EquipmentService:
         *,
         equipment_id: int,
         payload: EquipmentSIRefreshRequest,
+        current_user: User | None = None,
     ) -> Equipment:
         equipment = self.get_equipment(equipment_id=equipment_id)
         if equipment.equipment_type != EquipmentType.SI:
@@ -500,6 +592,23 @@ class EquipmentService:
         si_verification.raw_payload_json = si_payload.raw_payload_json
         si_verification.detail_payload_json = si_payload.detail_payload_json
 
+        if current_user is not None:
+            self._record_equipment_event(
+                action="si_refreshed",
+                user=current_user,
+                equipment=equipment,
+                title=f"Обновлены данные СИ «{equipment.name}» из Аршина",
+                description=_build_nonempty_description(
+                    [
+                        _build_named_detail("Свидетельство", si_verification.result_docnum),
+                        _build_named_detail(
+                            "Действительно до",
+                            self._format_sheet_date(si_verification.valid_date),
+                        ),
+                    ]
+                ),
+            )
+
         self.session.commit()
         self.session.refresh(equipment)
         return equipment
@@ -514,6 +623,7 @@ class EquipmentService:
         status_value: EquipmentStatus,
         current_location_manual: str | None,
         arshin_service: ArshinService | None = None,
+        current_user: User | None = None,
     ) -> EquipmentSIBulkImportResultRead:
         self._get_folder(folder_id)
 
@@ -571,7 +681,8 @@ class EquipmentService:
                         current_location_manual=current_location_manual,
                         result=matched_result,
                         detail=detail,
-                    )
+                    ),
+                    current_user=None,
                 )
                 result_rows.append(
                     EquipmentSIBulkImportRowRead(
@@ -595,13 +706,29 @@ class EquipmentService:
                     )
                 )
 
-        return EquipmentSIBulkImportResultRead(
+        result = EquipmentSIBulkImportResultRead(
             total_rows=len(rows),
             created_count=sum(1 for row in result_rows if row.status == "created"),
             skipped_count=sum(1 for row in result_rows if row.status == "skipped"),
             error_count=sum(1 for row in result_rows if row.status == "error"),
             rows=result_rows,
         )
+        if current_user is not None:
+            folder = self._get_folder(folder_id)
+            self._record_event(
+                category=EventCategory.EQUIPMENT,
+                action="si_imported",
+                user=current_user,
+                title=f"Выполнен импорт СИ в папку «{folder.name}»",
+                description=(
+                    f"Создано: {result.created_count}. "
+                    f"Пропущено: {result.skipped_count}. "
+                    f"Ошибок: {result.error_count}."
+                ),
+                folder_id=folder.id,
+                folder_name=folder.name,
+            )
+        return result
 
     def export_equipment_registry_xlsx(
         self,
@@ -851,6 +978,25 @@ class EquipmentService:
                 payload=RepairMessageCreateRequest(text=normalized_initial_text),
                 files=files or [],
             )
+        self._record_event(
+            category=EventCategory.REPAIR,
+            action="repair_created",
+            user=current_user,
+            equipment=equipment,
+            batch_key=repair.batch_key,
+            title=f"Прибор «{equipment.name}» отправлен в ремонт",
+            description=_build_nonempty_description(
+                [
+                    _build_named_detail("Откуда", repair.route_city),
+                    _build_named_detail("Куда", repair.route_destination),
+                    _build_named_detail(
+                        "Отправлено",
+                        self._format_sheet_date(repair.sent_to_repair_at),
+                    ),
+                    _build_named_detail("Группа", repair.batch_name),
+                ]
+            ),
+        )
         self.session.commit()
         self.session.refresh(repair)
         return repair
@@ -955,6 +1101,18 @@ class EquipmentService:
                 ),
                 files=[],
             )
+            self._record_event(
+                category=EventCategory.REPAIR,
+                action="repair_batch_items_added",
+                user=current_user,
+                title=(
+                    "В группу ремонта "
+                    f"«{anchor.batch_name or anchor.route_destination}» добавлены приборы"
+                ),
+                description=f"Добавлено приборов: {len(added_labels)}.",
+                equipment=anchor.equipment,
+                batch_key=anchor.batch_key,
+            )
 
         message_repair = next(
             (item for item in repairs if item.equipment_id not in remove_ids),
@@ -979,6 +1137,18 @@ class EquipmentService:
                     + "."
                 ),
                 files=[],
+            )
+            self._record_event(
+                category=EventCategory.REPAIR,
+                action="repair_batch_items_removed",
+                user=current_user,
+                title=(
+                    "Из группы ремонта "
+                    f"«{anchor.batch_name or anchor.route_destination}» выведены приборы"
+                ),
+                description=f"Удалено приборов: {len(removed_labels)}.",
+                equipment=message_repair.equipment,
+                batch_key=anchor.batch_key,
             )
 
         self.session.commit()
@@ -1088,6 +1258,21 @@ class EquipmentService:
                     ),
                     files=[],
                 )
+
+        changed_labels = _collect_changed_repair_milestone_labels(
+            payload=payload,
+            route_destination=repair.route_destination,
+        )
+        if changed_labels:
+            self._record_event(
+                category=EventCategory.REPAIR,
+                action="repair_milestones_updated",
+                user=current_user,
+                title=f"Обновлены этапы ремонта «{repair.equipment.name}»",
+                description="Изменено: " + ", ".join(changed_labels) + ".",
+                equipment=repair.equipment,
+                batch_key=repair.batch_key,
+            )
 
         self.session.commit()
         self.session.refresh(repair)
@@ -1211,6 +1396,24 @@ class EquipmentService:
                     files=[],
                 )
 
+        changed_labels = _collect_changed_repair_milestone_labels(
+            payload=payload,
+            route_destination=anchor.route_destination,
+        )
+        if changed_labels:
+            self._record_event(
+                category=EventCategory.REPAIR,
+                action="repair_batch_milestones_updated",
+                user=current_user,
+                title=(
+                    "Обновлены этапы группы ремонта "
+                    f"«{anchor.batch_name or anchor.route_destination}»"
+                ),
+                description="Изменено: " + ", ".join(changed_labels) + ".",
+                equipment=anchor.equipment,
+                batch_key=anchor.batch_key,
+            )
+
         self.session.commit()
         for repair in repairs:
             self.session.refresh(repair)
@@ -1220,6 +1423,7 @@ class EquipmentService:
         self,
         *,
         equipment_id: int,
+        current_user: User,
     ) -> Repair:
         repair = self._get_active_repair(equipment_id=equipment_id)
         if repair.paid_at is None:
@@ -1229,6 +1433,19 @@ class EquipmentService:
             )
 
         repair.closed_at = date.today()
+        self._record_event(
+            category=EventCategory.REPAIR,
+            action="repair_closed",
+            user=current_user,
+            title=f"Ремонт «{repair.equipment.name}» завершен",
+            description=_build_nonempty_description(
+                [
+                    _build_named_detail("Закрыт", self._format_sheet_date(repair.closed_at)),
+                ]
+            ),
+            equipment=repair.equipment,
+            batch_key=repair.batch_key,
+        )
         self._sync_equipment_status(equipment=repair.equipment)
         self.session.commit()
         self.session.refresh(repair)
@@ -1238,6 +1455,7 @@ class EquipmentService:
         self,
         *,
         batch_key: str,
+        current_user: User,
     ) -> list[Repair]:
         normalized_batch_key = _normalize_required_text(
             batch_key,
@@ -1258,6 +1476,18 @@ class EquipmentService:
         closed_at = date.today()
         for repair in repairs:
             repair.closed_at = closed_at
+        self._record_event(
+            category=EventCategory.REPAIR,
+            action="repair_batch_closed",
+            user=current_user,
+            title=(
+                "Группа ремонта "
+                f"«{repairs[0].batch_name or repairs[0].route_destination}» завершена"
+            ),
+            description=f"Закрыто приборов: {len(repairs)}.",
+            equipment=repairs[0].equipment,
+            batch_key=repairs[0].batch_key,
+        )
         for repair in repairs:
             self._sync_equipment_status(equipment=repair.equipment)
 
@@ -1316,6 +1546,25 @@ class EquipmentService:
                 payload=VerificationMessageCreateRequest(text=normalized_initial_text),
                 files=files or [],
             )
+        self._record_event(
+            category=EventCategory.VERIFICATION,
+            action="verification_created",
+            user=current_user,
+            equipment=equipment,
+            batch_key=verification.batch_key,
+            title=f"Прибор «{equipment.name}» отправлен в поверку",
+            description=_build_nonempty_description(
+                [
+                    _build_named_detail("Откуда", verification.route_city),
+                    _build_named_detail("Куда", verification.route_destination),
+                    _build_named_detail(
+                        "Отправлено",
+                        self._format_sheet_date(verification.sent_to_verification_at),
+                    ),
+                    _build_named_detail("Группа", verification.batch_name),
+                ]
+            ),
+        )
         self.session.commit()
         self.session.refresh(verification)
         return verification
@@ -1420,6 +1669,18 @@ class EquipmentService:
                 ),
                 files=[],
             )
+            self._record_event(
+                category=EventCategory.VERIFICATION,
+                action="verification_batch_items_added",
+                user=current_user,
+                title=(
+                    "В группу поверки "
+                    f"«{anchor.batch_name or anchor.route_destination}» добавлены приборы"
+                ),
+                description=f"Добавлено СИ: {len(added_labels)}.",
+                equipment=anchor.equipment,
+                batch_key=anchor.batch_key,
+            )
 
         message_verification = next(
             (item for item in verifications if item.equipment_id not in remove_ids),
@@ -1445,6 +1706,18 @@ class EquipmentService:
                 ),
                 files=[],
             )
+            self._record_event(
+                category=EventCategory.VERIFICATION,
+                action="verification_batch_items_removed",
+                user=current_user,
+                title=(
+                    "Из группы поверки "
+                    f"«{anchor.batch_name or anchor.route_destination}» выведены приборы"
+                ),
+                description=f"Удалено СИ: {len(removed_labels)}.",
+                equipment=message_verification.equipment,
+                batch_key=anchor.batch_key,
+            )
 
         self.session.commit()
         updated_verifications = self.verifications.list_active_by_batch_key(
@@ -1458,9 +1731,23 @@ class EquipmentService:
         self,
         *,
         equipment_id: int,
+        current_user: User,
     ) -> Verification:
         verification = self._get_active_verification(equipment_id=equipment_id)
         verification.closed_at = date.today()
+        self._record_event(
+            category=EventCategory.VERIFICATION,
+            action="verification_closed",
+            user=current_user,
+            title=f"Поверка «{verification.equipment.name}» завершена",
+            description=_build_nonempty_description(
+                [
+                    _build_named_detail("Закрыта", self._format_sheet_date(verification.closed_at)),
+                ]
+            ),
+            equipment=verification.equipment,
+            batch_key=verification.batch_key,
+        )
         self._sync_equipment_status(equipment=verification.equipment)
         self.session.commit()
         self.session.refresh(verification)
@@ -1470,6 +1757,7 @@ class EquipmentService:
         self,
         *,
         batch_key: str,
+        current_user: User,
     ) -> list[Verification]:
         normalized_batch_key = _normalize_required_text(
             batch_key,
@@ -1485,6 +1773,18 @@ class EquipmentService:
         closed_at = date.today()
         for verification in verifications:
             verification.closed_at = closed_at
+        self._record_event(
+            category=EventCategory.VERIFICATION,
+            action="verification_batch_closed",
+            user=current_user,
+            title=(
+                "Группа поверки "
+                f"«{verifications[0].batch_name or verifications[0].route_destination}» завершена"
+            ),
+            description=f"Закрыто СИ: {len(verifications)}.",
+            equipment=verifications[0].equipment,
+            batch_key=verifications[0].batch_key,
+        )
         for verification in verifications:
             self._sync_equipment_status(equipment=verification.equipment)
 
@@ -1557,6 +1857,21 @@ class EquipmentService:
                     ),
                     files=[],
                 )
+
+        changed_labels = _collect_changed_verification_milestone_labels(
+            payload=payload,
+            route_destination=verification.route_destination,
+        )
+        if changed_labels:
+            self._record_event(
+                category=EventCategory.VERIFICATION,
+                action="verification_milestones_updated",
+                user=current_user,
+                title=f"Обновлены этапы поверки «{verification.equipment.name}»",
+                description="Изменено: " + ", ".join(changed_labels) + ".",
+                equipment=verification.equipment,
+                batch_key=verification.batch_key,
+            )
 
         self.session.commit()
         self.session.refresh(verification)
@@ -1639,6 +1954,24 @@ class EquipmentService:
                     files=[],
                 )
 
+        changed_labels = _collect_changed_verification_milestone_labels(
+            payload=payload,
+            route_destination=anchor.route_destination,
+        )
+        if changed_labels:
+            self._record_event(
+                category=EventCategory.VERIFICATION,
+                action="verification_batch_milestones_updated",
+                user=current_user,
+                title=(
+                    "Обновлены этапы группы поверки "
+                    f"«{anchor.batch_name or anchor.route_destination}»"
+                ),
+                description="Изменено: " + ", ".join(changed_labels) + ".",
+                equipment=anchor.equipment,
+                batch_key=anchor.batch_key,
+            )
+
         self.session.commit()
         for verification in verifications:
             self.session.refresh(verification)
@@ -1679,6 +2012,18 @@ class EquipmentService:
             payload=payload,
             files=files or [],
         )
+        self._record_event(
+            category=EventCategory.REPAIR,
+            action="repair_message_created",
+            user=author,
+            title=f"Добавлено сообщение по ремонту «{repair.equipment.name}»",
+            description=_build_message_event_description(
+                text=payload.text,
+                files=files or [],
+            ),
+            equipment=repair.equipment,
+            batch_key=repair.batch_key,
+        )
         self.session.commit()
         self.session.refresh(message)
         return message
@@ -1704,9 +2049,19 @@ class EquipmentService:
             settings.attachment_storage_path / attachment.storage_path
             for attachment in message.attachments
         ]
+        message_preview = message.text
         for attachment in message.attachments:
             self.repair_message_attachments.delete(attachment)
         self.repair_messages.delete(message)
+        self._record_event(
+            category=EventCategory.REPAIR,
+            action="repair_message_deleted",
+            user=current_user,
+            title=f"Удалено сообщение по ремонту «{repair.equipment.name}»",
+            description=_build_preview_description(message_preview),
+            equipment=repair.equipment,
+            batch_key=repair.batch_key,
+        )
         self.session.commit()
 
         for file_path in attachment_paths:
@@ -1727,6 +2082,18 @@ class EquipmentService:
             author=author,
             payload=payload,
             files=files or [],
+        )
+        self._record_event(
+            category=EventCategory.VERIFICATION,
+            action="verification_message_created",
+            user=author,
+            title=f"Добавлено сообщение по поверке «{verification.equipment.name}»",
+            description=_build_message_event_description(
+                text=payload.text,
+                files=files or [],
+            ),
+            equipment=verification.equipment,
+            batch_key=verification.batch_key,
         )
         self.session.commit()
         self.session.refresh(message)
@@ -1753,9 +2120,19 @@ class EquipmentService:
             settings.attachment_storage_path / attachment.storage_path
             for attachment in message.attachments
         ]
+        message_preview = message.text
         for attachment in message.attachments:
             self.verification_message_attachments.delete(attachment)
         self.verification_messages.delete(message)
+        self._record_event(
+            category=EventCategory.VERIFICATION,
+            action="verification_message_deleted",
+            user=current_user,
+            title=f"Удалено сообщение по поверке «{verification.equipment.name}»",
+            description=_build_preview_description(message_preview),
+            equipment=verification.equipment,
+            batch_key=verification.batch_key,
+        )
         self.session.commit()
 
         for file_path in attachment_paths:
@@ -1955,12 +2332,24 @@ class EquipmentService:
             )
         return attachment, file_path
 
-    def delete_equipment(self, *, equipment_id: int) -> None:
+    def delete_equipment(self, *, equipment_id: int, current_user: User | None = None) -> None:
         equipment = self.get_equipment(equipment_id=equipment_id)
+        if current_user is not None:
+            self._record_equipment_event(
+                action="equipment_deleted",
+                user=current_user,
+                equipment=equipment,
+                title=f"Удален прибор «{equipment.name}»",
+            )
         self.equipment.delete(equipment)
         self.session.commit()
 
-    def delete_equipment_batch(self, *, equipment_ids: list[int]) -> None:
+    def delete_equipment_batch(
+        self,
+        *,
+        equipment_ids: list[int],
+        current_user: User | None = None,
+    ) -> None:
         normalized_ids = list(dict.fromkeys(equipment_ids))
         if not normalized_ids:
             raise HTTPException(
@@ -1970,6 +2359,13 @@ class EquipmentService:
 
         for equipment_id in normalized_ids:
             equipment = self.get_equipment(equipment_id=equipment_id)
+            if current_user is not None:
+                self._record_equipment_event(
+                    action="equipment_deleted",
+                    user=current_user,
+                    equipment=equipment,
+                    title=f"Удален прибор «{equipment.name}»",
+                )
             self.equipment.delete(equipment)
 
         self.session.commit()
@@ -2012,6 +2408,13 @@ class EquipmentService:
             storage_path=relative_storage_path,
         )
         self.attachments.add(attachment)
+        self._record_equipment_event(
+            action="attachment_created",
+            user=uploader,
+            equipment=equipment,
+            title=f"Добавлено вложение к прибору «{equipment.name}»",
+            description=normalized_file_name,
+        )
         self.session.commit()
         self.session.refresh(attachment)
         return attachment
@@ -2047,7 +2450,16 @@ class EquipmentService:
                 )
 
         file_path = settings.attachment_storage_path / attachment.storage_path
+        attachment_name = attachment.file_name
+        equipment = self.get_equipment(equipment_id=equipment_id)
         self.attachments.delete(attachment)
+        self._record_equipment_event(
+            action="attachment_deleted",
+            user=current_user,
+            equipment=equipment,
+            title=f"Удалено вложение у прибора «{equipment.name}»",
+            description=attachment_name,
+        )
         self.session.commit()
         if file_path.exists() and file_path.is_file():
             file_path.unlink()
@@ -2072,6 +2484,13 @@ class EquipmentService:
             text=normalized_text,
         )
         self.comments.add(comment)
+        self._record_equipment_event(
+            action="comment_created",
+            user=author,
+            equipment=equipment,
+            title=f"Добавлен комментарий к прибору «{equipment.name}»",
+            description=_build_preview_description(comment.text),
+        )
         self.session.commit()
         self.session.refresh(comment)
         return comment
@@ -2087,6 +2506,14 @@ class EquipmentService:
         comment = self._get_comment(equipment_id=equipment_id, comment_id=comment_id)
         self._assert_comment_owner(comment=comment, current_user=current_user)
         comment.text = _normalize_comment_text(payload.text)
+        equipment = self.get_equipment(equipment_id=equipment_id)
+        self._record_equipment_event(
+            action="comment_updated",
+            user=current_user,
+            equipment=equipment,
+            title=f"Обновлен комментарий к прибору «{equipment.name}»",
+            description=_build_preview_description(comment.text),
+        )
         self.session.commit()
         self.session.refresh(comment)
         return comment
@@ -2100,8 +2527,90 @@ class EquipmentService:
     ) -> None:
         comment = self._get_comment(equipment_id=equipment_id, comment_id=comment_id)
         self._assert_comment_owner(comment=comment, current_user=current_user)
+        equipment = self.get_equipment(equipment_id=equipment_id)
+        self._record_equipment_event(
+            action="comment_deleted",
+            user=current_user,
+            equipment=equipment,
+            title=f"Удален комментарий у прибора «{equipment.name}»",
+            description=_build_preview_description(comment.text),
+        )
         self.comments.delete(comment)
         self.session.commit()
+
+    def _record_equipment_event(
+        self,
+        *,
+        action: str,
+        user: User,
+        equipment: Equipment,
+        title: str,
+        description: str | None = None,
+        batch_key: str | None = None,
+    ) -> None:
+        self._record_event(
+            category=EventCategory.EQUIPMENT,
+            action=action,
+            user=user,
+            title=title,
+            description=description,
+            equipment=equipment,
+            batch_key=batch_key,
+        )
+
+    def _record_event(
+        self,
+        *,
+        category: EventCategory,
+        action: str,
+        user: User | None,
+        title: str,
+        description: str | None = None,
+        equipment: Equipment | None = None,
+        equipment_id: int | None = None,
+        equipment_name: str | None = None,
+        equipment_modification: str | None = None,
+        equipment_serial_number: str | None = None,
+        folder_id: int | None = None,
+        folder_name: str | None = None,
+        batch_key: str | None = None,
+    ) -> None:
+        resolved_equipment_id = equipment.id if equipment is not None else equipment_id
+        resolved_equipment_name = equipment.name if equipment is not None else equipment_name
+        resolved_equipment_modification = (
+            equipment.modification if equipment is not None else equipment_modification
+        )
+        resolved_equipment_serial_number = (
+            equipment.serial_number if equipment is not None else equipment_serial_number
+        )
+        resolved_folder_id = folder_id
+        resolved_folder_name = folder_name
+
+        if equipment is not None:
+            resolved_folder_id = equipment.folder_id
+            if resolved_folder_name is None and equipment.folder_id is not None:
+                folder = self.folders.get_by_id(equipment.folder_id)
+                if folder is not None:
+                    resolved_folder_name = folder.name
+
+        event = EventLog(
+            category=category,
+            action=action,
+            title=title,
+            description=description,
+            user_id=user.id if user is not None else None,
+            user_display_name=(
+                _format_user_display_name(user) if user is not None else "Система"
+            ),
+            equipment_id=resolved_equipment_id,
+            equipment_name=resolved_equipment_name,
+            equipment_modification=resolved_equipment_modification,
+            equipment_serial_number=resolved_equipment_serial_number,
+            folder_id=resolved_folder_id,
+            folder_name=resolved_folder_name,
+            batch_key=_normalize_optional_text(batch_key),
+        )
+        self.events.add(event)
 
     def _create_repair_from_batch_anchor(
         self,
@@ -2196,13 +2705,14 @@ class EquipmentService:
             repair=repair,
             batch_key=batch_key,
         )
+        member_label = _build_equipment_batch_member_label(repair.equipment)
         repair.batch_key = None
         repair.batch_name = None
         self._create_repair_message_record(
             repair=repair,
             author=current_user,
             payload=RepairMessageCreateRequest(
-                text=f"Прибор выведен из группы «{batch_name}»."
+                text=f"Прибор выведен из группы «{batch_name}»: {member_label}."
             ),
             files=[],
         )
@@ -2222,13 +2732,14 @@ class EquipmentService:
             verification=verification,
             batch_key=batch_key,
         )
+        member_label = _build_equipment_batch_member_label(verification.equipment)
         verification.batch_key = None
         verification.batch_name = None
         self._create_verification_message_record(
             verification=verification,
             author=current_user,
             payload=VerificationMessageCreateRequest(
-                text=f"Прибор выведен из группы «{batch_name}»."
+                text=f"Прибор выведен из группы «{batch_name}»: {member_label}."
             ),
             files=[],
         )
@@ -3351,6 +3862,73 @@ _REPAIR_MILESTONE_LABELS: tuple[tuple[str, str], ...] = (
     ("incoming_control_at", "Входной контроль выполнен"),
     ("paid_at", "Оплата выполнена"),
 )
+
+
+def _collect_changed_repair_milestone_labels(
+    *,
+    payload: RepairMilestonesUpdateRequest,
+    route_destination: str,
+) -> list[str]:
+    labels: list[str] = []
+    if "sent_to_repair_at" in payload.model_fields_set:
+        labels.append(f"Отправлено в {route_destination}")
+    for field_name, milestone_label in _REPAIR_MILESTONE_LABELS:
+        if field_name in payload.model_fields_set:
+            labels.append(milestone_label)
+    return labels
+
+
+def _collect_changed_verification_milestone_labels(
+    *,
+    payload: VerificationMilestonesUpdateRequest,
+    route_destination: str,
+) -> list[str]:
+    labels: list[str] = []
+    for field_name, milestone_label in _VERIFICATION_MILESTONE_LABELS:
+        if field_name not in payload.model_fields_set:
+            continue
+        if field_name == "received_at_destination_at":
+            labels.append(f"Получение в {route_destination}")
+        else:
+            labels.append(milestone_label)
+    return labels
+
+
+def _build_preview_description(text: str | None) -> str | None:
+    normalized = _normalize_message_text(text)
+    if normalized is None:
+        return None
+    if len(normalized) <= 160:
+        return normalized
+    return normalized[:157].rstrip() + "..."
+
+
+def _build_message_event_description(
+    *,
+    text: str | None,
+    files: list[UploadedFilePayload],
+) -> str | None:
+    parts: list[str] = []
+    preview = _build_preview_description(text)
+    if preview:
+        parts.append(preview)
+    if files:
+        parts.append(f"Вложений: {len(files)}.")
+    return " ".join(parts) if parts else None
+
+
+def _build_named_detail(label: str, value: object | None) -> str | None:
+    if value is None:
+        return None
+    rendered = str(value).strip()
+    if not rendered:
+        return None
+    return f"{label}: {rendered}"
+
+
+def _build_nonempty_description(parts: list[str | None]) -> str | None:
+    filtered = [part for part in parts if part]
+    return " • ".join(filtered) if filtered else None
 
 
 def _build_verification_milestone_message(

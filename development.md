@@ -17,6 +17,18 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 - When a folder workspace is open, the equipment page should stay minimal: folder name, actions, filters, and the table itself without explanatory text blocks above the registry.
 - Registry-facing status must reflect an active repair, so an item with an open repair should show as `IN_REPAIR`.
 - Folder-level suggestions now matter for recurring manual values such as object name, current location, repair city, and repair destination.
+- Shared keyboard-first autocomplete foundation is now in place for recurring manual fields:
+  - `Объект`,
+  - `Местонахождение`,
+  - `Откуда`,
+  - `Куда`,
+  - the current implementation uses existing folder-scoped suggestions and local registry values, supports arrow navigation plus `Enter`/`Tab` selection, and is the base for later extension into comments and process dialogs.
+- Autocomplete coverage is now extended:
+  - grouped repair/verification names reuse folder-scoped process batch names,
+  - initial process messages in registry modals use token-based textarea autocomplete,
+  - equipment card comments, initial repair/verification messages, and active repair/verification dialog messages also use token-based textarea autocomplete for recurring entities such as object names, routes, serial numbers, and certificate numbers.
+  - active dialogs on `/repairs` and `/verification/si` now follow the same token-autocomplete pattern, so process pages do not diverge from the equipment card UX.
+  - search bars on equipment folders, equipment registry, repairs, verification, and batch-item pickers now also use the same autocomplete approach with local contextual suggestions.
 - Product workflow is уточнен: repair and verification are independent processes; equipment cards should replace neighboring equipment with attachments and process panels.
 - Grouped process decision is now fixed: one shared dialog thread per batch, mutable batch membership, ZIP archive contains only the dialog and its attachments.
 - Excel export is now expected for registry-like pages with current filters applied.
@@ -43,6 +55,15 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 - Bulk import parser now searches upper rows for headers like `Свидетельство`, `Документ`, and if a `Дата поверки` column exists, its year is passed into Arshin search for the corresponding row.
 - Equipment registry now supports Excel export for the current filtered selection in the chosen folder workspace.
 - Dedicated `/repairs` and `/verification/si` pages now also support Excel export of the current filtered active or archived queue.
+- `/events` is no longer a stub:
+  - backend now stores an application-level audit log for key equipment, repair, and verification actions,
+  - `/events` lists the global journal with free-text search, category filter, and period filter,
+  - by default the journal opens on the last `30` days rather than an unbounded history slice,
+  - operators can switch to `За все время`, use manual date filters, and export the current journal selection to Excel,
+  - grouped repair/verification events should lead into the corresponding grouped process card on `/repairs` or `/verification/si`,
+  - single repair/verification events should lead into the corresponding single process entry rather than the generic equipment card,
+  - grouped journal rows should not expand into per-equipment lists; the group link is the main drill-down,
+  - single process rows should show the compact equipment reference: name, modification, and serial number.
 - Equipment card repair flow now uses route fields instead of repair organization: operator specifies city and destination when sending a device to repair.
 - Repair creation may optionally include the first repair dialog message with files, photos, documents, or checks, but the repair may also be created empty and the dialog can be filled later.
 - Backend now enforces one active repair per equipment item and stores repair dialog messages with per-message attachments.
@@ -115,11 +136,19 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 
 ## Remaining Gaps
 - Batch membership editing is implemented, but UX polish around candidate picking, empty states, and possible confirmation affordances may still be refined later.
+- `Dashboard` is still a placeholder; now that the audit log exists, it can use recent events and active-process summaries instead of hardcoded stubs.
+- Event logging currently covers the main operational actions, but it may still be expanded later if the product needs narrower audit slices or stronger dashboard counters.
 
 ## Next
-1. Continue visual and workflow polish around process pages and archive views now that grouped membership editing and exports are in place.
-2. If operators need it later, add a stronger management layer for existing batches:
+1. Build `/dashboard` on top of the now-existing process queues and event journal:
+   - recent events,
+   - active repairs,
+   - active verifications,
+   - overdue summaries,
+   - quick links into the busiest operational areas.
+2. Continue visual and workflow polish around process pages and archive views now that grouped membership editing, exports, and the event journal are in place.
+3. If operators need it later, add a stronger management layer for existing batches:
    - explicit candidate filters,
    - optional confirmation on removing a member from a group,
    - clearer history markers for join/leave operations inside dialogs.
-3. Consider separate export variants later only if operators need narrower reporting slices than the current queue exports.
+4. Consider separate export variants later only if operators need narrower reporting slices than the current queue exports.

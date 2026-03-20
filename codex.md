@@ -527,6 +527,11 @@ Primary functional areas currently expected:
 - repairs,
 - settings and reference data later.
 
+Event log is now a concrete operational slice, not just a future placeholder:
+- it should surface the global audit stream for equipment, repair, and verification actions,
+- it should support free-text search plus category and period filters,
+- operators should be able to jump from an event row into the related equipment card when the record still exists.
+
 Shell expectations:
 - the left sidebar is the primary persistent navigation,
 - there is no duplicate top tab strip for the same sections,

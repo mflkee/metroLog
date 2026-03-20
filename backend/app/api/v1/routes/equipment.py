@@ -82,10 +82,10 @@ async def get_folder_suggestions(
 @router.post("/folders", response_model=EquipmentFolderRead, status_code=201)
 async def create_folder(
     payload: EquipmentFolderCreateRequest,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> EquipmentFolderRead:
-    folder = EquipmentService(db).create_folder(payload)
+    folder = EquipmentService(db).create_folder(payload, current_user=current_user)
     return EquipmentFolderRead.model_validate(folder)
 
 
@@ -93,20 +93,24 @@ async def create_folder(
 async def update_folder(
     folder_id: int,
     payload: EquipmentFolderUpdateRequest,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> EquipmentFolderRead:
-    folder = EquipmentService(db).update_folder(folder_id=folder_id, payload=payload)
+    folder = EquipmentService(db).update_folder(
+        folder_id=folder_id,
+        payload=payload,
+        current_user=current_user,
+    )
     return EquipmentFolderRead.model_validate(folder)
 
 
 @router.delete("/folders/{folder_id}", status_code=204)
 async def delete_folder(
     folder_id: int,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> None:
-    EquipmentService(db).delete_folder(folder_id=folder_id)
+    EquipmentService(db).delete_folder(folder_id=folder_id, current_user=current_user)
 
 
 @router.get("/groups", response_model=list[EquipmentGroupRead])
@@ -295,7 +299,7 @@ async def export_equipment_registry_xlsx(
 
 @router.post("/si/import", response_model=EquipmentSIBulkImportResultRead)
 async def import_si_from_excel(
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
     folder_id: int = IMPORT_FOLDER_ID,
     object_name: str = IMPORT_OBJECT_NAME,
@@ -311,6 +315,7 @@ async def import_si_from_excel(
         status_value=status_value,
         current_location_manual=current_location_manual,
         arshin_service=ArshinService(),
+        current_user=current_user,
     )
     await file.close()
     return result
@@ -401,20 +406,26 @@ async def update_verification_batch_items(
 @router.post("/{equipment_id}/verification/close", response_model=VerificationRead)
 async def close_equipment_verification(
     equipment_id: int,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> VerificationRead:
-    verification = EquipmentService(db).close_verification(equipment_id=equipment_id)
+    verification = EquipmentService(db).close_verification(
+        equipment_id=equipment_id,
+        current_user=current_user,
+    )
     return VerificationRead.model_validate(verification)
 
 
 @router.post("/verifications/batch/{batch_key}/close", response_model=list[VerificationRead])
 async def close_verification_batch(
     batch_key: str,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> list[VerificationRead]:
-    verifications = EquipmentService(db).close_verification_batch(batch_key=batch_key)
+    verifications = EquipmentService(db).close_verification_batch(
+        batch_key=batch_key,
+        current_user=current_user,
+    )
     return [VerificationRead.model_validate(item) for item in verifications]
 
 
@@ -493,20 +504,26 @@ async def update_repair_batch_items(
 @router.post("/{equipment_id}/repair/close", response_model=RepairRead)
 async def close_equipment_repair(
     equipment_id: int,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> RepairRead:
-    repair = EquipmentService(db).close_repair(equipment_id=equipment_id)
+    repair = EquipmentService(db).close_repair(
+        equipment_id=equipment_id,
+        current_user=current_user,
+    )
     return RepairRead.model_validate(repair)
 
 
 @router.post("/repairs/batch/{batch_key}/close", response_model=list[RepairRead])
 async def close_repair_batch(
     batch_key: str,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> list[RepairRead]:
-    repairs = EquipmentService(db).close_repair_batch(batch_key=batch_key)
+    repairs = EquipmentService(db).close_repair_batch(
+        batch_key=batch_key,
+        current_user=current_user,
+    )
     return [RepairRead.model_validate(item) for item in repairs]
 
 
@@ -707,12 +724,13 @@ async def download_repair_archive(
 async def refresh_equipment_si(
     equipment_id: int,
     payload: EquipmentSIRefreshRequest,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> EquipmentRead:
     equipment_item = EquipmentService(db).refresh_si_verification(
         equipment_id=equipment_id,
         payload=payload,
+        current_user=current_user,
     )
     return EquipmentRead.model_validate(equipment_item)
 
@@ -849,10 +867,10 @@ async def delete_equipment_attachment(
 @router.post("", response_model=EquipmentRead, status_code=201)
 async def create_equipment(
     payload: EquipmentCreateRequest,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> EquipmentRead:
-    equipment_item = EquipmentService(db).create_equipment(payload)
+    equipment_item = EquipmentService(db).create_equipment(payload, current_user=current_user)
     return EquipmentRead.model_validate(equipment_item)
 
 
@@ -860,12 +878,13 @@ async def create_equipment(
 async def update_equipment(
     equipment_id: int,
     payload: EquipmentUpdateRequest,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> EquipmentRead:
     equipment_item = EquipmentService(db).update_equipment(
         equipment_id=equipment_id,
         payload=payload,
+        current_user=current_user,
     )
     return EquipmentRead.model_validate(equipment_item)
 
@@ -873,10 +892,13 @@ async def update_equipment(
 @router.post("/delete-batch", status_code=204)
 async def delete_equipment_batch(
     payload: EquipmentBulkDeleteRequest,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> None:
-    EquipmentService(db).delete_equipment_batch(equipment_ids=payload.equipment_ids)
+    EquipmentService(db).delete_equipment_batch(
+        equipment_ids=payload.equipment_ids,
+        current_user=current_user,
+    )
 
 
 async def _read_uploaded_files(files: list[UploadFile] | None) -> list[UploadedFilePayload]:
@@ -896,7 +918,10 @@ async def _read_uploaded_files(files: list[UploadFile] | None) -> list[UploadedF
 @router.delete("/{equipment_id}", status_code=204)
 async def delete_equipment(
     equipment_id: int,
-    _: OperatorUser,
+    current_user: OperatorUser,
     db: DbSession,
 ) -> None:
-    EquipmentService(db).delete_equipment(equipment_id=equipment_id)
+    EquipmentService(db).delete_equipment(
+        equipment_id=equipment_id,
+        current_user=current_user,
+    )

@@ -32,6 +32,8 @@ import {
   type VerificationMessageAttachment,
   type VerificationQueueItem,
 } from "@/api/equipment";
+import { AutocompleteInput } from "@/components/AutocompleteInput";
+import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
@@ -44,6 +46,7 @@ import {
   type ProcessTimelineStripSegment,
 } from "@/components/ProcessTimelineStrip";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { validateVerificationMilestoneOrder } from "@/lib/milestoneValidation";
 import { useAuthStore } from "@/store/auth";
 
@@ -102,6 +105,9 @@ export function VerificationPage() {
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
   const tab: VerificationTab = searchParams.get("tab") === "archived" ? "archived" : "active";
+  const targetVerificationId = Number(searchParams.get("verificationId") ?? "");
+  const targetEquipmentId = Number(searchParams.get("equipmentId") ?? "");
+  const targetBatchKey = searchParams.get("batchKey");
 
   const verificationQuery = useQuery({
     queryKey: ["verification-queue", tab, deferredSearchQuery],
@@ -133,6 +139,11 @@ export function VerificationPage() {
     }
     return Array.from(groups.values());
   }, [verificationQuery.data]);
+
+  const searchSuggestions = useMemo(
+    () => buildVerificationTextSuggestions(verificationQuery.data ?? []),
+    [verificationQuery.data],
+  );
 
   const exportVerificationMutation = useMutation({
     mutationFn: () =>
@@ -200,12 +211,12 @@ export function VerificationPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-4.35-4.35" />
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 18a7.5 7.5 0 1 0 0-15 7.5 7.5 0 0 0 0 15Z" />
             </svg>
-            <input
+            <AutocompleteInput
               className="w-full bg-transparent text-ink outline-none placeholder:text-steel"
-              onChange={(event) => setSearchQuery(event.target.value)}
               placeholder="Поиск по прибору, свидетельству, маршруту"
-              type="search"
+              suggestions={searchSuggestions}
               value={searchQuery}
+              onChange={setSearchQuery}
             />
           </label>
           <IconActionButton
@@ -260,6 +271,7 @@ export function VerificationPage() {
               <VerificationBatchCard
                 batch={group}
                 canManage={canManage}
+                isTarget={Boolean(targetBatchKey) && group.key === targetBatchKey}
                 key={`${tab}-${group.key}`}
                 lifecycleStatus={tab}
                 onUpdated={invalidateVerificationQueries}
@@ -268,6 +280,17 @@ export function VerificationPage() {
             ) : (
               <VerificationQueueRow
                 canManage={canManage}
+                isTarget={
+                  !targetBatchKey
+                  && (
+                    (Number.isInteger(targetVerificationId)
+                      && group.items[0].verificationId === targetVerificationId)
+                    || (
+                      Number.isInteger(targetEquipmentId)
+                      && group.items[0].equipmentId === targetEquipmentId
+                    )
+                  )
+                }
                 item={group.items[0]}
                 key={`${tab}-${group.items[0].verificationId}`}
                 lifecycleStatus={tab}
@@ -288,12 +311,14 @@ function VerificationBatchCard({
   canManage,
   lifecycleStatus,
   onUpdated,
+  isTarget,
 }: {
   batch: VerificationGroup;
   token: string;
   canManage: boolean;
   lifecycleStatus: VerificationTab;
   onUpdated: () => Promise<void>;
+  isTarget: boolean;
 }) {
   const anchor = batch.items[0];
   const isArchived = lifecycleStatus === "archived";
@@ -318,6 +343,11 @@ function VerificationBatchCard({
   const currentUserId = useAuthStore((state) => state.user?.id);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
+  const textSuggestions = useMemo(
+    () => buildVerificationTextSuggestions(batch.items),
+    [batch.items],
+  );
 
   useEffect(() => {
     setForm(buildMilestonesFormState(anchor));
@@ -329,6 +359,17 @@ function VerificationBatchCard({
     }
     resizeTextarea(messageInputRef.current);
   }, [messageDraft]);
+
+  useEffect(() => {
+    if (!isTarget) {
+      return;
+    }
+    setExpanded(true);
+    window.setTimeout(() => {
+      articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      articleRef.current?.focus({ preventScroll: true });
+    }, 60);
+  }, [isTarget]);
 
   const messagesQuery = useQuery({
     queryKey: ["verification-batch-messages", anchor.batchKey, anchor.equipmentId],
@@ -366,6 +407,13 @@ function VerificationBatchCard({
           : null,
       }));
   }, [batch.items, candidateEquipmentQuery.data]);
+  const candidateSearchSuggestions = useMemo(
+    () =>
+      sortAutocompleteSuggestions(
+        candidateItems.flatMap((item) => [item.title, item.subtitle, item.meta]),
+      ),
+    [candidateItems],
+  );
 
   const updateMilestonesMutation = useMutation({
     mutationFn: () =>
@@ -580,7 +628,11 @@ function VerificationBatchCard({
 
   if (isArchived) {
     return (
-      <article className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel">
+      <article
+        className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel"
+        ref={articleRef}
+        tabIndex={-1}
+      >
         <button
           aria-expanded={expanded}
           className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
@@ -993,15 +1045,16 @@ function VerificationBatchCard({
 
             {canManage && lifecycleStatus === "active" && dialogExpanded ? (
               <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateMessage(event)}>
-                <textarea
+                <AutocompleteTextarea
                   className="form-input min-h-[56px] resize-none overflow-hidden py-3"
                   maxLength={4000}
-                  onChange={(event) => setMessageDraft(event.target.value)}
+                  onChange={setMessageDraft}
                   onKeyDown={handleTextareaSubmitShortcut}
                   onInput={(event) => resizeTextarea(event.currentTarget)}
                   placeholder="Новое сообщение по групповой поверке"
                   ref={messageInputRef}
                   rows={2}
+                  suggestions={textSuggestions}
                   value={messageDraft}
                 />
                 <input
@@ -1096,6 +1149,7 @@ function VerificationBatchCard({
             onSearchChange={setItemsSearchQuery}
             open={itemsModalOpen}
             pendingEquipmentId={pendingMembershipEquipmentId}
+            searchSuggestions={candidateSearchSuggestions}
             searchValue={itemsSearchQuery}
             title="Добавить СИ в группу поверки"
           />
@@ -1111,12 +1165,14 @@ function VerificationQueueRow({
   canManage,
   lifecycleStatus,
   onUpdated,
+  isTarget,
 }: {
   item: VerificationQueueItem;
   token: string;
   canManage: boolean;
   lifecycleStatus: VerificationTab;
   onUpdated: () => Promise<void>;
+  isTarget: boolean;
 }) {
   const isArchived = lifecycleStatus === "archived";
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -1134,6 +1190,8 @@ function VerificationQueueRow({
   const [downloadingArchive, setDownloadingArchive] = useState(false);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
+  const articleRef = useRef<HTMLElement | null>(null);
+  const textSuggestions = useMemo(() => buildVerificationTextSuggestions([item]), [item]);
 
   useEffect(() => {
     setForm(buildMilestonesFormState(item));
@@ -1145,6 +1203,17 @@ function VerificationQueueRow({
     }
     resizeTextarea(messageInputRef.current);
   }, [messageDraft]);
+
+  useEffect(() => {
+    if (!isTarget) {
+      return;
+    }
+    setExpanded(true);
+    window.setTimeout(() => {
+      articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      articleRef.current?.focus({ preventScroll: true });
+    }, 60);
+  }, [isTarget]);
 
   const messagesQuery = useQuery({
     queryKey: ["verification-messages", item.equipmentId],
@@ -1319,7 +1388,11 @@ function VerificationQueueRow({
 
   if (isArchived) {
     return (
-      <article className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel">
+      <article
+        className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel"
+        ref={articleRef}
+        tabIndex={-1}
+      >
         <button
           aria-expanded={expanded}
           className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
@@ -1686,15 +1759,16 @@ function VerificationQueueRow({
 
             {canManage && dialogExpanded ? (
               <form className="border-t border-line px-4 py-4" onSubmit={(event) => void handleCreateMessage(event)}>
-                <textarea
+                <AutocompleteTextarea
                   className="form-input min-h-[56px] resize-none overflow-hidden py-3"
                   maxLength={4000}
-                  onChange={(event) => setMessageDraft(event.target.value)}
+                  onChange={setMessageDraft}
                   onInput={(event) => resizeTextarea(event.currentTarget)}
                   onKeyDown={handleTextareaSubmitShortcut}
                   placeholder="Новое сообщение по поверке"
                   ref={messageInputRef}
                   rows={2}
+                  suggestions={textSuggestions}
                   value={messageDraft}
                 />
                 <input
@@ -1988,6 +2062,21 @@ function buildMilestonesFormState(
     shippedBackAt: item.shippedBackAt ?? "",
     returnedFromVerificationAt: item.returnedFromVerificationAt ?? "",
   };
+}
+
+function buildVerificationTextSuggestions(items: VerificationQueueItem[]): string[] {
+  return sortAutocompleteSuggestions(
+    items.flatMap((item) => [
+      item.batchName,
+      item.objectName,
+      item.equipmentName,
+      item.modification,
+      item.serialNumber,
+      item.routeCity,
+      item.routeDestination,
+      item.resultDocnum,
+    ]),
+  );
 }
 
 function formatDateOnly(value: string): string {

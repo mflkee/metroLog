@@ -255,6 +255,75 @@ async def test_operator_can_delete_equipment_batch(
 
 
 @pytest.mark.anyio
+async def test_operator_can_list_events_with_filters(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Журнал событий"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Пусковой объект",
+            "equipment_type": "OTHER",
+            "name": "Манометр",
+            "serial_number": "MN-001",
+            "status": "IN_WORK",
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    repair_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/repair",
+        headers=headers,
+        data={
+            "route_city": "Ленск",
+            "route_destination": "Иркутск",
+            "sent_to_repair_at": "2026-03-20",
+            "initial_message_text": "Прибор упакован и отправлен.",
+        },
+    )
+    assert repair_response.status_code == 201
+
+    events_response = await client.get("/api/v1/events", headers=headers)
+    assert events_response.status_code == 200
+    events = events_response.json()
+    assert any(event["action"] == "equipment_created" for event in events)
+    assert any(event["action"] == "repair_created" for event in events)
+
+    repair_events_response = await client.get(
+        "/api/v1/events?category=REPAIR",
+        headers=headers,
+    )
+    assert repair_events_response.status_code == 200
+    repair_events = repair_events_response.json()
+    assert repair_events
+    assert all(event["category"] == "REPAIR" for event in repair_events)
+
+    search_events_response = await client.get(
+        "/api/v1/events?query=Манометр",
+        headers=headers,
+    )
+    assert search_events_response.status_code == 200
+    search_events = search_events_response.json()
+    assert search_events
+    assert any(event["equipment_name"] == "Манометр" for event in search_events)
+
+
+@pytest.mark.anyio
 async def test_operator_can_export_filtered_equipment_registry_to_excel(
     client: AsyncClient,
     db_engine,

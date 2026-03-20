@@ -7,6 +7,8 @@ Equipment accounting and repair tracking system.
 - Stage 1 auth and user management are working
 - Stage 2 registry foundation is in progress
 - verification flow already includes active/archive queues, grouped verification, shared batch dialog, archive ZIP export, and archive links from the equipment card
+- repairs now also have active/archive queues, grouped batch behavior, archive ZIP export, and archive links from the equipment card
+- `/events` is implemented as a working audit-style journal for equipment, repair, and verification actions
 - folder colors were removed from the product
 - folder list now relies on compact cards plus search, not color coding
 

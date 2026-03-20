@@ -28,6 +28,7 @@ type RawEquipmentFolderSuggestions = {
   current_locations: string[];
   repair_route_cities: string[];
   repair_route_destinations: string[];
+  process_batch_names: string[];
 };
 
 type RawEquipment = {
@@ -193,6 +194,7 @@ export type EquipmentFolderSuggestions = {
   currentLocations: string[];
   repairRouteCities: string[];
   repairRouteDestinations: string[];
+  processBatchNames: string[];
 };
 
 export type EquipmentItem = {
@@ -662,6 +664,7 @@ export async function fetchEquipmentFolderSuggestions(
     currentLocations: response.current_locations,
     repairRouteCities: response.repair_route_cities,
     repairRouteDestinations: response.repair_route_destinations,
+    processBatchNames: response.process_batch_names,
   };
 }
 

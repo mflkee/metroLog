@@ -641,6 +641,13 @@ It must capture at least:
 * verification sync and manual review actions,
 * repair changes.
 
+Current implementation baseline:
+
+* `event_logs` is a dedicated table,
+* rows store category, action, title, optional description, actor snapshot, optional equipment snapshot, optional folder snapshot, optional `batch_key`, and timestamps,
+* the first production slice already logs core folder, equipment, repair, verification, message, attachment, comment, and Arshin-refresh actions,
+* list API must support free-text search plus category and period filters.
+
 ### Rule 11 - Initial access matrix
 
 Until a more detailed RBAC model is introduced, use this baseline:
@@ -664,6 +671,15 @@ At minimum:
 * SI verification lists support search and review-related filters,
 * repair lists support active/archive and stage filters,
 * event log lists support event-type and period filters.
+
+Current route baseline:
+
+* `GET /api/v1/events`
+  * `query`
+  * `category`
+  * `date_from`
+  * `date_to`
+  * `limit`
 
 ---
 

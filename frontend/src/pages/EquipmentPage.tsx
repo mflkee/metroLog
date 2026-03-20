@@ -37,12 +37,15 @@ import {
   type EquipmentType,
   type UpdateEquipmentPayload,
 } from "@/api/equipment";
+import { AutocompleteInput } from "@/components/AutocompleteInput";
+import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { useAuthStore } from "@/store/auth";
 
 const equipmentTypeOptions: EquipmentType[] = ["SI", "IO", "VO", "OTHER"];
@@ -513,6 +516,86 @@ export function EquipmentPage() {
     return Array.from(locations).sort();
   }, [equipmentItems, folderSuggestionsQuery.data?.currentLocations]);
 
+  const existingRouteCities = useMemo(
+    () => Array.from(new Set(folderSuggestionsQuery.data?.repairRouteCities ?? [])).sort(),
+    [folderSuggestionsQuery.data?.repairRouteCities],
+  );
+
+  const existingRouteDestinations = useMemo(
+    () => Array.from(new Set(folderSuggestionsQuery.data?.repairRouteDestinations ?? [])).sort(),
+    [folderSuggestionsQuery.data?.repairRouteDestinations],
+  );
+
+  const existingProcessBatchNames = useMemo(
+    () => sortAutocompleteSuggestions(folderSuggestionsQuery.data?.processBatchNames ?? []),
+    [folderSuggestionsQuery.data?.processBatchNames],
+  );
+
+  const folderSearchSuggestions = useMemo(
+    () =>
+      sortAutocompleteSuggestions(
+        folders.flatMap((folder) => [folder.name, folder.description]),
+      ),
+    [folders],
+  );
+
+  const processTextSuggestions = useMemo(
+    () =>
+      sortAutocompleteSuggestions([
+        folders.find((folder) => folder.id === selectedFolderId)?.name,
+        ...selectedEquipmentItems.flatMap((item) => [
+          item.objectName,
+          item.name,
+          item.modification,
+          item.serialNumber,
+          item.currentLocationManual,
+          item.siVerification?.resultDocnum ?? null,
+          item.siVerification?.mitNumber ?? null,
+          item.siVerification?.miNumber ?? null,
+        ]),
+        ...existingObjectNames,
+        ...existingLocations,
+        ...existingRouteCities,
+        ...existingRouteDestinations,
+      ]),
+    [
+      existingLocations,
+      existingObjectNames,
+      existingRouteCities,
+      existingRouteDestinations,
+      folders,
+      selectedFolderId,
+      selectedEquipmentItems,
+    ],
+  );
+
+  const equipmentSearchSuggestions = useMemo(
+    () =>
+      sortAutocompleteSuggestions([
+        ...equipmentItems.flatMap((item) => [
+          item.objectName,
+          item.name,
+          item.modification,
+          item.serialNumber,
+          item.currentLocationManual,
+          item.siVerification?.resultDocnum ?? null,
+          item.siVerification?.mitNumber ?? null,
+          item.siVerification?.miNumber ?? null,
+        ]),
+        ...existingObjectNames,
+        ...existingLocations,
+        ...existingRouteCities,
+        ...existingRouteDestinations,
+      ]),
+    [
+      equipmentItems,
+      existingLocations,
+      existingObjectNames,
+      existingRouteCities,
+      existingRouteDestinations,
+    ],
+  );
+
   useEffect(() => {
     if (selectedFolderId === null) {
       return;
@@ -809,12 +892,12 @@ export function EquipmentPage() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
               <label className="block min-w-[260px] text-sm text-steel">
                 Поиск по папкам
-                <input
+                <AutocompleteInput
                   className="form-input"
                   placeholder="Название или описание папки"
-                  type="search"
+                  suggestions={folderSearchSuggestions}
                   value={folderSearchQuery}
-                  onChange={(event) => setFolderSearchQuery(event.target.value)}
+                  onChange={setFolderSearchQuery}
                 />
               </label>
               {canManage ? (
@@ -991,12 +1074,12 @@ export function EquipmentPage() {
             <div className="grid gap-3 md:grid-cols-3">
                 <label className="block text-sm text-steel">
                   Поиск
-                  <input
+                  <AutocompleteInput
                     className="form-input"
                     placeholder="Наименование, объект, серийный номер, местонахождение"
-                    type="search"
+                    suggestions={equipmentSearchSuggestions}
                     value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
+                    onChange={setSearchQuery}
                   />
                 </label>
                 <label className="block text-sm text-steel">
@@ -1271,13 +1354,11 @@ export function EquipmentPage() {
         <form className="space-y-4" onSubmit={(event) => void handleSIImportSubmit(event)}>
           <label className="block text-sm text-steel">
             Объект
-            <input
+            <AutocompleteInput
               className="form-input"
-              type="text"
+              suggestions={existingObjectNames}
               value={siImportForm.objectName}
-              onChange={(event) =>
-                setSiImportForm((current) => ({ ...current, objectName: event.target.value }))
-              }
+              onChange={(value) => setSiImportForm((current) => ({ ...current, objectName: value }))}
             />
           </label>
           <div className="grid gap-3 md:grid-cols-2">
@@ -1302,14 +1383,14 @@ export function EquipmentPage() {
             </label>
             <label className="block text-sm text-steel">
               Текущее местоположение
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingLocations}
                 value={siImportForm.currentLocationManual}
-                onChange={(event) =>
+                onChange={(value) =>
                   setSiImportForm((current) => ({
                     ...current,
-                    currentLocationManual: event.target.value,
+                    currentLocationManual: value,
                   }))
                 }
               />
@@ -1603,20 +1684,14 @@ export function EquipmentPage() {
             </label>
             <label className="block text-sm text-steel">
               Объект
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingObjectNames}
                 value={equipmentForm.objectName}
-                onChange={(event) =>
-                  setEquipmentForm((current) => ({ ...current, objectName: event.target.value }))
+                onChange={(value) =>
+                  setEquipmentForm((current) => ({ ...current, objectName: value }))
                 }
-                list="object-names"
               />
-              <datalist id="object-names">
-                {existingObjectNames.map((name) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
             </label>
             <label className="block text-sm text-steel">
               Наименование
@@ -1690,23 +1765,17 @@ export function EquipmentPage() {
           </div>
           <label className="block text-sm text-steel">
             Текущее местоположение
-            <input
+            <AutocompleteInput
               className="form-input"
-              type="text"
+              suggestions={existingLocations}
               value={equipmentForm.currentLocationManual}
-              onChange={(event) =>
+              onChange={(value) =>
                 setEquipmentForm((current) => ({
                   ...current,
-                  currentLocationManual: event.target.value,
+                  currentLocationManual: value,
                 }))
               }
-              list="locations"
             />
-            <datalist id="locations">
-              {existingLocations.map((location) => (
-                <option key={location} value={location} />
-              ))}
-            </datalist>
           </label>
           {(createEquipmentMutation.isError || updateEquipmentMutation.isError) ? (
             <p className="text-sm text-[#b04c43]">
@@ -1765,14 +1834,14 @@ export function EquipmentPage() {
           {selectedEquipmentIds.length > 1 ? (
             <label className="block text-sm text-steel">
               Название группы
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingProcessBatchNames}
                 value={repairBatchForm.batchName}
-                onChange={(event) =>
+                onChange={(value) =>
                   setRepairBatchForm((current) => ({
                     ...current,
-                    batchName: event.target.value,
+                    batchName: value,
                   }))
                 }
               />
@@ -1781,25 +1850,25 @@ export function EquipmentPage() {
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block text-sm text-steel">
               Откуда
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingRouteCities}
                 value={repairBatchForm.routeCity}
-                onChange={(event) =>
-                  setRepairBatchForm((current) => ({ ...current, routeCity: event.target.value }))
+                onChange={(value) =>
+                  setRepairBatchForm((current) => ({ ...current, routeCity: value }))
                 }
               />
             </label>
             <label className="block text-sm text-steel">
               Куда
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingRouteDestinations}
                 value={repairBatchForm.routeDestination}
-                onChange={(event) =>
+                onChange={(value) =>
                   setRepairBatchForm((current) => ({
                     ...current,
-                    routeDestination: event.target.value,
+                    routeDestination: value,
                   }))
                 }
               />
@@ -1820,14 +1889,15 @@ export function EquipmentPage() {
           </label>
           <label className="block text-sm text-steel">
             Первое сообщение
-            <textarea
+            <AutocompleteTextarea
               className="form-input min-h-[92px] resize-none py-3"
+              suggestions={processTextSuggestions}
               placeholder="Например: партия приборов упакована и отправлена в ремонт."
               value={repairBatchForm.initialMessageText}
-              onChange={(event) =>
+              onChange={(value) =>
                 setRepairBatchForm((current) => ({
                   ...current,
-                  initialMessageText: event.target.value,
+                  initialMessageText: value,
                 }))
               }
             />
@@ -1887,66 +1957,67 @@ export function EquipmentPage() {
           {selectedEquipmentIds.length > 1 ? (
             <label className="block text-sm text-steel">
               Название группы
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingProcessBatchNames}
                 value={verificationBatchForm.batchName}
-                onChange={(event) =>
-                  setVerificationBatchForm((current) => ({ ...current, batchName: event.target.value }))
+                onChange={(value) =>
+                  setVerificationBatchForm((current) => ({ ...current, batchName: value }))
                 }
               />
             </label>
           ) : null}
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             <label className="block text-sm text-steel">
               Откуда
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingRouteCities}
                 value={verificationBatchForm.routeCity}
-                onChange={(event) =>
-                  setVerificationBatchForm((current) => ({ ...current, routeCity: event.target.value }))
+                onChange={(value) =>
+                  setVerificationBatchForm((current) => ({ ...current, routeCity: value }))
                 }
               />
             </label>
             <label className="block text-sm text-steel">
               Куда
-              <input
+              <AutocompleteInput
                 className="form-input"
-                type="text"
+                suggestions={existingRouteDestinations}
                 value={verificationBatchForm.routeDestination}
-                onChange={(event) =>
-                  setVerificationBatchForm((current) => ({
-                    ...current,
-                    routeDestination: event.target.value,
-                  }))
-                }
-              />
-            </label>
-            <label className="block text-sm text-steel">
-              Дата отправки
-              <DateInput
-                className="form-input form-input--compact"
-                value={verificationBatchForm.sentToVerificationAt}
                 onChange={(value) =>
                   setVerificationBatchForm((current) => ({
                     ...current,
-                    sentToVerificationAt: value,
+                    routeDestination: value,
                   }))
                 }
               />
             </label>
           </div>
           <label className="block text-sm text-steel">
-            Первое сообщение
-            <textarea
-              className="form-input min-h-[88px] resize-none py-3"
-              placeholder="Например: Ящик с приборами упакован и отправлен в поверку."
-              value={verificationBatchForm.initialMessageText}
-              onChange={(event) =>
+            Дата отправки
+            <DateInput
+              className="form-input form-input--compact"
+              value={verificationBatchForm.sentToVerificationAt}
+              onChange={(value) =>
                 setVerificationBatchForm((current) => ({
                   ...current,
-                  initialMessageText: event.target.value,
+                  sentToVerificationAt: value,
+                }))
+              }
+            />
+          </label>
+          <label className="block text-sm text-steel">
+            Первое сообщение
+            <AutocompleteTextarea
+              className="form-input min-h-[88px] resize-none py-3"
+              suggestions={processTextSuggestions}
+              placeholder="Например: Ящик с приборами упакован и отправлен в поверку."
+              value={verificationBatchForm.initialMessageText}
+              onChange={(value) =>
+                setVerificationBatchForm((current) => ({
+                  ...current,
+                  initialMessageText: value,
                 }))
               }
             />
@@ -1968,7 +2039,12 @@ export function EquipmentPage() {
           ) : null}
           <div className="flex justify-end">
             <button
-              className="btn-primary px-4 py-2 text-sm disabled:opacity-60"
+              aria-label={
+                selectedEquipmentIds.length === 1
+                  ? "Подтвердить отправку в поверку"
+                  : "Подтвердить массовую отправку в поверку"
+              }
+              className="btn-primary disabled:opacity-60"
               disabled={
                 createVerificationBatchMutation.isPending
                 || selectedEquipmentIds.length === 0
@@ -1980,14 +2056,11 @@ export function EquipmentPage() {
               type="submit"
             >
               {createVerificationBatchMutation.isPending ? (
-                "Создаем..."
-              ) : selectedEquipmentIds.length === 1 ? (
-                "Отправить в поверку"
+                "…"
               ) : (
-                <>
-                  <Icon className="h-4 w-4" name="plus" />
-                  Создать группу поверки
-                </>
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
               )}
             </button>
           </div>

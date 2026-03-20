@@ -96,6 +96,13 @@ Every page that fetches data must have:
 
 List-heavy pages must also have search and filtering controls.
 
+Event-log specific rule:
+- the journal should default to the last `30` days instead of an unbounded history window,
+- grouped repair/verification events should drill down into the corresponding grouped process card,
+- single repair/verification events should drill down into the corresponding single process entry,
+- grouped rows should stay compact and must not list all member devices inline,
+- single process references in the journal should use the same compact equipment label pattern: name, modification, serial number.
+
 ### 6. One page - one function
 Navigation should follow clear functional separation similar to workbook sheets.
 
@@ -391,8 +398,24 @@ Dedicated event journal page.
 Must include:
 
 * global event log,
-* filters by equipment, event type, date,
-* navigation to related equipment and repair records.
+* free-text search across equipment, folder, user, and event description,
+* category filter,
+* period filter,
+* navigation to related equipment records,
+* compact event rows with:
+  * category,
+  * action label,
+  * title,
+  * optional short description,
+  * timestamp,
+  * actor.
+
+The event journal should stay operational rather than decorative:
+
+* no heavy dashboard-like chrome inside the page,
+* filters should sit in one compact top row,
+* event rows should be dense and readable,
+* the page should be useful as an audit stream first, not as a marketing overview.
 
 ### `/references`
 
@@ -1014,6 +1037,18 @@ Additional shell styling rules:
 * `/settings` should let the user toggle which theme presets remain visible in the top-right switcher.
 * the default visible presets should be `light`, `gray`, and `dark`, while extra presets may be inspired by common GTK/NVim palettes.
 * recurring manual fields should prefer folder-scoped suggestions over repeated blank typing.
+* recurring manual text fields should use one shared keyboard-first autocomplete pattern rather than browser `datalist`:
+  * arrow navigation,
+  * `Enter` / `Tab` to accept,
+  * `Esc` to close,
+  * click selection,
+  * free typing must remain possible.
+* free-text operational textareas may also use token-based autocomplete when the value domain is repetitive:
+  * comments,
+  * repair dialog messages,
+  * verification dialog messages,
+  * initial process messages,
+  * suggestions should prefer useful entities like serial numbers, certificate numbers, object names, routes, and equipment names instead of noisy generic word completion.
 
 Theme tuning rules:
 

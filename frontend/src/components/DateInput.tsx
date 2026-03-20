@@ -5,6 +5,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   forwardRef,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -27,7 +28,9 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => parseIsoDateToDate(value) ?? new Date());
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const selectedDate = parseIsoDateToDate(value ?? parseDateInput(displayValue));
+  const interactingInsideRef = useRef(false);
+  const selectedIsoDate = value ?? parseDateInput(displayValue);
+  const selectedDate = useMemo(() => parseIsoDateToDate(selectedIsoDate), [selectedIsoDate]);
 
   useEffect(() => {
     setDisplayValue(formatIsoDateForDisplay(value));
@@ -38,7 +41,7 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
       return;
     }
     setCalendarMonth(selectedDate ?? new Date());
-  }, [calendarOpen, selectedDate]);
+  }, [calendarOpen, selectedIsoDate, selectedDate]);
 
   useEffect(() => {
     if (!calendarOpen) {
@@ -79,6 +82,13 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
     }
   }
 
+  function markInteractingInside() {
+    interactingInsideRef.current = true;
+    window.setTimeout(() => {
+      interactingInsideRef.current = false;
+    }, 0);
+  }
+
   function commitDisplayValue(rawValue: string) {
     const parsedIsoDate = parseDateInput(rawValue);
     if (parsedIsoDate) {
@@ -114,7 +124,10 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
 
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
     const nextFocusedNode = event.relatedTarget;
-    if (nextFocusedNode && containerRef.current?.contains(nextFocusedNode)) {
+    if (
+      (nextFocusedNode && containerRef.current?.contains(nextFocusedNode))
+      || interactingInsideRef.current
+    ) {
       onBlur?.(event);
       return;
     }
@@ -203,7 +216,7 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
           aria-label="Открыть календарь"
           className="date-input__calendar-toggle"
           disabled={props.disabled || props.readOnly}
-          onMouseDown={(event) => event.preventDefault()}
+          onMouseDownCapture={markInteractingInside}
           onClick={() => setCalendarOpen((current) => !current)}
           type="button"
         >
@@ -223,7 +236,7 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
         {calendarOpen ? (
           <div
             className="date-input__popover"
-            onMouseDown={(event) => event.preventDefault()}
+            onMouseDownCapture={markInteractingInside}
           >
             <DayPicker
               className="date-picker"
@@ -263,28 +276,11 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
 });
 
 function sanitizeDateInput(rawValue: string): string {
-  const trimmedValue = rawValue.replace(/[^\d./\- ]+/g, "");
-  if (!trimmedValue.trim()) {
+  const sanitizedValue = rawValue.replace(/[^\d./\- ]+/g, "");
+  if (!sanitizedValue.trim()) {
     return "";
   }
-
-  const parsedIsoDate = parseIsoDate(trimmedValue.trim());
-  if (parsedIsoDate) {
-    return formatIsoDateForDisplay(parsedIsoDate);
-  }
-
-  if (/^\d+$/.test(trimmedValue.trim())) {
-    const digits = trimmedValue.trim().slice(0, 8);
-    const day = digits.slice(0, 2);
-    const month = digits.slice(2, 4);
-    const year = digits.slice(4, 8);
-    return [day, month, year].filter(Boolean).join(".");
-  }
-
-  return trimmedValue
-    .replace(/[/\- ]+/g, ".")
-    .replace(/\.{2,}/g, ".")
-    .slice(0, 10);
+  return sanitizedValue.slice(0, 10);
 }
 
 function parseDateInput(rawValue: string): string | null {

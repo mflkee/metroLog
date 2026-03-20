@@ -1,5 +1,6 @@
 from datetime import date
 from typing import Annotated
+from urllib.parse import quote
 
 from fastapi import APIRouter, File, Form, Query, UploadFile
 from fastapi.responses import Response
@@ -22,6 +23,7 @@ from app.schemas.equipment import (
     EquipmentSIBulkImportResultRead,
     EquipmentSIRefreshRequest,
     EquipmentUpdateRequest,
+    ProcessBatchMembershipUpdateRequest,
     RepairBulkCreateRequest,
     RepairCreateRequest,
     RepairMessageCreateRequest,
@@ -163,6 +165,56 @@ async def list_repair_queue(
     )
 
 
+@router.get("/verifications/export/xlsx")
+async def export_verification_queue_xlsx(
+    _: CurrentUser,
+    db: DbSession,
+    lifecycle_status: Annotated[str, Query()] = "active",
+    query: Annotated[str | None, Query()] = None,
+) -> Response:
+    content = EquipmentService(db).export_verification_queue_xlsx(
+        lifecycle_status=lifecycle_status,
+        query=query,
+    )
+    lifecycle_label = "активные" if lifecycle_status.strip().lower() == "active" else "архив"
+    file_name = f"Поверка СИ {lifecycle_label} {date.today().strftime('%d.%m.%Y')}.xlsx"
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="verification-queue.xlsx"; '
+                f"filename*=UTF-8''{quote(file_name)}"
+            ),
+        },
+    )
+
+
+@router.get("/repairs/export/xlsx")
+async def export_repair_queue_xlsx(
+    _: CurrentUser,
+    db: DbSession,
+    lifecycle_status: Annotated[str, Query()] = "active",
+    query: Annotated[str | None, Query()] = None,
+) -> Response:
+    content = EquipmentService(db).export_repair_queue_xlsx(
+        lifecycle_status=lifecycle_status,
+        query=query,
+    )
+    lifecycle_label = "активные" if lifecycle_status.strip().lower() == "active" else "архив"
+    file_name = f"Ремонты {lifecycle_label} {date.today().strftime('%d.%m.%Y')}.xlsx"
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                'attachment; filename="repair-queue.xlsx"; '
+                f"filename*=UTF-8''{quote(file_name)}"
+            ),
+        },
+    )
+
+
 @router.get(
     "/{equipment_id}/verification/history",
     response_model=list[VerificationQueueItemRead],
@@ -175,6 +227,18 @@ async def list_equipment_verification_history(
     return EquipmentService(db).list_equipment_verification_history(
         equipment_id=equipment_id
     )
+
+
+@router.get(
+    "/{equipment_id}/repair/history",
+    response_model=list[RepairQueueItemRead],
+)
+async def list_equipment_repair_history(
+    equipment_id: int,
+    _: CurrentUser,
+    db: DbSession,
+) -> list[RepairQueueItemRead]:
+    return EquipmentService(db).list_equipment_repair_history(equipment_id=equipment_id)
 
 
 @router.post("/verifications/bulk", response_model=list[VerificationRead], status_code=201)
@@ -319,6 +383,21 @@ async def update_verification_batch_milestones(
     return [VerificationRead.model_validate(item) for item in verifications]
 
 
+@router.patch("/verifications/batch/{batch_key}/items", response_model=list[VerificationRead])
+async def update_verification_batch_items(
+    batch_key: str,
+    payload: ProcessBatchMembershipUpdateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> list[VerificationRead]:
+    verifications = EquipmentService(db).update_verification_batch_items(
+        batch_key=batch_key,
+        payload=payload,
+        current_user=current_user,
+    )
+    return [VerificationRead.model_validate(item) for item in verifications]
+
+
 @router.post("/{equipment_id}/verification/close", response_model=VerificationRead)
 async def close_equipment_verification(
     equipment_id: int,
@@ -379,6 +458,56 @@ async def update_equipment_repair_milestones(
         current_user=current_user,
     )
     return RepairRead.model_validate(repair)
+
+
+@router.patch("/repairs/batch/{batch_key}", response_model=list[RepairRead])
+async def update_repair_batch_milestones(
+    batch_key: str,
+    payload: RepairMilestonesUpdateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> list[RepairRead]:
+    repairs = EquipmentService(db).update_repair_batch_milestones(
+        batch_key=batch_key,
+        payload=payload,
+        current_user=current_user,
+    )
+    return [RepairRead.model_validate(item) for item in repairs]
+
+
+@router.patch("/repairs/batch/{batch_key}/items", response_model=list[RepairRead])
+async def update_repair_batch_items(
+    batch_key: str,
+    payload: ProcessBatchMembershipUpdateRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> list[RepairRead]:
+    repairs = EquipmentService(db).update_repair_batch_items(
+        batch_key=batch_key,
+        payload=payload,
+        current_user=current_user,
+    )
+    return [RepairRead.model_validate(item) for item in repairs]
+
+
+@router.post("/{equipment_id}/repair/close", response_model=RepairRead)
+async def close_equipment_repair(
+    equipment_id: int,
+    _: OperatorUser,
+    db: DbSession,
+) -> RepairRead:
+    repair = EquipmentService(db).close_repair(equipment_id=equipment_id)
+    return RepairRead.model_validate(repair)
+
+
+@router.post("/repairs/batch/{batch_key}/close", response_model=list[RepairRead])
+async def close_repair_batch(
+    batch_key: str,
+    _: OperatorUser,
+    db: DbSession,
+) -> list[RepairRead]:
+    repairs = EquipmentService(db).close_repair_batch(batch_key=batch_key)
+    return [RepairRead.model_validate(item) for item in repairs]
 
 
 @router.get("/{equipment_id}/repair/messages", response_model=list[RepairMessageRead])
@@ -544,7 +673,33 @@ async def download_verification_archive(
     return Response(
         content=content,
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{file_name}"'},
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"verification-archive.zip\"; "
+                f"filename*=UTF-8''{quote(file_name)}"
+            )
+        },
+    )
+
+
+@router.get("/repairs/{repair_id}/archive.zip")
+async def download_repair_archive(
+    repair_id: int,
+    _: CurrentUser,
+    db: DbSession,
+) -> Response:
+    file_name, content = EquipmentService(db).export_repair_archive_zip(
+        repair_id=repair_id
+    )
+    return Response(
+        content=content,
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": (
+                f"attachment; filename=\"repair-archive.zip\"; "
+                f"filename*=UTF-8''{quote(file_name)}"
+            )
+        },
     )
 
 

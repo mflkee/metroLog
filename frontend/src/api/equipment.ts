@@ -52,6 +52,8 @@ type RawEquipment = {
 type RawEquipmentRepair = {
   id: number;
   equipment_id: number;
+  batch_key: string | null;
+  batch_name: string | null;
   route_city: string;
   route_destination: string;
   sent_to_repair_at: string;
@@ -215,6 +217,8 @@ export type EquipmentItem = {
 export type EquipmentRepair = {
   id: number;
   equipmentId: number;
+  batchKey: string | null;
+  batchName: string | null;
   routeCity: string;
   routeDestination: string;
   sentToRepairAt: string;
@@ -282,6 +286,8 @@ export type VerificationQueueItem = {
 export type RepairQueueItem = {
   repairId: number;
   equipmentId: number;
+  batchKey: string | null;
+  batchName: string | null;
   folderId: number | null;
   objectName: string;
   equipmentType: EquipmentType;
@@ -452,6 +458,7 @@ export type CreateEquipmentRepairPayload = {
 
 export type CreateRepairBatchPayload = {
   equipmentIds: number[];
+  batchName: string;
   routeCity: string;
   routeDestination: string;
   sentToRepairAt: string;
@@ -472,6 +479,11 @@ export type UpdateRepairMilestonesPayload = {
   actuallyReceivedAt?: string | null;
   incomingControlAt?: string | null;
   paidAt?: string | null;
+};
+
+export type UpdateProcessBatchItemsPayload = {
+  addEquipmentIds?: number[];
+  removeEquipmentIds?: number[];
 };
 
 export type CreateEquipmentVerificationPayload = {
@@ -571,6 +583,8 @@ type RawVerificationQueueItem = {
 type RawRepairQueueItem = {
   repair_id: number;
   equipment_id: number;
+  batch_key: string | null;
+  batch_name: string | null;
   folder_id: number | null;
   object_name: string;
   equipment_type: EquipmentType;
@@ -777,6 +791,20 @@ export async function fetchEquipmentVerificationHistory(
   return response.map(mapVerificationQueueItem);
 }
 
+export async function fetchEquipmentRepairHistory(
+  token: string,
+  equipmentId: number,
+): Promise<RepairQueueItem[]> {
+  const response = await apiRequest<RawRepairQueueItem[]>(
+    `/equipment/${equipmentId}/repair/history`,
+    {
+      method: "GET",
+      token,
+    },
+  );
+  return response.map(mapRepairQueueItem);
+}
+
 export async function exportEquipmentRegistryXlsx(
   token: string,
   filters: FetchEquipmentFilters = {},
@@ -803,6 +831,91 @@ export async function exportEquipmentRegistryXlsx(
   const blob = await response.blob();
   const contentDisposition = response.headers.get("content-disposition") ?? "";
   const fileName = parseContentDispositionFileName(contentDisposition) ?? "equipment-registry.xlsx";
+  return { blob, fileName };
+}
+
+export async function exportRepairQueueXlsx(
+  token: string,
+  {
+    lifecycleStatus,
+    query,
+  }: {
+    lifecycleStatus: "active" | "archived";
+    query?: string;
+  },
+): Promise<{ blob: Blob; fileName: string }> {
+  const search = new URLSearchParams();
+  search.set("lifecycle_status", lifecycleStatus);
+  if (query?.trim()) {
+    search.set("query", query.trim());
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/equipment/repairs/export/xlsx?${search.toString()}`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "Не удалось связаться с сервером. Проверь доступность приложения и настройки API.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, "Не удалось выгрузить Excel-файл ремонтов.");
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition") ?? "";
+  const fileName = parseContentDispositionFileName(contentDisposition) ?? "repairs.xlsx";
+  return { blob, fileName };
+}
+
+export async function exportVerificationQueueXlsx(
+  token: string,
+  {
+    lifecycleStatus,
+    query,
+  }: {
+    lifecycleStatus: "active" | "archived";
+    query?: string;
+  },
+): Promise<{ blob: Blob; fileName: string }> {
+  const search = new URLSearchParams();
+  search.set("lifecycle_status", lifecycleStatus);
+  if (query?.trim()) {
+    search.set("query", query.trim());
+  }
+
+  let response: Response;
+  try {
+    response = await fetch(
+      `${apiBaseUrl}/equipment/verifications/export/xlsx?${search.toString()}`,
+      {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      },
+    );
+  } catch {
+    throw new ApiError(
+      0,
+      "Не удалось связаться с сервером. Проверь доступность приложения и настройки API.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, "Не удалось выгрузить Excel-файл поверок.");
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition") ?? "";
+  const fileName = parseContentDispositionFileName(contentDisposition) ?? "verification.xlsx";
   return { blob, fileName };
 }
 
@@ -847,6 +960,7 @@ export async function createRepairBatch(
     token,
     body: {
       equipment_ids: payload.equipmentIds,
+      batch_name: payload.batchName,
       route_city: payload.routeCity,
       route_destination: payload.routeDestination,
       sent_to_repair_at: normalizeDateForApi(payload.sentToRepairAt),
@@ -876,6 +990,75 @@ export async function updateEquipmentRepairMilestones(
     },
   });
   return mapEquipmentRepair(response);
+}
+
+export async function updateRepairBatchMilestones(
+  token: string,
+  batchKey: string,
+  payload: UpdateRepairMilestonesPayload,
+): Promise<EquipmentRepair[]> {
+  const response = await apiRequest<RawEquipmentRepair[]>(
+    `/equipment/repairs/batch/${batchKey}`,
+    {
+      method: "PATCH",
+      token,
+      body: {
+        sent_to_repair_at: normalizeOptionalDateForApi(payload.sentToRepairAt),
+        arrived_to_destination_at: normalizeOptionalDateForApi(payload.arrivedToDestinationAt),
+        sent_from_repair_at: normalizeOptionalDateForApi(payload.sentFromRepairAt),
+        sent_from_irkutsk_at: normalizeOptionalDateForApi(payload.sentFromIrkutskAt),
+        arrived_to_lensk_at: normalizeOptionalDateForApi(payload.arrivedToLenskAt),
+        actually_received_at: normalizeOptionalDateForApi(payload.actuallyReceivedAt),
+        incoming_control_at: normalizeOptionalDateForApi(payload.incomingControlAt),
+        paid_at: normalizeOptionalDateForApi(payload.paidAt),
+      },
+    },
+  );
+  return response.map(mapEquipmentRepair);
+}
+
+export async function closeEquipmentRepair(
+  token: string,
+  equipmentId: number,
+): Promise<EquipmentRepair> {
+  const response = await apiRequest<RawEquipmentRepair>(`/equipment/${equipmentId}/repair/close`, {
+    method: "POST",
+    token,
+  });
+  return mapEquipmentRepair(response);
+}
+
+export async function closeRepairBatch(
+  token: string,
+  batchKey: string,
+): Promise<EquipmentRepair[]> {
+  const response = await apiRequest<RawEquipmentRepair[]>(
+    `/equipment/repairs/batch/${batchKey}/close`,
+    {
+      method: "POST",
+      token,
+    },
+  );
+  return response.map(mapEquipmentRepair);
+}
+
+export async function updateRepairBatchItems(
+  token: string,
+  batchKey: string,
+  payload: UpdateProcessBatchItemsPayload,
+): Promise<EquipmentRepair[]> {
+  const response = await apiRequest<RawEquipmentRepair[]>(
+    `/equipment/repairs/batch/${batchKey}/items`,
+    {
+      method: "PATCH",
+      token,
+      body: {
+        add_equipment_ids: payload.addEquipmentIds ?? [],
+        remove_equipment_ids: payload.removeEquipmentIds ?? [],
+      },
+    },
+  );
+  return response.map(mapEquipmentRepair);
 }
 
 export async function createEquipmentVerification(
@@ -993,6 +1176,25 @@ export async function closeVerificationBatch(
     {
       method: "POST",
       token,
+    },
+  );
+  return response.map(mapEquipmentVerification);
+}
+
+export async function updateVerificationBatchItems(
+  token: string,
+  batchKey: string,
+  payload: UpdateProcessBatchItemsPayload,
+): Promise<EquipmentVerification[]> {
+  const response = await apiRequest<RawEquipmentVerification[]>(
+    `/equipment/verifications/batch/${batchKey}/items`,
+    {
+      method: "PATCH",
+      token,
+      body: {
+        add_equipment_ids: payload.addEquipmentIds ?? [],
+        remove_equipment_ids: payload.removeEquipmentIds ?? [],
+      },
     },
   );
   return response.map(mapEquipmentVerification);
@@ -1187,6 +1389,36 @@ export async function downloadVerificationArchiveZip(
   const contentDisposition = response.headers.get("content-disposition") ?? "";
   const fileName =
     parseContentDispositionFileName(contentDisposition) ?? `verification-archive-${verificationId}.zip`;
+  return { blob, fileName };
+}
+
+export async function downloadRepairArchiveZip(
+  token: string,
+  repairId: number,
+): Promise<{ blob: Blob; fileName: string }> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBaseUrl}/equipment/repairs/${repairId}/archive.zip`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  } catch {
+    throw new ApiError(
+      0,
+      "Не удалось связаться с сервером. Проверь доступность приложения и настройки API.",
+    );
+  }
+
+  if (!response.ok) {
+    throw new ApiError(response.status, "Не удалось скачать архив ремонта.");
+  }
+
+  const blob = await response.blob();
+  const contentDisposition = response.headers.get("content-disposition") ?? "";
+  const fileName =
+    parseContentDispositionFileName(contentDisposition) ?? `repair-archive-${repairId}.zip`;
   return { blob, fileName };
 }
 
@@ -1573,6 +1805,8 @@ function mapEquipmentRepair(repair: RawEquipmentRepair): EquipmentRepair {
   return {
     id: repair.id,
     equipmentId: repair.equipment_id,
+    batchKey: repair.batch_key,
+    batchName: repair.batch_name,
     routeCity: repair.route_city,
     routeDestination: repair.route_destination,
     sentToRepairAt: repair.sent_to_repair_at,
@@ -1663,6 +1897,8 @@ function mapRepairQueueItem(item: RawRepairQueueItem): RepairQueueItem {
   return {
     repairId: item.repair_id,
     equipmentId: item.equipment_id,
+    batchKey: item.batch_key,
+    batchName: item.batch_name,
     folderId: item.folder_id,
     objectName: item.object_name,
     equipmentType: item.equipment_type,

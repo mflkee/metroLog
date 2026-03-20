@@ -83,10 +83,27 @@ type VerificationBatchFormState = {
 };
 
 type RepairBatchFormState = {
+  batchName: string;
   routeCity: string;
   routeDestination: string;
   sentToRepairAt: string;
   initialMessageText: string;
+};
+
+type EquipmentSortKey =
+  | "name"
+  | "equipmentType"
+  | "status"
+  | "serialNumber"
+  | "manufactureYear"
+  | "objectName"
+  | "currentLocationManual";
+
+type EquipmentSortDirection = "asc" | "desc";
+
+type EquipmentSortState = {
+  key: EquipmentSortKey;
+  direction: EquipmentSortDirection;
 };
 
 type DeleteTarget =
@@ -147,6 +164,7 @@ const defaultVerificationBatchForm: VerificationBatchFormState = {
 };
 
 const defaultRepairBatchForm: RepairBatchFormState = {
+  batchName: "",
   routeCity: "",
   routeDestination: "",
   sentToRepairAt: getTodayDateInputValue(),
@@ -184,6 +202,7 @@ export function EquipmentPage() {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
+  const [sortState, setSortState] = useState<EquipmentSortState | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
 
@@ -423,6 +442,7 @@ export function EquipmentPage() {
 
       return createRepairBatch(token ?? "", {
         equipmentIds: selectedEquipmentIds,
+        batchName: repairBatchForm.batchName,
         routeCity: repairBatchForm.routeCity,
         routeDestination: repairBatchForm.routeDestination,
         sentToRepairAt: repairBatchForm.sentToRepairAt,
@@ -440,16 +460,30 @@ export function EquipmentPage() {
 
   const folders = useMemo(() => foldersQuery.data ?? [], [foldersQuery.data]);
   const equipmentItems = useMemo(() => equipmentQuery.data ?? [], [equipmentQuery.data]);
+  const sortedEquipmentItems = useMemo(() => {
+    if (!sortState) {
+      return equipmentItems;
+    }
+
+    return [...equipmentItems].sort((left, right) => {
+      const directionMultiplier = sortState.direction === "asc" ? 1 : -1;
+      return compareEquipmentItems(left, right, sortState.key) * directionMultiplier;
+    });
+  }, [equipmentItems, sortState]);
   const selectedEquipmentItems = useMemo(
-    () => equipmentItems.filter((item) => selectedEquipmentIds.includes(item.id)),
-    [equipmentItems, selectedEquipmentIds],
+    () => sortedEquipmentItems.filter((item) => selectedEquipmentIds.includes(item.id)),
+    [sortedEquipmentItems, selectedEquipmentIds],
   );
   const visibleSelectedEquipmentIds = useMemo(
-    () => equipmentItems.filter((item) => selectedEquipmentIds.includes(item.id)).map((item) => item.id),
-    [equipmentItems, selectedEquipmentIds],
+    () =>
+      sortedEquipmentItems
+        .filter((item) => selectedEquipmentIds.includes(item.id))
+        .map((item) => item.id),
+    [sortedEquipmentItems, selectedEquipmentIds],
   );
   const areAllVisibleEquipmentSelected =
-    equipmentItems.length > 0 && visibleSelectedEquipmentIds.length === equipmentItems.length;
+    sortedEquipmentItems.length > 0
+    && visibleSelectedEquipmentIds.length === sortedEquipmentItems.length;
   const areAllSelectedItemsSi =
     selectedEquipmentItems.length > 0
     && selectedEquipmentItems.every((item) => item.equipmentType === "SI");
@@ -609,7 +643,10 @@ export function EquipmentPage() {
     if (selectedEquipmentIds.length === 0 || hasSelectedItemsWithActiveRepair) {
       return;
     }
-    setRepairBatchForm(defaultRepairBatchForm);
+    setRepairBatchForm({
+      ...defaultRepairBatchForm,
+      batchName: selectedFolder ? `${selectedFolder.name} / ремонт` : "",
+    });
     createRepairBatchMutation.reset();
     setActiveModal({ kind: "repair-batch" });
   }
@@ -732,9 +769,25 @@ export function EquipmentPage() {
   function toggleSelectAllEquipment() {
     setSelectedEquipmentIds((current) =>
       areAllVisibleEquipmentSelected
-        ? current.filter((id) => !equipmentItems.some((item) => item.id === id))
-        : Array.from(new Set([...current, ...equipmentItems.map((item) => item.id)])),
+        ? current.filter((id) => !sortedEquipmentItems.some((item) => item.id === id))
+        : Array.from(new Set([...current, ...sortedEquipmentItems.map((item) => item.id)])),
     );
+  }
+
+  function handleSortColumn(key: EquipmentSortKey) {
+    setSortState((current) => {
+      if (!current || current.key !== key) {
+        return {
+          key,
+          direction: getInitialSortDirection(key),
+        };
+      }
+
+      return {
+        key,
+        direction: current.direction === "asc" ? "desc" : "asc",
+      };
+    });
   }
 
   return (
@@ -992,7 +1045,7 @@ export function EquipmentPage() {
               <p className="text-sm text-[#b04c43]">{exportError}</p>
             ) : null}
 
-            {canManage && equipmentItems.length ? (
+            {canManage && sortedEquipmentItems.length ? (
               <div className="tone-parent flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <button className={subtleButtonClass} type="button" onClick={toggleSelectAllEquipment}>
@@ -1057,7 +1110,7 @@ export function EquipmentPage() {
               </div>
             ) : null}
 
-            {!equipmentQuery.isLoading && !equipmentItems.length ? (
+            {!equipmentQuery.isLoading && !sortedEquipmentItems.length ? (
               <div className="tone-parent rounded-3xl border border-dashed border-line px-5 py-10 text-center">
                 <p className="text-base font-semibold text-ink">Под текущие фильтры приборы не найдены.</p>
                 <p className="mt-2 text-sm text-steel">
@@ -1066,7 +1119,7 @@ export function EquipmentPage() {
               </div>
             ) : null}
 
-            {equipmentItems.length ? (
+            {sortedEquipmentItems.length ? (
               <div className="tone-parent overflow-x-auto rounded-3xl border border-line shadow-panel">
                 <table className="min-w-full">
                   <thead>
@@ -1081,17 +1134,52 @@ export function EquipmentPage() {
                           />
                         </th>
                       ) : null}
-                      <th className="px-3 py-2">Прибор</th>
-                      <th className="px-3 py-2">Категория</th>
-                      <th className="px-3 py-2">Статус</th>
-                      <th className="px-3 py-2">Серийный</th>
-                      <th className="px-3 py-2">Год выпуска</th>
-                      <th className="px-3 py-2">Объект</th>
-                      <th className="px-3 py-2">Местонахождение</th>
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Прибор"
+                        sortKey="name"
+                        onSort={handleSortColumn}
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Категория"
+                        sortKey="equipmentType"
+                        onSort={handleSortColumn}
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Статус"
+                        sortKey="status"
+                        onSort={handleSortColumn}
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Серийный"
+                        sortKey="serialNumber"
+                        onSort={handleSortColumn}
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Год выпуска"
+                        sortKey="manufactureYear"
+                        onSort={handleSortColumn}
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Объект"
+                        sortKey="objectName"
+                        onSort={handleSortColumn}
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Местонахождение"
+                        sortKey="currentLocationManual"
+                        onSort={handleSortColumn}
+                      />
                     </tr>
                   </thead>
                   <tbody>
-                    {equipmentItems.map((item, index) => (
+                    {sortedEquipmentItems.map((item, index) => (
                       <EquipmentRow
                         key={item.id}
                         item={item}
@@ -1674,6 +1762,22 @@ export function EquipmentPage() {
         onClose={closeRepairBatchModal}
       >
         <form className="space-y-4" onSubmit={(event) => void handleRepairBatchSubmit(event)}>
+          {selectedEquipmentIds.length > 1 ? (
+            <label className="block text-sm text-steel">
+              Название группы
+              <input
+                className="form-input"
+                type="text"
+                value={repairBatchForm.batchName}
+                onChange={(event) =>
+                  setRepairBatchForm((current) => ({
+                    ...current,
+                    batchName: event.target.value,
+                  }))
+                }
+              />
+            </label>
+          ) : null}
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block text-sm text-steel">
               Откуда
@@ -1750,6 +1854,7 @@ export function EquipmentPage() {
               disabled={
                 createRepairBatchMutation.isPending
                 || selectedEquipmentIds.length === 0
+                || (selectedEquipmentIds.length > 1 && !repairBatchForm.batchName.trim())
                 || !repairBatchForm.routeCity.trim()
                 || !repairBatchForm.routeDestination.trim()
                 || !repairBatchForm.sentToRepairAt
@@ -1958,6 +2063,37 @@ function EquipmentRow({
   );
 }
 
+function SortableTableHeader({
+  label,
+  sortKey,
+  activeSort,
+  onSort,
+}: {
+  label: string;
+  sortKey: EquipmentSortKey;
+  activeSort: EquipmentSortState | null;
+  onSort: (key: EquipmentSortKey) => void;
+}) {
+  const isActive = activeSort?.key === sortKey;
+  const arrow =
+    !isActive ? "↕" : activeSort.direction === "asc" ? "↑" : "↓";
+
+  return (
+    <th className="px-3 py-2">
+      <button
+        className={`inline-flex items-center gap-2 transition ${
+          isActive ? "text-ink" : "text-steel hover:text-ink"
+        }`}
+        onClick={() => onSort(sortKey)}
+        type="button"
+      >
+        <span>{label}</span>
+        <span className={`text-[11px] ${isActive ? "text-ink" : "text-steel/80"}`}>{arrow}</span>
+      </button>
+    </th>
+  );
+}
+
 function mapEquipmentFormToPayload(
   form: EquipmentFormState,
   folderId: number,
@@ -1984,6 +2120,89 @@ function mapEquipmentFormToPayload(
 
 function getMutationErrorMessage(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
+}
+
+function getInitialSortDirection(key: EquipmentSortKey): EquipmentSortDirection {
+  if (key === "manufactureYear") {
+    return "desc";
+  }
+  return "asc";
+}
+
+function compareEquipmentItems(
+  left: EquipmentItem,
+  right: EquipmentItem,
+  key: EquipmentSortKey,
+): number {
+  switch (key) {
+    case "equipmentType":
+      return compareNumbers(
+        equipmentTypeSortOrder[left.equipmentType],
+        equipmentTypeSortOrder[right.equipmentType],
+      );
+    case "status":
+      return compareNumbers(
+        getEquipmentStatusSortOrder(left),
+        getEquipmentStatusSortOrder(right),
+      );
+    case "manufactureYear":
+      return compareNullableNumbers(left.manufactureYear, right.manufactureYear);
+    case "name":
+      return compareText(`${left.name} ${left.modification ?? ""}`, `${right.name} ${right.modification ?? ""}`);
+    case "serialNumber":
+      return compareText(left.serialNumber ?? "", right.serialNumber ?? "");
+    case "objectName":
+      return compareText(left.objectName, right.objectName);
+    case "currentLocationManual":
+      return compareText(left.currentLocationManual ?? "", right.currentLocationManual ?? "");
+    default:
+      return 0;
+  }
+}
+
+const equipmentTypeSortOrder: Record<EquipmentType, number> = {
+  SI: 0,
+  IO: 1,
+  VO: 2,
+  OTHER: 3,
+};
+
+const equipmentStatusSortOrder: Record<string, number> = {
+  "В работе": 0,
+  "В поверке": 1,
+  "В ремонте": 2,
+  "В ремонте/поверке": 3,
+  Архив: 4,
+};
+
+const russianCollator = new Intl.Collator("ru", {
+  sensitivity: "base",
+  numeric: true,
+});
+
+function getEquipmentStatusSortOrder(item: EquipmentItem): number {
+  return equipmentStatusSortOrder[getEquipmentStatusLabel(item)] ?? 999;
+}
+
+function compareNumbers(left: number, right: number): number {
+  return left - right;
+}
+
+function compareNullableNumbers(left: number | null, right: number | null): number {
+  if (left === null && right === null) {
+    return 0;
+  }
+  if (left === null) {
+    return 1;
+  }
+  if (right === null) {
+    return -1;
+  }
+  return left - right;
+}
+
+function compareText(left: string, right: string): number {
+  return russianCollator.compare(left.trim(), right.trim());
 }
 
 function getTodayDateInputValue(): string {

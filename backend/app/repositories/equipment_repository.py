@@ -315,6 +315,46 @@ class RepairRepository:
         statement = select(Repair).where(Repair.id == repair_id)
         return self.session.scalar(statement)
 
+    def list_active_by_batch_key(self, *, batch_key: str) -> list[Repair]:
+        statement = (
+            select(Repair)
+            .where(
+                Repair.batch_key == batch_key,
+                Repair.closed_at.is_(None),
+            )
+            .order_by(Repair.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+    def list_archived_by_equipment_id(
+        self,
+        *,
+        equipment_id: int,
+    ) -> list[tuple[Repair, Equipment, SIVerification | None, bool]]:
+        has_active_verification = exists(
+            select(Verification.id).where(
+                Verification.equipment_id == Repair.equipment_id,
+                Verification.closed_at.is_(None),
+            )
+        )
+        statement = (
+            select(
+                Repair,
+                Equipment,
+                SIVerification,
+                has_active_verification.label("has_active_verification"),
+            )
+            .join(Equipment, Equipment.id == Repair.equipment_id)
+            .outerjoin(SIVerification, SIVerification.equipment_id == Equipment.id)
+            .where(
+                Repair.equipment_id == equipment_id,
+                Repair.closed_at.is_not(None),
+            )
+            .order_by(Repair.closed_at.desc(), Repair.id.desc())
+        )
+        rows = self.session.execute(statement).all()
+        return [(row[0], row[1], row[2], bool(row[3])) for row in rows]
+
     def list_queue_items(
         self,
         *,
@@ -363,6 +403,7 @@ class RepairRepository:
                     SIVerification.result_docnum.ilike(pattern),
                     SIVerification.mit_number.ilike(pattern),
                     SIVerification.mi_number.ilike(pattern),
+                    Repair.batch_name.ilike(pattern),
                     Repair.route_city.ilike(pattern),
                     Repair.route_destination.ilike(pattern),
                 )
@@ -412,6 +453,15 @@ class RepairMessageRepository:
             select(RepairMessage)
             .options(selectinload(RepairMessage.attachments))
             .where(RepairMessage.repair_id == repair_id)
+            .order_by(RepairMessage.created_at.asc(), RepairMessage.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+    def list_by_batch_key(self, *, batch_key: str) -> list[RepairMessage]:
+        statement = (
+            select(RepairMessage)
+            .options(selectinload(RepairMessage.attachments))
+            .where(RepairMessage.batch_key == batch_key)
             .order_by(RepairMessage.created_at.asc(), RepairMessage.id.asc())
         )
         return list(self.session.scalars(statement))

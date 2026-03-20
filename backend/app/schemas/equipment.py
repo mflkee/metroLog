@@ -74,6 +74,8 @@ class RepairRead(BaseModel):
 
     id: int
     equipment_id: int
+    batch_key: str | None
+    batch_name: str | None
     route_city: str
     route_destination: str
     sent_to_repair_at: date
@@ -143,6 +145,8 @@ class VerificationQueueItemRead(BaseModel):
 class RepairQueueItemRead(BaseModel):
     repair_id: int
     equipment_id: int
+    batch_key: str | None
+    batch_name: str | None
     folder_id: int | None
     object_name: str
     equipment_type: EquipmentType
@@ -232,6 +236,8 @@ class EquipmentCommentUpdateRequest(BaseModel):
 
 
 class RepairCreateRequest(BaseModel):
+    batch_key: str | None = None
+    batch_name: str | None = None
     route_city: str
     route_destination: str
     sent_to_repair_at: date
@@ -256,6 +262,7 @@ class RepairMessageRead(BaseModel):
 
     id: int
     repair_id: int
+    batch_key: str | None
     author_user_id: int | None
     author_display_name: str
     text: str | None
@@ -314,6 +321,7 @@ class VerificationCreateRequest(BaseModel):
 
 class RepairBulkCreateRequest(BaseModel):
     equipment_ids: list[int]
+    batch_name: str
     route_city: str
     route_destination: str
     sent_to_repair_at: date
@@ -327,6 +335,11 @@ class VerificationBulkCreateRequest(BaseModel):
     route_destination: str
     sent_to_verification_at: date
     initial_message_text: str | None = None
+
+
+class ProcessBatchMembershipUpdateRequest(BaseModel):
+    add_equipment_ids: list[int] = []
+    remove_equipment_ids: list[int] = []
 
 
 class VerificationMilestonesUpdateRequest(BaseModel):

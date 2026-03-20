@@ -44,11 +44,13 @@ Compactness is a hard requirement:
 - the interface must stay efficient on smaller laptop screens,
 - avoid oversized cards, oversized empty zones, and decorative spacing,
 - action-heavy workflows should prefer dense layouts and icon-based controls where clarity is preserved.
+- inside a selected folder workspace, the equipment page should be reduced to the essentials: folder title, actions, filters, and the registry table; explanatory hero text above the table is noise and should be avoided.
 
 Date input formatting is a hard UI rule:
 - every date field, date input, and date picker in the application must use the Russian-style `dd.mm.yyyy` presentation,
 - `mm/dd/yyyy` style is not allowed anywhere in the product UI,
 - the shared date input may expose a compact `Сегодня` shortcut for operational workflows,
+- frontend must not depend on browser-native `pattern` validation for date acceptance; the shared input and API layer should normalize user-entered `dd.mm.yyyy` instead of letting the browser block submit with a generic message,
 - this rule applies consistently across registry forms, repair workflows, verification workflows, filters, and modal dialogs.
 
 ### 2. Backend-driven business logic
@@ -202,10 +204,18 @@ Additional UX expectations:
 * the most important field in the registry is the current status,
 * every row should have a clear type/category marker,
 * clicking a row should open the detailed equipment card,
+* in the selected-folder state, the page header should show only the folder name rather than repeating long page descriptions,
 * creation actions for folders, groups, and equipment should use modal dialogs,
 * editing actions for folders, groups, and equipment should use compact secondary controls,
 * deleting folders, groups, and equipment should require a confirmation dialog,
 * creation buttons should stay visually secondary and should not dominate the screen.
+
+Registry process actions:
+
+* if exactly one item is selected in the registry, `Отправить в ремонт` and `Отправить в поверку` should use the same modal pattern but create a single process rather than opening a semantically batch-only flow,
+* true grouped semantics start only when more than one item is selected,
+* the UI must disable repair send when any selected row already has an active repair,
+* the UI must disable verification send when any selected row already has an active verification.
 
 Creation flow difference:
 
@@ -316,8 +326,9 @@ Workflow rules:
 * only `SI` items can enter verification,
 * grouped verification is allowed only when all selected items are `SI`,
 * completion should move verification panels into archive state,
-* grouped verification membership may be adjusted later,
-* milestone editing must preserve chronological order.
+* grouped verification membership should be editable from the active grouped card: operators may add free `SI` items into the batch or remove one member from it,
+* milestone editing must preserve chronological order,
+* after verification closes, any registry or card status badge must immediately fall back to `В работе` unless another active process still exists.
 
 Adding `SI` behavior:
 
@@ -342,15 +353,24 @@ Workflow rules:
 
 * repair is available for all equipment categories,
 * grouped repair may include both `SI` and non-`SI`,
+* grouped repair should be rendered as one batch card on `/repairs` when multiple active repairs share one `batch_key`,
+* grouped repair should reuse one shared dialog and one shared milestone editor across the whole batch,
 * repair completion is available only after payment,
 * grouped repair completion should also be supported,
 * after completion, the active repair panel on the card becomes a compact archive record,
-* grouped repair membership may be adjusted later,
-* repair milestone editing must preserve chronological order.
+* grouped repair membership should be editable from the active grouped card: operators may add free equipment into the batch or remove one member from it,
+* repair milestone editing must preserve chronological order,
+* if a repair remains the only active process after verification closes, the card and registry should still show `В ремонте`.
 
 ### Excel export
 
 List pages should support Excel export of the current filtered result.
+
+Current expected export entry points:
+
+* `/equipment` exports the filtered registry inside the selected folder workspace,
+* `/repairs` exports the filtered active or archived repair queue,
+* `/verification/si` exports the filtered active or archived SI verification queue.
 
 Later extension:
 

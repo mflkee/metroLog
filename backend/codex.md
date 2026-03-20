@@ -473,7 +473,14 @@ Rules:
 * one `SI` item may have active repair and active verification at the same time,
 * detailed equipment responses must expose these states independently,
 * one process must not overwrite or hide the other in backend state,
-* active repair must affect registry-facing status so that the item is shown as `IN_REPAIR`.
+* active repair must affect registry-facing status so that the item is shown as `IN_REPAIR`,
+* if both active processes are absent, stale transient statuses must be normalized back to `IN_WORK`,
+* if verification closes while repair is still active, the equipment status must remain `IN_REPAIR`.
+
+### Rule 2.1.1 - One active verification
+
+Each `SI` item can have at most one active verification.
+The service layer must reject attempts to start a second active verification for the same item, just as it rejects a second active repair.
 
 ### Rule 2.2 - Folder-scoped manual suggestions
 
@@ -601,7 +608,9 @@ Rules:
 * grouped verification is allowed only when every selected item is `SI`,
 * grouped process metadata must remain visible from each included equipment card,
 * one grouped batch uses one shared dialog thread,
-* equipment may later be added to or removed from an existing grouped batch.
+* equipment may later be added to or removed from an existing grouped batch,
+* removing one member from a grouped batch should detach it into its own still-active standalone process instead of cancelling the process outright,
+* when a member is detached, it should retain a cloned snapshot of the shared dialog history accumulated while it belonged to the batch.
 
 ### Rule 9.4 - Process completion and archive
 
@@ -616,6 +625,7 @@ Rules:
 * ZIP contents should include only the process dialog and its attachments,
 * the generated archive ZIP should contain `dialog.txt` plus a `files/` folder,
 * archive list entries may remain compact initially, but backend responses must expose enough data for an expandable archive view with grouped membership and milestone dates.
+* closing verification must also synchronize the equipment status so that the equipment does not stay in `IN_VERIFICATION` after the active verification is archived.
 
 ### Rule 10 - Event log as audit trail
 
@@ -806,7 +816,9 @@ Must validate:
 Batch behavior:
 
 * grouped repair creation must support multiple equipment ids,
-* grouped repair may include both `SI` and non-`SI`.
+* grouped repair may include both `SI` and non-`SI`,
+* grouped repair should persist `batch_key` and `batch_name`,
+* grouped repair archive export should aggregate the shared batch dialog and its files.
 
 ### `GET /api/v1/repairs/{id}`
 
@@ -828,7 +840,11 @@ Close validation:
 
 Create grouped repair for multiple selected equipment items.
 
-The batch should support later membership changes.
+The batch supports later membership changes through the dedicated batch-items endpoint.
+
+### `PATCH /api/v1/repairs/batch/{batch_id}`
+
+Update milestone fields for the whole active grouped repair.
 
 ### `PATCH /api/v1/repairs/batch/{batch_id}/items`
 
@@ -1068,7 +1084,7 @@ Start verification workflow for one `SI` item.
 
 Start grouped verification workflow for selected `SI` items.
 
-The batch should support later membership changes.
+The batch supports later membership changes through the dedicated batch-items endpoint.
 
 ### `PATCH /api/v1/verification/si/batch/{batch_id}/items`
 
@@ -1094,15 +1110,15 @@ Later extension:
 * for each row, resolve the Arshin record and create the matching SI equipment item when the match is accepted,
 * bulk import should return a row-level report with created, skipped, and error states rather than failing as one opaque batch.
 
-### `GET /api/v1/equipment/export`
+### `GET /api/v1/equipment/export/xlsx`
 
 Export filtered equipment registry to Excel.
 
-### `GET /api/v1/repairs/export`
+### `GET /api/v1/equipment/repairs/export/xlsx`
 
 Export filtered repairs list to Excel.
 
-### `GET /api/v1/verification/si/export`
+### `GET /api/v1/equipment/verifications/export/xlsx`
 
 Export filtered SI verification list to Excel.
 

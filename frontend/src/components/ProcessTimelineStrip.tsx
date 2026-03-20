@@ -44,12 +44,14 @@ export function ProcessTimelineStrip({
   const visibleItems = items
     .map((item, index) => ({
       ...item,
-      position: normalizePosition(item.position ?? defaultPosition(index, items.length)),
+      position: nudgeEdgePosition(
+        normalizePosition(item.position ?? defaultPosition(index, items.length)),
+      ),
     }))
     .filter((item) => item.status !== "pending");
   const visibleMarkers = markers.map((marker) => ({
     ...marker,
-    position: normalizePosition(marker.position),
+    position: nudgeEdgePosition(normalizePosition(marker.position)),
   }));
   const visibleSegments = segments.map((segment) => ({
     ...segment,
@@ -197,4 +199,17 @@ function normalizePosition(value: number): number {
     return 0;
   }
   return Math.min(1, Math.max(0, value));
+}
+
+function nudgeEdgePosition(value: number): number {
+  const normalized = normalizePosition(value);
+  const startEdgePadding = 0.005;
+  const endEdgePadding = 0.012;
+  if (normalized <= 0) {
+    return startEdgePadding;
+  }
+  if (normalized >= 1) {
+    return 1 - endEdgePadding;
+  }
+  return normalized;
 }

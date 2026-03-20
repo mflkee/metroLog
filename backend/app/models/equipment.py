@@ -165,6 +165,8 @@ class Repair(Base):
         nullable=False,
         index=True,
     )
+    batch_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    batch_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     route_city: Mapped[str] = mapped_column(String(255), nullable=False)
     route_destination: Mapped[str] = mapped_column(String(255), nullable=False)
     sent_to_repair_at: Mapped[date] = mapped_column(Date, nullable=False)
@@ -204,6 +206,7 @@ class RepairMessage(Base):
         nullable=False,
         index=True,
     )
+    batch_key: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
     author_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,

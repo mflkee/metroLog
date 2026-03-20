@@ -57,6 +57,7 @@ from app.schemas.equipment import (
     EquipmentSIBulkImportRowRead,
     EquipmentSIRefreshRequest,
     EquipmentUpdateRequest,
+    ProcessBatchMembershipUpdateRequest,
     RepairBulkCreateRequest,
     RepairCreateRequest,
     RepairMessageCreateRequest,
@@ -249,6 +250,23 @@ class EquipmentService:
                 has_active_repair=has_active_repair,
             )
             for verification, equipment, si_verification, has_active_repair in rows
+        ]
+
+    def list_equipment_repair_history(
+        self,
+        *,
+        equipment_id: int,
+    ) -> list[RepairQueueItemRead]:
+        self.get_equipment(equipment_id=equipment_id)
+        rows = self.repairs.list_archived_by_equipment_id(equipment_id=equipment_id)
+        return [
+            self._build_repair_queue_item(
+                repair=repair,
+                equipment=equipment,
+                si_verification=si_verification,
+                has_active_verification=has_active_verification,
+            )
+            for repair, equipment, si_verification, has_active_verification in rows
         ]
 
     def get_equipment(self, *, equipment_id: int) -> Equipment:
@@ -652,6 +670,145 @@ class EquipmentService:
         workbook.close()
         return output.getvalue()
 
+    def export_repair_queue_xlsx(
+        self,
+        *,
+        lifecycle_status: str,
+        query: str | None = None,
+    ) -> bytes:
+        items = self.list_repair_queue(
+            lifecycle_status=lifecycle_status,
+            query=query,
+        )
+        headers = [
+            "Папка",
+            "Группа ремонта",
+            "Объект",
+            "Категория",
+            "Наименование",
+            "Модификация",
+            "Серийный номер",
+            "Местонахождение",
+            "Откуда",
+            "Куда",
+            "Отправлено в ремонт",
+            "Дедлайн ремонта",
+            "Текущий этап",
+            "Макс. просрочка, дн.",
+            "Свидетельство",
+            "Закрыт",
+        ]
+        rows: list[list[object | None]] = []
+        for item in items:
+            folder_name = None
+            if item.folder_id is not None:
+                folder = self.folders.get_by_id(item.folder_id)
+                folder_name = folder.name if folder is not None else None
+            rows.append(
+                [
+                    folder_name,
+                    item.batch_name,
+                    item.object_name,
+                    item.equipment_type.value,
+                    item.equipment_name,
+                    item.modification,
+                    item.serial_number,
+                    item.current_location_manual,
+                    item.route_city,
+                    item.route_destination,
+                    self._format_sheet_date(item.sent_to_repair_at),
+                    self._format_sheet_date(item.repair_deadline_at),
+                    item.current_stage_label,
+                    item.max_overdue_days,
+                    item.result_docnum,
+                    self._format_sheet_date(item.closed_at),
+                ]
+            )
+        return self._build_workbook_bytes(
+            sheet_title="Repairs",
+            headers=headers,
+            rows=rows,
+        )
+
+    def export_verification_queue_xlsx(
+        self,
+        *,
+        lifecycle_status: str,
+        query: str | None = None,
+    ) -> bytes:
+        items = self.list_verification_queue(
+            lifecycle_status=lifecycle_status,
+            query=query,
+        )
+        headers = [
+            "Папка",
+            "Группа поверки",
+            "Объект",
+            "Наименование",
+            "Модификация",
+            "Серийный номер",
+            "Откуда",
+            "Куда",
+            "Отправлено в поверку",
+            "Состояние",
+            "Свидетельство",
+            "Действительно до",
+            "Закрыта",
+        ]
+        rows: list[list[object | None]] = []
+        for item in items:
+            folder_name = None
+            if item.folder_id is not None:
+                folder = self.folders.get_by_id(item.folder_id)
+                folder_name = folder.name if folder is not None else None
+            rows.append(
+                [
+                    folder_name,
+                    item.batch_name,
+                    item.object_name,
+                    item.equipment_name,
+                    item.modification,
+                    item.serial_number,
+                    item.route_city,
+                    item.route_destination,
+                    self._format_sheet_date(item.sent_to_verification_at),
+                    _get_verification_progress_label(item),
+                    item.result_docnum,
+                    self._format_sheet_date(item.valid_date),
+                    self._format_sheet_date(item.closed_at),
+                ]
+            )
+        return self._build_workbook_bytes(
+            sheet_title="Verification",
+            headers=headers,
+            rows=rows,
+        )
+
+    def _build_workbook_bytes(
+        self,
+        *,
+        sheet_title: str,
+        headers: list[str],
+        rows: list[list[object | None]],
+    ) -> bytes:
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = sheet_title
+        sheet.append(headers)
+        for row in rows:
+            sheet.append(row)
+        output = BytesIO()
+        workbook.save(output)
+        workbook.close()
+        return output.getvalue()
+
+    def _format_sheet_date(self, value: date | datetime | None) -> str | None:
+        if value is None:
+            return None
+        if isinstance(value, datetime):
+            value = value.date()
+        return value.strftime("%d.%m.%Y")
+
     def create_repair(
         self,
         *,
@@ -671,6 +828,8 @@ class EquipmentService:
         sent_to_repair_at = payload.sent_to_repair_at
         repair = Repair(
             equipment_id=equipment.id,
+            batch_key=_normalize_optional_text(payload.batch_key),
+            batch_name=_normalize_optional_text(payload.batch_name),
             route_city=_normalize_required_text(
                 payload.route_city,
                 field_label="Repair route city",
@@ -709,45 +868,124 @@ class EquipmentService:
                 detail="Нужно выбрать хотя бы один прибор для ремонта.",
             )
 
+        batch_key = uuid4().hex
+        batch_name = _normalize_required_text(
+            payload.batch_name,
+            field_label="Repair batch name",
+        )
         created: list[Repair] = []
-        normalized_initial_text = _normalize_message_text(payload.initial_message_text)
-        for equipment_id in equipment_ids:
-            equipment = self.get_equipment(equipment_id=equipment_id)
-            existing_repair = self.repairs.get_active_by_equipment_id(equipment_id=equipment.id)
-            if existing_repair is not None:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"Для прибора «{equipment.name}» уже есть активный ремонт.",
-                )
-
-            repair = Repair(
-                equipment_id=equipment.id,
-                route_city=_normalize_required_text(
-                    payload.route_city,
-                    field_label="Repair route city",
-                ),
-                route_destination=_normalize_required_text(
-                    payload.route_destination,
-                    field_label="Repair route destination",
-                ),
-                sent_to_repair_at=payload.sent_to_repair_at,
-                repair_deadline_at=payload.sent_to_repair_at + timedelta(days=100),
-            )
-            equipment.status = EquipmentStatus.IN_REPAIR
-            self.repairs.add(repair)
-            if normalized_initial_text is not None:
-                self._create_repair_message_record(
-                    repair=repair,
-                    author=current_user,
-                    payload=RepairMessageCreateRequest(text=normalized_initial_text),
+        for index, equipment_id in enumerate(equipment_ids):
+            created.append(
+                self.create_repair(
+                    equipment_id=equipment_id,
+                    payload=RepairCreateRequest(
+                        batch_key=batch_key,
+                        batch_name=batch_name,
+                        route_city=payload.route_city,
+                        route_destination=payload.route_destination,
+                        sent_to_repair_at=payload.sent_to_repair_at,
+                        initial_message_text=payload.initial_message_text if index == 0 else None,
+                    ),
+                    current_user=current_user,
                     files=[],
                 )
-            created.append(repair)
+            )
+        return created
+
+    def update_repair_batch_items(
+        self,
+        *,
+        batch_key: str,
+        payload: ProcessBatchMembershipUpdateRequest,
+        current_user: User,
+    ) -> list[Repair]:
+        normalized_batch_key = _normalize_required_text(
+            batch_key,
+            field_label="Repair batch key",
+        )
+        repairs = self.repairs.list_active_by_batch_key(batch_key=normalized_batch_key)
+        if not repairs:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Активная группа ремонта не найдена.",
+            )
+
+        anchor = repairs[0]
+        existing_ids = {repair.equipment_id for repair in repairs}
+        add_ids = [
+            equipment_id
+            for equipment_id in dict.fromkeys(payload.add_equipment_ids)
+            if equipment_id not in existing_ids
+        ]
+        remove_ids = [
+            equipment_id
+            for equipment_id in dict.fromkeys(payload.remove_equipment_ids)
+            if equipment_id in existing_ids
+        ]
+
+        if not add_ids and not remove_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нужно добавить или удалить хотя бы один прибор из группы ремонта.",
+            )
+        if len(remove_ids) >= len(repairs):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нельзя удалить из группы ремонта все приборы сразу.",
+            )
+
+        added_labels: list[str] = []
+        removed_labels: list[str] = []
+
+        for equipment_id in add_ids:
+            new_repair = self._create_repair_from_batch_anchor(
+                anchor=anchor,
+                equipment_id=equipment_id,
+            )
+            added_labels.append(_build_equipment_batch_member_label(new_repair.equipment))
+
+        if added_labels:
+            self._create_repair_message_record(
+                repair=anchor,
+                author=current_user,
+                payload=RepairMessageCreateRequest(
+                    text="В группу ремонта добавлены приборы: "
+                    + ", ".join(sorted(added_labels))
+                    + "."
+                ),
+                files=[],
+            )
+
+        message_repair = next(
+            (item for item in repairs if item.equipment_id not in remove_ids),
+            anchor,
+        )
+        for repair in repairs:
+            if repair.equipment_id not in remove_ids:
+                continue
+            removed_labels.append(_build_equipment_batch_member_label(repair.equipment))
+            self._detach_repair_from_batch(
+                repair=repair,
+                current_user=current_user,
+            )
+
+        if removed_labels:
+            self._create_repair_message_record(
+                repair=message_repair,
+                author=current_user,
+                payload=RepairMessageCreateRequest(
+                    text="Из группы ремонта выведены приборы: "
+                    + ", ".join(sorted(removed_labels))
+                    + "."
+                ),
+                files=[],
+            )
 
         self.session.commit()
-        for repair in created:
+        updated_repairs = self.repairs.list_active_by_batch_key(batch_key=normalized_batch_key)
+        for repair in updated_repairs:
             self.session.refresh(repair)
-        return created
+        return updated_repairs
 
     def update_repair_milestones(
         self,
@@ -855,6 +1093,179 @@ class EquipmentService:
         self.session.refresh(repair)
         return repair
 
+    def update_repair_batch_milestones(
+        self,
+        *,
+        batch_key: str,
+        payload: RepairMilestonesUpdateRequest,
+        current_user: User,
+    ) -> list[Repair]:
+        normalized_batch_key = _normalize_required_text(
+            batch_key,
+            field_label="Repair batch key",
+        )
+        repairs = self.repairs.list_active_by_batch_key(batch_key=normalized_batch_key)
+        if not repairs:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Активная группа ремонта не найдена.",
+            )
+
+        anchor = repairs[0]
+        next_sent_to_repair_at = (
+            payload.sent_to_repair_at
+            if "sent_to_repair_at" in payload.model_fields_set
+            else anchor.sent_to_repair_at
+        )
+        if next_sent_to_repair_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Дата отправки в ремонт обязательна.",
+            )
+        _validate_repair_milestone_order(
+            route_city=anchor.route_city,
+            route_destination=anchor.route_destination,
+            sent_to_repair_at=next_sent_to_repair_at,
+            arrived_to_destination_at=(
+                payload.arrived_to_destination_at
+                if "arrived_to_destination_at" in payload.model_fields_set
+                else anchor.arrived_to_destination_at
+            ),
+            sent_from_repair_at=(
+                payload.sent_from_repair_at
+                if "sent_from_repair_at" in payload.model_fields_set
+                else anchor.sent_from_repair_at
+            ),
+            sent_from_irkutsk_at=(
+                payload.sent_from_irkutsk_at
+                if "sent_from_irkutsk_at" in payload.model_fields_set
+                else anchor.sent_from_irkutsk_at
+            ),
+            arrived_to_lensk_at=(
+                payload.arrived_to_lensk_at
+                if "arrived_to_lensk_at" in payload.model_fields_set
+                else anchor.arrived_to_lensk_at
+            ),
+            actually_received_at=(
+                payload.actually_received_at
+                if "actually_received_at" in payload.model_fields_set
+                else anchor.actually_received_at
+            ),
+            incoming_control_at=(
+                payload.incoming_control_at
+                if "incoming_control_at" in payload.model_fields_set
+                else anchor.incoming_control_at
+            ),
+            paid_at=(
+                payload.paid_at
+                if "paid_at" in payload.model_fields_set
+                else anchor.paid_at
+            ),
+        )
+
+        if "sent_to_repair_at" in payload.model_fields_set:
+            new_sent_to_repair_at = payload.sent_to_repair_at
+            if new_sent_to_repair_at is None:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail="Дата отправки в ремонт обязательна.",
+                )
+            current_values = {item.sent_to_repair_at for item in repairs}
+            if len(current_values) != 1 or new_sent_to_repair_at not in current_values:
+                for repair in repairs:
+                    repair.sent_to_repair_at = new_sent_to_repair_at
+                    repair.repair_deadline_at = new_sent_to_repair_at + timedelta(days=100)
+                self._create_repair_message_record(
+                    repair=anchor,
+                    author=current_user,
+                    payload=RepairMessageCreateRequest(
+                        text=_build_repair_milestone_message(
+                            current_user=current_user,
+                            milestone_label=f"Отправлено в {anchor.route_destination}",
+                            milestone_date=new_sent_to_repair_at,
+                        )
+                    ),
+                    files=[],
+                )
+
+        for field_name, milestone_label in _REPAIR_MILESTONE_LABELS:
+            if field_name not in payload.model_fields_set:
+                continue
+            new_value = getattr(payload, field_name)
+            current_values = {getattr(item, field_name) for item in repairs}
+            if len(current_values) == 1 and new_value in current_values:
+                continue
+            for repair in repairs:
+                setattr(repair, field_name, new_value)
+            if new_value is not None:
+                self._create_repair_message_record(
+                    repair=anchor,
+                    author=current_user,
+                    payload=RepairMessageCreateRequest(
+                        text=_build_repair_milestone_message(
+                            current_user=current_user,
+                            milestone_label=milestone_label,
+                            milestone_date=new_value,
+                        )
+                    ),
+                    files=[],
+                )
+
+        self.session.commit()
+        for repair in repairs:
+            self.session.refresh(repair)
+        return repairs
+
+    def close_repair(
+        self,
+        *,
+        equipment_id: int,
+    ) -> Repair:
+        repair = self._get_active_repair(equipment_id=equipment_id)
+        if repair.paid_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Ремонт можно завершить только после даты оплаты.",
+            )
+
+        repair.closed_at = date.today()
+        self._sync_equipment_status(equipment=repair.equipment)
+        self.session.commit()
+        self.session.refresh(repair)
+        return repair
+
+    def close_repair_batch(
+        self,
+        *,
+        batch_key: str,
+    ) -> list[Repair]:
+        normalized_batch_key = _normalize_required_text(
+            batch_key,
+            field_label="Repair batch key",
+        )
+        repairs = self.repairs.list_active_by_batch_key(batch_key=normalized_batch_key)
+        if not repairs:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Активная группа ремонта не найдена.",
+            )
+        if any(repair.paid_at is None for repair in repairs):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Групповой ремонт можно завершить только после даты оплаты.",
+            )
+
+        closed_at = date.today()
+        for repair in repairs:
+            repair.closed_at = closed_at
+        for repair in repairs:
+            self._sync_equipment_status(equipment=repair.equipment)
+
+        self.session.commit()
+        for repair in repairs:
+            self.session.refresh(repair)
+        return repairs
+
     def create_verification(
         self,
         *,
@@ -945,6 +1356,103 @@ class EquipmentService:
                 )
             )
         return created
+
+    def update_verification_batch_items(
+        self,
+        *,
+        batch_key: str,
+        payload: ProcessBatchMembershipUpdateRequest,
+        current_user: User,
+    ) -> list[Verification]:
+        normalized_batch_key = _normalize_required_text(
+            batch_key,
+            field_label="Verification batch key",
+        )
+        verifications = self.verifications.list_active_by_batch_key(batch_key=normalized_batch_key)
+        if not verifications:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Активная группа поверки не найдена.",
+            )
+
+        anchor = verifications[0]
+        existing_ids = {verification.equipment_id for verification in verifications}
+        add_ids = [
+            equipment_id
+            for equipment_id in dict.fromkeys(payload.add_equipment_ids)
+            if equipment_id not in existing_ids
+        ]
+        remove_ids = [
+            equipment_id
+            for equipment_id in dict.fromkeys(payload.remove_equipment_ids)
+            if equipment_id in existing_ids
+        ]
+
+        if not add_ids and not remove_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нужно добавить или удалить хотя бы один прибор из группы поверки.",
+            )
+        if len(remove_ids) >= len(verifications):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нельзя удалить из группы поверки все приборы сразу.",
+            )
+
+        added_labels: list[str] = []
+        removed_labels: list[str] = []
+
+        for equipment_id in add_ids:
+            new_verification = self._create_verification_from_batch_anchor(
+                anchor=anchor,
+                equipment_id=equipment_id,
+            )
+            added_labels.append(_build_equipment_batch_member_label(new_verification.equipment))
+
+        if added_labels:
+            self._create_verification_message_record(
+                verification=anchor,
+                author=current_user,
+                payload=VerificationMessageCreateRequest(
+                    text="В группу поверки добавлены приборы: "
+                    + ", ".join(sorted(added_labels))
+                    + "."
+                ),
+                files=[],
+            )
+
+        message_verification = next(
+            (item for item in verifications if item.equipment_id not in remove_ids),
+            anchor,
+        )
+        for verification in verifications:
+            if verification.equipment_id not in remove_ids:
+                continue
+            removed_labels.append(_build_equipment_batch_member_label(verification.equipment))
+            self._detach_verification_from_batch(
+                verification=verification,
+                current_user=current_user,
+            )
+
+        if removed_labels:
+            self._create_verification_message_record(
+                verification=message_verification,
+                author=current_user,
+                payload=VerificationMessageCreateRequest(
+                    text="Из группы поверки выведены приборы: "
+                    + ", ".join(sorted(removed_labels))
+                    + "."
+                ),
+                files=[],
+            )
+
+        self.session.commit()
+        updated_verifications = self.verifications.list_active_by_batch_key(
+            batch_key=normalized_batch_key
+        )
+        for verification in updated_verifications:
+            self.session.refresh(verification)
+        return updated_verifications
 
     def close_verification(
         self,
@@ -1138,6 +1646,8 @@ class EquipmentService:
 
     def list_active_repair_messages(self, *, equipment_id: int) -> list[RepairMessage]:
         repair = self._get_active_repair(equipment_id=equipment_id)
+        if repair.batch_key:
+            return self.repair_messages.list_by_batch_key(batch_key=repair.batch_key)
         return self.repair_messages.list_by_repair(repair_id=repair.id)
 
     def list_active_verification_messages(
@@ -1182,7 +1692,7 @@ class EquipmentService:
     ) -> None:
         repair = self._get_active_repair(equipment_id=equipment_id)
         message = self._get_repair_message(
-            repair_id=repair.id,
+            repair=repair,
             message_id=message_id,
         )
         self._assert_repair_message_owner(
@@ -1268,12 +1778,26 @@ class EquipmentService:
             messages = self.verification_messages.list_by_batch_key(
                 batch_key=verification.batch_key
             )
-            archive_name = verification.batch_name or f"verification-batch-{verification.id}"
+            archive_name = _build_verification_archive_name(
+                label=verification.batch_name or "Групповая поверка",
+                start_date=verification.sent_to_verification_at,
+                end_date=verification.closed_at,
+            )
         else:
             messages = self.verification_messages.list_by_verification(
                 verification_id=verification.id
             )
-            archive_name = f"verification-{verification.id}"
+            equipment = verification.equipment
+            folder_name = "Без папки"
+            if equipment is not None and equipment.folder_id is not None:
+                folder = self.folders.get_by_id(equipment.folder_id)
+                if folder is not None:
+                    folder_name = folder.name
+            archive_name = _build_verification_archive_name(
+                label=folder_name,
+                start_date=verification.sent_to_verification_at,
+                end_date=verification.closed_at,
+            )
 
         buffer = BytesIO()
         with ZipFile(buffer, mode="w", compression=ZIP_DEFLATED) as zip_file:
@@ -1312,11 +1836,79 @@ class EquipmentService:
                 transcript_content,
             )
 
-        safe_name = (
-            re.sub(r"[^A-Za-z0-9._-]+", "-", archive_name).strip("-")
-            or "verification-archive"
-        )
-        return f"{safe_name}.zip", buffer.getvalue()
+        return f"{archive_name}.zip", buffer.getvalue()
+
+    def export_repair_archive_zip(
+        self,
+        *,
+        repair_id: int,
+    ) -> tuple[str, bytes]:
+        repair = self.repairs.get_by_id(repair_id)
+        if repair is None or repair.closed_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Архив ремонта не найден.",
+            )
+
+        if repair.batch_key:
+            messages = self.repair_messages.list_by_batch_key(batch_key=repair.batch_key)
+            archive_name = _build_repair_archive_name(
+                folder_name=repair.batch_name or "Групповой ремонт",
+                start_date=repair.sent_to_repair_at,
+                end_date=repair.closed_at,
+            )
+        else:
+            messages = self.repair_messages.list_by_repair(repair_id=repair.id)
+            equipment = repair.equipment
+            folder_name = "Без папки"
+            if equipment is not None and equipment.folder_id is not None:
+                folder = self.folders.get_by_id(equipment.folder_id)
+                if folder is not None:
+                    folder_name = folder.name
+            archive_name = _build_repair_archive_name(
+                folder_name=folder_name,
+                start_date=repair.sent_to_repair_at,
+                end_date=repair.closed_at,
+            )
+
+        buffer = BytesIO()
+        with ZipFile(buffer, mode="w", compression=ZIP_DEFLATED) as zip_file:
+            transcript_lines: list[str] = []
+            for index, message in enumerate(messages, start=1):
+                created_at = message.created_at.strftime("%d.%m.%Y %H:%M")
+                transcript_lines.append(f"[{created_at}] {message.author_display_name}")
+                if message.text:
+                    transcript_lines.append(message.text)
+                if message.attachments:
+                    transcript_lines.append(
+                        "Вложения: "
+                        + ", ".join(attachment.file_name for attachment in message.attachments)
+                    )
+                transcript_lines.append("")
+
+                for attachment_index, attachment in enumerate(
+                    message.attachments,
+                    start=1,
+                ):
+                    file_path = settings.attachment_storage_path / attachment.storage_path
+                    if file_path.exists() and file_path.is_file():
+                        zip_file.write(
+                            file_path,
+                            arcname=(
+                                f"files/{index:03d}_{attachment_index:02d}_{attachment.file_name}"
+                            ),
+                        )
+
+            transcript_content = "\n".join(transcript_lines).strip()
+            if not transcript_content:
+                transcript_content = "Диалог ремонта пуст."
+
+            zip_file.writestr(
+                "dialog.txt",
+                transcript_content,
+            )
+
+        return f"{archive_name}.zip", buffer.getvalue()
 
     def get_repair_message_attachment_file(
         self,
@@ -1326,7 +1918,7 @@ class EquipmentService:
         attachment_id: int,
     ) -> tuple[RepairMessageAttachment, Path]:
         repair = self._get_active_repair(equipment_id=equipment_id)
-        message = self._get_repair_message(repair_id=repair.id, message_id=message_id)
+        message = self._get_repair_message(repair=repair, message_id=message_id)
         attachment = self._get_repair_message_attachment(
             message_id=message.id,
             attachment_id=attachment_id,
@@ -1511,6 +2103,258 @@ class EquipmentService:
         self.comments.delete(comment)
         self.session.commit()
 
+    def _create_repair_from_batch_anchor(
+        self,
+        *,
+        anchor: Repair,
+        equipment_id: int,
+    ) -> Repair:
+        equipment = self.get_equipment(equipment_id=equipment_id)
+        existing_repair = self.repairs.get_active_by_equipment_id(equipment_id=equipment.id)
+        if existing_repair is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Для прибора «{equipment.name}» уже есть активный ремонт.",
+            )
+
+        repair = Repair(
+            equipment_id=equipment.id,
+            batch_key=anchor.batch_key,
+            batch_name=anchor.batch_name,
+            route_city=anchor.route_city,
+            route_destination=anchor.route_destination,
+            sent_to_repair_at=anchor.sent_to_repair_at,
+            repair_deadline_at=anchor.repair_deadline_at,
+            arrived_to_destination_at=anchor.arrived_to_destination_at,
+            sent_from_repair_at=anchor.sent_from_repair_at,
+            sent_from_irkutsk_at=anchor.sent_from_irkutsk_at,
+            arrived_to_lensk_at=anchor.arrived_to_lensk_at,
+            actually_received_at=anchor.actually_received_at,
+            incoming_control_at=anchor.incoming_control_at,
+            paid_at=anchor.paid_at,
+        )
+        equipment.status = EquipmentStatus.IN_REPAIR
+        self.repairs.add(repair)
+        self.session.flush()
+        self.session.refresh(repair)
+        return repair
+
+    def _create_verification_from_batch_anchor(
+        self,
+        *,
+        anchor: Verification,
+        equipment_id: int,
+    ) -> Verification:
+        equipment = self.get_equipment(equipment_id=equipment_id)
+        if equipment.equipment_type != EquipmentType.SI:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Прибор «{equipment.name}» нельзя добавить в поверку: это не СИ.",
+            )
+        existing_verification = self.verifications.get_active_by_equipment_id(
+            equipment_id=equipment.id
+        )
+        if existing_verification is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Для прибора «{equipment.name}» уже есть активная поверка.",
+            )
+
+        verification = Verification(
+            equipment_id=equipment.id,
+            batch_key=anchor.batch_key,
+            batch_name=anchor.batch_name,
+            route_city=anchor.route_city,
+            route_destination=anchor.route_destination,
+            sent_to_verification_at=anchor.sent_to_verification_at,
+            received_at_destination_at=anchor.received_at_destination_at,
+            handed_to_csm_at=anchor.handed_to_csm_at,
+            verification_completed_at=anchor.verification_completed_at,
+            picked_up_from_csm_at=anchor.picked_up_from_csm_at,
+            shipped_back_at=anchor.shipped_back_at,
+            returned_from_verification_at=anchor.returned_from_verification_at,
+        )
+        if self.repairs.get_active_by_equipment_id(equipment_id=equipment.id) is None:
+            equipment.status = EquipmentStatus.IN_VERIFICATION
+        self.verifications.add(verification)
+        self.session.flush()
+        self.session.refresh(verification)
+        return verification
+
+    def _detach_repair_from_batch(
+        self,
+        *,
+        repair: Repair,
+        current_user: User,
+    ) -> None:
+        batch_key = repair.batch_key
+        batch_name = repair.batch_name or "Групповой ремонт"
+        if batch_key is None:
+            return
+
+        self._clone_repair_batch_history_to_repair(
+            repair=repair,
+            batch_key=batch_key,
+        )
+        repair.batch_key = None
+        repair.batch_name = None
+        self._create_repair_message_record(
+            repair=repair,
+            author=current_user,
+            payload=RepairMessageCreateRequest(
+                text=f"Прибор выведен из группы «{batch_name}»."
+            ),
+            files=[],
+        )
+
+    def _detach_verification_from_batch(
+        self,
+        *,
+        verification: Verification,
+        current_user: User,
+    ) -> None:
+        batch_key = verification.batch_key
+        batch_name = verification.batch_name or "Групповая поверка"
+        if batch_key is None:
+            return
+
+        self._clone_verification_batch_history_to_verification(
+            verification=verification,
+            batch_key=batch_key,
+        )
+        verification.batch_key = None
+        verification.batch_name = None
+        self._create_verification_message_record(
+            verification=verification,
+            author=current_user,
+            payload=VerificationMessageCreateRequest(
+                text=f"Прибор выведен из группы «{batch_name}»."
+            ),
+            files=[],
+        )
+
+    def _clone_repair_batch_history_to_repair(
+        self,
+        *,
+        repair: Repair,
+        batch_key: str,
+    ) -> None:
+        messages = self.repair_messages.list_by_batch_key(batch_key=batch_key)
+        for message in messages:
+            if message.repair_id == repair.id:
+                continue
+            cloned_message = RepairMessage(
+                repair_id=repair.id,
+                batch_key=None,
+                author_user_id=message.author_user_id,
+                author_display_name=message.author_display_name,
+                text=message.text,
+                created_at=message.created_at,
+            )
+            self.repair_messages.add(cloned_message)
+            for attachment in message.attachments:
+                self._copy_repair_message_attachment(
+                    repair=repair,
+                    message=cloned_message,
+                    source=attachment,
+                )
+
+    def _clone_verification_batch_history_to_verification(
+        self,
+        *,
+        verification: Verification,
+        batch_key: str,
+    ) -> None:
+        messages = self.verification_messages.list_by_batch_key(batch_key=batch_key)
+        for message in messages:
+            if message.verification_id == verification.id:
+                continue
+            cloned_message = VerificationMessage(
+                verification_id=verification.id,
+                batch_key=None,
+                author_user_id=message.author_user_id,
+                author_display_name=message.author_display_name,
+                text=message.text,
+                created_at=message.created_at,
+            )
+            self.verification_messages.add(cloned_message)
+            for attachment in message.attachments:
+                self._copy_verification_message_attachment(
+                    verification=verification,
+                    message=cloned_message,
+                    source=attachment,
+                )
+
+    def _copy_repair_message_attachment(
+        self,
+        *,
+        repair: Repair,
+        message: RepairMessage,
+        source: RepairMessageAttachment,
+    ) -> RepairMessageAttachment | None:
+        source_path = settings.attachment_storage_path / source.storage_path
+        if not source_path.exists() or not source_path.is_file():
+            return None
+
+        storage_dir = (
+            settings.attachment_storage_path
+            / "repair-messages"
+            / str(repair.id)
+            / str(message.id)
+        )
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        storage_name = f"{uuid4().hex}{Path(source.file_name).suffix.lower()}"
+        file_path = storage_dir / storage_name
+        file_path.write_bytes(source_path.read_bytes())
+
+        attachment = RepairMessageAttachment(
+            repair_message_id=message.id,
+            uploaded_by_user_id=source.uploaded_by_user_id,
+            uploaded_by_display_name=source.uploaded_by_display_name,
+            file_name=source.file_name,
+            file_mime_type=source.file_mime_type,
+            file_size=source.file_size,
+            storage_path=str(file_path.relative_to(settings.attachment_storage_path)),
+            created_at=source.created_at,
+        )
+        self.repair_message_attachments.add(attachment)
+        return attachment
+
+    def _copy_verification_message_attachment(
+        self,
+        *,
+        verification: Verification,
+        message: VerificationMessage,
+        source: VerificationMessageAttachment,
+    ) -> VerificationMessageAttachment | None:
+        source_path = settings.attachment_storage_path / source.storage_path
+        if not source_path.exists() or not source_path.is_file():
+            return None
+
+        storage_dir = (
+            settings.attachment_storage_path
+            / "verification-messages"
+            / str(verification.id)
+            / str(message.id)
+        )
+        storage_dir.mkdir(parents=True, exist_ok=True)
+        storage_name = f"{uuid4().hex}{Path(source.file_name).suffix.lower()}"
+        file_path = storage_dir / storage_name
+        file_path.write_bytes(source_path.read_bytes())
+
+        attachment = VerificationMessageAttachment(
+            verification_message_id=message.id,
+            uploaded_by_user_id=source.uploaded_by_user_id,
+            uploaded_by_display_name=source.uploaded_by_display_name,
+            file_name=source.file_name,
+            file_mime_type=source.file_mime_type,
+            file_size=source.file_size,
+            storage_path=str(file_path.relative_to(settings.attachment_storage_path)),
+            created_at=source.created_at,
+        )
+        self.verification_message_attachments.add(attachment)
+        return attachment
+
     def _create_repair_message_record(
         self,
         *,
@@ -1528,6 +2372,7 @@ class EquipmentService:
 
         message = RepairMessage(
             repair_id=repair.id,
+            batch_key=repair.batch_key,
             author_user_id=author.id,
             author_display_name=_format_user_display_name(author),
             text=normalized_text,
@@ -1731,9 +2576,21 @@ class EquipmentService:
         if equipment.status in {EquipmentStatus.IN_REPAIR, EquipmentStatus.IN_VERIFICATION}:
             equipment.status = EquipmentStatus.IN_WORK
 
-    def _get_repair_message(self, *, repair_id: int, message_id: int) -> RepairMessage:
+    def _get_repair_message(self, *, repair: Repair, message_id: int) -> RepairMessage:
         message = self.repair_messages.get_by_id(message_id)
-        if message is None or message.repair_id != repair_id:
+        if message is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Repair message not found.",
+            )
+        if repair.batch_key:
+            if message.batch_key != repair.batch_key:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Repair message not found.",
+                )
+            return message
+        if message.repair_id != repair.id:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Repair message not found.",
@@ -1875,7 +2732,7 @@ class EquipmentService:
         )
         repair_overdue_days = _calculate_repair_overdue_days(
             repair_deadline_at=repair.repair_deadline_at,
-            sent_from_repair_at=repair.sent_from_repair_at,
+            arrived_to_origin_at=repair.arrived_to_lensk_at,
         )
         registration_overdue_days = _calculate_stage_overdue_days(
             deadline_at=registration_deadline_at,
@@ -1892,6 +2749,8 @@ class EquipmentService:
         return RepairQueueItemRead(
             repair_id=repair.id,
             equipment_id=equipment.id,
+            batch_key=repair.batch_key,
+            batch_name=repair.batch_name,
             folder_id=equipment.folder_id,
             object_name=equipment.object_name,
             equipment_type=equipment.equipment_type,
@@ -2006,12 +2865,69 @@ def _build_repair_progress_label(*, repair: Repair) -> str:
     return "В ремонте"
 
 
+def _get_verification_progress_label(item: VerificationQueueItemRead) -> str:
+    if item.closed_at is not None:
+        return "Поверка завершена"
+    if item.returned_from_verification_at is not None:
+        return "Получено обратно"
+    if item.shipped_back_at is not None:
+        return "Ожидает получения"
+    if item.picked_up_from_csm_at is not None:
+        return "Получено в ЦСМ"
+    if item.verification_completed_at is not None:
+        return "Поверка выполнена"
+    if item.handed_to_csm_at is not None:
+        return "В ЦСМ на поверке"
+    if item.received_at_destination_at is not None:
+        return "Получено в пункте назначения"
+    return "Отправлено в поверку"
+
+
+def _build_repair_archive_name(
+    *,
+    folder_name: str,
+    start_date: date,
+    end_date: date | None,
+) -> str:
+    normalized_folder_name = re.sub(r'[\\/:*?"<>|]+', " ", folder_name).strip()
+    normalized_folder_name = re.sub(r"\s+", " ", normalized_folder_name) or "Без папки"
+    end_label = end_date.strftime("%d.%m.%Y") if end_date else "без даты"
+    return (
+        f"Ремонт {normalized_folder_name} "
+        f"{start_date.strftime('%d.%m.%Y')} по {end_label}"
+    )
+
+
+def _build_verification_archive_name(
+    *,
+    label: str,
+    start_date: date,
+    end_date: date | None,
+) -> str:
+    normalized_label = re.sub(r'[\\/:*?"<>|]+', " ", label).strip()
+    normalized_label = re.sub(r"\s+", " ", normalized_label) or "Без папки"
+    end_label = end_date.strftime("%d.%m.%Y") if end_date else "без даты"
+    return (
+        f"Поверка {normalized_label} "
+        f"{start_date.strftime('%d.%m.%Y')} по {end_label}"
+    )
+
+
+def _build_equipment_batch_member_label(equipment: Equipment) -> str:
+    serial_number = equipment.serial_number
+    if not serial_number and equipment.si_verification is not None:
+        serial_number = equipment.si_verification.mi_number
+    if serial_number:
+        return f"{equipment.name} (зав. № {serial_number})"
+    return equipment.name
+
+
 def _calculate_repair_overdue_days(
     *,
     repair_deadline_at: date,
-    sent_from_repair_at: date | None,
+    arrived_to_origin_at: date | None,
 ) -> int:
-    comparison_date = sent_from_repair_at or date.today()
+    comparison_date = arrived_to_origin_at or date.today()
     return max((comparison_date - repair_deadline_at).days, 0)
 
 

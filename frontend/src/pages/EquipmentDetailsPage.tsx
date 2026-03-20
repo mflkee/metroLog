@@ -33,6 +33,7 @@ import {
   fetchEquipmentFolderSuggestions,
   fetchEquipmentFolders,
   fetchEquipmentGroups,
+  fetchEquipmentRepairHistory,
   fetchEquipmentRepairMessages,
   fetchEquipmentVerificationHistory,
   fetchEquipmentVerificationMessages,
@@ -200,6 +201,15 @@ export function EquipmentDetailsPage() {
       && Number.isInteger(parsedEquipmentId)
       && parsedEquipmentId > 0
       && Boolean(equipmentQuery.data?.activeRepair),
+  });
+
+  const repairHistoryQuery = useQuery({
+    queryKey: ["equipment-repair-history", parsedEquipmentId],
+    queryFn: () => fetchEquipmentRepairHistory(token ?? "", parsedEquipmentId),
+    enabled:
+      Boolean(token)
+      && Number.isInteger(parsedEquipmentId)
+      && parsedEquipmentId > 0,
   });
 
   const verificationMessagesQuery = useQuery({
@@ -511,8 +521,15 @@ export function EquipmentDetailsPage() {
     () => verificationHistoryQuery.data ?? [],
     [verificationHistoryQuery.data],
   );
+  const repairHistory = useMemo(
+    () => repairHistoryQuery.data ?? [],
+    [repairHistoryQuery.data],
+  );
   const latestArchivedVerification = verificationHistory.length
-    ? verificationHistory[verificationHistory.length - 1]
+    ? verificationHistory[0]
+    : null;
+  const latestArchivedRepair = repairHistory.length
+    ? repairHistory[0]
     : null;
   const siDetail = useMemo(
     () =>
@@ -1940,48 +1957,104 @@ export function EquipmentDetailsPage() {
                     </div>
                   ))}
                 </div>
-                {equipmentQuery.data.equipmentType === "SI" ? (
-                  <div className="mt-4 border-t border-line pt-4">
-                    {verificationHistoryQuery.isLoading ? (
-                      <p className="text-sm text-steel">Загружаем архив поверки...</p>
-                    ) : null}
-                    {verificationHistoryQuery.isError ? (
-                      <p className="text-sm text-[#b04c43]">
-                        {verificationHistoryQuery.error instanceof Error
-                          ? verificationHistoryQuery.error.message
-                          : "Не удалось загрузить архив поверки."}
-                      </p>
-                    ) : null}
-                    {latestArchivedVerification ? (
-                      <Link
-                        className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
-                        to="/verification/si?tab=archived"
-                      >
-                        <div className="min-w-0">
-                          <p className="font-medium text-ink">Архив поверки</p>
-                          <p className="mt-1 truncate text-xs text-steel">
-                            {[
-                              latestArchivedVerification.resultDocnum
-                                ? `свид. ${latestArchivedVerification.resultDocnum}`
-                                : null,
-                              latestArchivedVerification.closedAt
-                                ? `закрыта ${formatDateOnly(latestArchivedVerification.closedAt)}`
-                                : null,
-                              verificationHistory.length > 1
-                                ? `всего записей: ${verificationHistory.length}`
-                                : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" · ")}
-                          </p>
-                        </div>
-                        <svg className="h-4 w-4 shrink-0 text-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" />
-                        </svg>
-                      </Link>
-                    ) : null}
-                  </div>
-                ) : null}
+              </section>
+
+              <section className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
+                <div>
+                  <h3 className="text-lg font-semibold text-ink">История прибора</h3>
+                  <p className="mt-1 text-sm text-steel">
+                    Архивные записи по ремонту и поверке с быстрым переходом в соответствующий раздел.
+                  </p>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  {equipmentQuery.data.equipmentType === "SI" ? (
+                    <>
+                      {verificationHistoryQuery.isLoading ? (
+                        <p className="text-sm text-steel">Загружаем архив поверки...</p>
+                      ) : null}
+                      {verificationHistoryQuery.isError ? (
+                        <p className="text-sm text-[#b04c43]">
+                          {verificationHistoryQuery.error instanceof Error
+                            ? verificationHistoryQuery.error.message
+                            : "Не удалось загрузить архив поверки."}
+                        </p>
+                      ) : null}
+                      {latestArchivedVerification ? (
+                        <Link
+                          className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
+                          to="/verification/si?tab=archived"
+                        >
+                          <div className="min-w-0">
+                            <p className="font-medium text-ink">Архив поверки</p>
+                            <p className="mt-1 truncate text-xs text-steel">
+                              {[
+                                latestArchivedVerification.resultDocnum
+                                  ? `свид. ${latestArchivedVerification.resultDocnum}`
+                                  : null,
+                                latestArchivedVerification.closedAt
+                                  ? `закрыта ${formatDateOnly(latestArchivedVerification.closedAt)}`
+                                  : null,
+                                verificationHistory.length > 1
+                                  ? `всего записей: ${verificationHistory.length}`
+                                  : null,
+                              ]
+                                .filter(Boolean)
+                                .join(" · ")}
+                            </p>
+                          </div>
+                          <svg className="h-4 w-4 shrink-0 text-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" />
+                          </svg>
+                        </Link>
+                      ) : null}
+                    </>
+                  ) : null}
+
+                  {repairHistoryQuery.isLoading ? (
+                    <p className="text-sm text-steel">Загружаем архив ремонта...</p>
+                  ) : null}
+                  {repairHistoryQuery.isError ? (
+                    <p className="text-sm text-[#b04c43]">
+                      {repairHistoryQuery.error instanceof Error
+                        ? repairHistoryQuery.error.message
+                        : "Не удалось загрузить архив ремонта."}
+                    </p>
+                  ) : null}
+                  {latestArchivedRepair ? (
+                    <Link
+                      className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
+                      to="/repairs?tab=archived"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-ink">Архив ремонта</p>
+                        <p className="mt-1 truncate text-xs text-steel">
+                          {[
+                            latestArchivedRepair.currentStageLabel,
+                            latestArchivedRepair.closedAt
+                              ? `закрыт ${formatDateOnly(latestArchivedRepair.closedAt)}`
+                              : null,
+                            repairHistory.length > 1
+                              ? `всего записей: ${repairHistory.length}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      </div>
+                      <svg className="h-4 w-4 shrink-0 text-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="m9 6 6 6-6 6" />
+                      </svg>
+                    </Link>
+                  ) : null}
+
+                  {!verificationHistoryQuery.isLoading
+                  && !repairHistoryQuery.isLoading
+                  && !latestArchivedVerification
+                  && !latestArchivedRepair ? (
+                    <p className="text-sm text-steel">Для этого прибора пока нет архивных записей.</p>
+                  ) : null}
+                </div>
               </section>
             </aside>
           </div>

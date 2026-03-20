@@ -327,7 +327,8 @@ Additional registry rule:
 - each equipment item belongs to exactly one category from `SI`, `IO`, `VO`, or `OTHER`,
 - `SI` is a separate category because it later participates in the Arshin-linked state workflow,
 - `OTHER` can be used for parts or standalone units such as a power supply block that still need their own repair lifecycle,
-- inventory number is not part of the required product model and must not be introduced into the registry UX.
+- inventory number is not part of the required product model and must not be introduced into the registry UX,
+- once the user enters a folder, the workspace should stay minimal: only the folder title, actions, filters, and the equipment table should remain visible above the registry.
 
 ---
 
@@ -392,6 +393,8 @@ Rules:
 - verification is available only for `SI`,
 - an `SI` item may be in repair and in verification at the same time,
 - these two states must not overwrite or hide each other,
+- one equipment item must not be allowed to start a second active repair while one is already open,
+- one `SI` item must not be allowed to start a second active verification while one is already open,
 - the equipment card may therefore show two independent active process panels at once:
   - `Прибор находится в ремонте`,
   - `Прибор находится в поверке`.
@@ -434,13 +437,15 @@ The registry should support bulk sending of selected equipment into processes.
 Rules:
 - mixed selection of `SI` and non-`SI` may be sent in bulk only to repair,
 - selection containing only `SI` may be sent in bulk either to repair or to verification,
+- if exactly one row is selected, the registry should keep the same modal pattern but execute a single repair or verification create flow rather than a semantically grouped one,
 - bulk send creates a shared process batch or grouped process,
 - equipment cards included in one grouped batch should display synchronized process dialog data for that batch,
 - the grouped batch should still remain traceable per equipment item.
 
 Accepted decisions:
 - one grouped process should use one shared dialog thread for the whole batch,
-- equipment may be added to or removed from an existing grouped batch later.
+- equipment may be added to or removed from an existing grouped batch later,
+- removing one member from an existing grouped batch should detach it into its own still-active standalone process while preserving a snapshot of the shared dialog history that existed before detachment.
 
 ### Completing and archiving processes
 
@@ -449,7 +454,13 @@ Repairs and verifications should move to archive only after explicit completion.
 Rules:
 - repair completion is available only after the payment step is marked complete,
 - grouped repair or grouped verification may also be completed in bulk,
+- grouped repair and grouped verification should both behave as one shared batch process in their dedicated process pages,
 - when a process is completed, its active dialog panel disappears from the card,
+- when a process is completed, registry-facing status must immediately be recalculated from the still-active processes:
+  - no active repair and no active verification -> `В работе`,
+  - active repair only -> `В ремонте`,
+  - active verification only -> `В поверке`,
+  - both active -> `В ремонте/поверке`,
 - instead of the active panel, the card should show a compact archive record,
 - the archive list entry may stay compact by default but should support expansion for informative details such as group composition and milestone dates,
 - the archive record should include a download action in the top-right corner,

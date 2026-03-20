@@ -261,6 +261,12 @@ body {
   gap: 8px;
 }
 
+.date-input__field-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 172px;
+}
+
 .date-input__today {
   flex-shrink: 0;
   height: 36px;
@@ -268,9 +274,9 @@ body {
   border-radius: 12px;
   background: color-mix(in srgb, var(--tone-child-bg) 92%, transparent);
   color: var(--text-secondary);
-  padding: 0 9px;
+  padding: 0 8px;
   font: inherit;
-  font-size: 0.625rem;
+  font-size: 0.58rem;
   font-weight: 600;
   line-height: 1;
   letter-spacing: 0.12em;
@@ -295,7 +301,169 @@ body {
 }
 
 .date-input__field {
-  min-width: 0;
+  min-width: 132px;
+  padding-right: 42px !important;
+}
+
+.date-input__calendar-toggle {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  display: inline-flex;
+  height: 26px;
+  width: 26px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone-child-bg) 90%, transparent);
+  color: var(--text-muted);
+  transform: translateY(-50%);
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.date-input__calendar-toggle:hover,
+.date-input__calendar-toggle:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--tone-child-bg) 72%, var(--accent-soft));
+  color: var(--text-primary);
+}
+
+.date-input__calendar-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.date-input__popover {
+  position: absolute;
+  z-index: 160;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 272px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: color-mix(in srgb, var(--tone-child-bg) 94%, transparent);
+  box-shadow: var(--panel-shadow-value);
+  padding: 12px;
+}
+
+.date-picker__root {
+  color: var(--text-primary);
+}
+
+.date-picker__months,
+.date-picker__month {
+  width: 100%;
+}
+
+.date-picker__caption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.date-picker__caption-label {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.date-picker__nav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.date-picker__nav-button {
+  display: inline-flex;
+  height: 28px;
+  width: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--tone-grandchild-bg) 86%, transparent);
+  color: var(--text-primary);
+}
+
+.date-picker__nav-button:hover,
+.date-picker__nav-button:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--tone-grandchild-bg) 70%, var(--accent-soft));
+}
+
+.date-picker__chevron {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2px;
+}
+
+.date-picker__grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 4px;
+}
+
+.date-picker__weekdays {
+  margin-bottom: 4px;
+}
+
+.date-picker__weekday {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  padding-bottom: 4px;
+}
+
+.date-picker__day {
+  text-align: center;
+}
+
+.date-picker__day-button {
+  display: inline-flex;
+  height: 34px;
+  width: 34px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--tone-grandchild-bg) 92%, transparent);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.date-picker__day-button:hover,
+.date-picker__day-button:focus-visible {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--tone-grandchild-bg) 70%, var(--accent-soft));
+}
+
+.date-picker__day--today .date-picker__day-button {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border-color));
+}
+
+.date-picker__day--selected .date-picker__day-button {
+  border-color: color-mix(in srgb, var(--accent) 54%, var(--border-color));
+  background: color-mix(in srgb, var(--accent-soft) 72%, var(--tone-grandchild-bg));
+  color: var(--text-primary);
+}
+
+.date-picker__day--outside .date-picker__day-button {
+  opacity: 0.45;
+}
+
+.date-picker__day--disabled .date-picker__day-button {
+  cursor: not-allowed;
+  opacity: 0.35;
 }
 
 .form-input[type="file"] {

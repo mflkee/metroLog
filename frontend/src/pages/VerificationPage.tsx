@@ -19,11 +19,15 @@ import {
   deleteEquipmentVerificationMessage,
   downloadVerificationArchiveZip,
   downloadVerificationMessageAttachment,
+  exportVerificationQueueXlsx,
+  fetchEquipment,
   fetchEquipmentVerificationMessages,
   fetchVerificationQueue,
   getVerificationProgressLabel,
   updateEquipmentVerificationMilestones,
+  updateVerificationBatchItems,
   updateVerificationBatchMilestones,
+  type EquipmentItem,
   type VerificationMessage,
   type VerificationMessageAttachment,
   type VerificationQueueItem,
@@ -33,6 +37,7 @@ import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
+import { ProcessBatchItemsModal } from "@/components/ProcessBatchItemsModal";
 import {
   ProcessTimelineStrip,
   type ProcessTimelineStripItem,
@@ -93,6 +98,7 @@ export function VerificationPage() {
   const queryClient = useQueryClient();
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchQuery, setSearchQuery] = useState("");
+  const [exportError, setExportError] = useState<string | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
   const tab: VerificationTab = searchParams.get("tab") === "archived" ? "archived" : "active";
@@ -128,10 +134,37 @@ export function VerificationPage() {
     return Array.from(groups.values());
   }, [verificationQuery.data]);
 
+  const exportVerificationMutation = useMutation({
+    mutationFn: () =>
+      exportVerificationQueueXlsx(token ?? "", {
+        lifecycleStatus: tab,
+        query: deferredSearchQuery,
+      }),
+  });
+
   async function invalidateVerificationQueries() {
     await queryClient.invalidateQueries({ queryKey: ["verification-queue"] });
     await queryClient.invalidateQueries({ queryKey: ["equipment-item"] });
     await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
+  }
+
+  async function handleExportVerification() {
+    setExportError(null);
+    try {
+      const { blob, fileName } = await exportVerificationMutation.mutateAsync();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(objectUrl);
+    } catch (error) {
+      setExportError(
+        error instanceof Error ? error.message : "Не удалось выгрузить Excel-файл поверок.",
+      );
+    }
   }
 
   return (
@@ -160,7 +193,7 @@ export function VerificationPage() {
             Архивные
           </button>
         </div>
-        <div className="flex min-w-[240px] flex-1 justify-end">
+        <div className="flex min-w-[240px] flex-1 justify-end gap-2">
           <label className="tone-child flex w-full max-w-sm items-center gap-2 rounded-full border border-line px-4 py-2 text-sm text-steel shadow-panel">
             <span className="sr-only">Поиск по поверкам</span>
             <svg className="h-4 w-4 text-steel" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
@@ -175,8 +208,24 @@ export function VerificationPage() {
               value={searchQuery}
             />
           </label>
+          <IconActionButton
+            className="h-10 w-10 shrink-0"
+            icon={
+              exportVerificationMutation.isPending ? (
+                <span className="text-sm leading-none">…</span>
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v12m0 0 4-4m-4 4-4-4m-5 7.5h18" />
+                </svg>
+              )
+            }
+            label="Экспортировать текущий список поверок в Excel"
+            onClick={() => void handleExportVerification()}
+          />
         </div>
       </div>
+
+      {exportError ? <p className="text-sm text-[#b04c43]">{exportError}</p> : null}
 
       {tab === "active" && activeCount !== null ? (
         <div className="flex justify-end">
@@ -260,6 +309,12 @@ function VerificationBatchCard({
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
+  const [itemsModalOpen, setItemsModalOpen] = useState(false);
+  const [itemsSearchQuery, setItemsSearchQuery] = useState("");
+  const deferredItemsSearchQuery = useDeferredValue(itemsSearchQuery);
+  const [pendingMembershipEquipmentId, setPendingMembershipEquipmentId] = useState<number | null>(
+    null,
+  );
   const currentUserId = useAuthStore((state) => state.user?.id);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
@@ -280,6 +335,37 @@ function VerificationBatchCard({
     queryFn: () => fetchEquipmentVerificationMessages(token, anchor.equipmentId),
     enabled: Boolean(anchor.batchKey) && expanded,
   });
+
+  const candidateEquipmentQuery = useQuery({
+    queryKey: [
+      "verification-batch-candidates",
+      anchor.batchKey,
+      anchor.folderId,
+      deferredItemsSearchQuery,
+    ],
+    queryFn: () =>
+      fetchEquipment(token, {
+        folderId: anchor.folderId,
+        equipmentType: "SI",
+        query: deferredItemsSearchQuery,
+      }),
+    enabled: Boolean(token) && Boolean(anchor.batchKey) && itemsModalOpen && !isArchived,
+  });
+
+  const candidateItems = useMemo(() => {
+    const existingIds = new Set(batch.items.map((item) => item.equipmentId));
+    return (candidateEquipmentQuery.data ?? [])
+      .filter((item) => !existingIds.has(item.id))
+      .filter((item) => item.activeVerification === null)
+      .map((item) => ({
+        id: item.id,
+        title: item.name,
+        subtitle: buildEquipmentCandidateSubtitle(item),
+        meta: item.siVerification?.resultDocnum
+          ? `Свидетельство: ${item.siVerification.resultDocnum}`
+          : null,
+      }));
+  }, [batch.items, candidateEquipmentQuery.data]);
 
   const updateMilestonesMutation = useMutation({
     mutationFn: () =>
@@ -332,6 +418,21 @@ function VerificationBatchCard({
     mutationFn: () => closeVerificationBatch(token, anchor.batchKey ?? ""),
     onSuccess: async () => {
       setActionError(null);
+      await onUpdated();
+    },
+  });
+
+  const updateBatchItemsMutation = useMutation({
+    mutationFn: (payload: { addEquipmentIds?: number[]; removeEquipmentIds?: number[] }) =>
+      updateVerificationBatchItems(token, anchor.batchKey ?? "", payload),
+    onSuccess: async (updatedBatch) => {
+      if (updatedBatch[0]) {
+        setForm(buildMilestonesFormState(updatedBatch[0]));
+      }
+      setActionError(null);
+      setFormError(null);
+      setItemsModalOpen(false);
+      setItemsSearchQuery("");
       await onUpdated();
     },
   });
@@ -449,6 +550,34 @@ function VerificationBatchCard({
     }
   }
 
+  async function handleAddEquipmentToBatch(equipmentId: number) {
+    setActionError(null);
+    setPendingMembershipEquipmentId(equipmentId);
+    try {
+      await updateBatchItemsMutation.mutateAsync({ addEquipmentIds: [equipmentId] });
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Не удалось добавить прибор в группу поверки.",
+      );
+    } finally {
+      setPendingMembershipEquipmentId(null);
+    }
+  }
+
+  async function handleRemoveEquipmentFromBatch(equipmentId: number) {
+    setActionError(null);
+    setPendingMembershipEquipmentId(equipmentId);
+    try {
+      await updateBatchItemsMutation.mutateAsync({ removeEquipmentIds: [equipmentId] });
+    } catch (error) {
+      setActionError(
+        error instanceof Error ? error.message : "Не удалось вывести прибор из группы поверки.",
+      );
+    } finally {
+      setPendingMembershipEquipmentId(null);
+    }
+  }
+
   if (isArchived) {
     return (
       <article className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel">
@@ -462,7 +591,7 @@ function VerificationBatchCard({
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-semibold text-ink">{batch.title}</span>
               <span className="rounded-full border border-line px-2 py-0.5 text-[11px] text-steel">
-                архив
+                Архив
               </span>
               <span className="rounded-full border border-line px-2 py-0.5 text-[11px] text-steel">
                 {batch.items.length} приборов
@@ -474,8 +603,9 @@ function VerificationBatchCard({
             <p className="text-xs text-steel">
               {[
                 anchor.closedAt ? `закрыта ${formatDateOnly(anchor.closedAt)}` : null,
-                `${batch.items.length} СИ в группе`,
-              ].join(" · ")}
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -512,8 +642,8 @@ function VerificationBatchCard({
         </button>
         <div className="mt-3">
           <ProcessTimelineStrip
-            items={buildVerificationBatchTimeline(batch, lifecycleStatus).items}
-            segments={buildVerificationBatchTimeline(batch, lifecycleStatus).segments}
+            items={buildVerificationBatchTimeline(batch).items}
+            segments={buildVerificationBatchTimeline(batch).segments}
           />
         </div>
         {expanded ? (
@@ -604,12 +734,6 @@ function VerificationBatchCard({
           <p className="text-xs text-steel">
             {[anchor.routeCity, anchor.routeDestination].filter(Boolean).join(" → ")}
           </p>
-          <p className="line-clamp-2 text-xs text-steel">
-            {batch.items
-              .map((item) => item.equipmentName)
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
         </div>
         <span className="mt-1 shrink-0 text-steel">
           <svg
@@ -626,8 +750,8 @@ function VerificationBatchCard({
 
       <div className="mt-3">
         <ProcessTimelineStrip
-          items={buildVerificationBatchTimeline(batch, lifecycleStatus).items}
-          segments={buildVerificationBatchTimeline(batch, lifecycleStatus).segments}
+          items={buildVerificationBatchTimeline(batch).items}
+          segments={buildVerificationBatchTimeline(batch).segments}
         />
       </div>
 
@@ -635,11 +759,22 @@ function VerificationBatchCard({
         <div className="mt-4 space-y-4 border-t border-line pt-4">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
             <section className="space-y-3">
-              <div>
-                <h4 className="text-sm font-semibold text-ink">Состав группы</h4>
-                <p className="mt-1 text-xs text-steel">
-                  Все приборы ниже используют общий диалог и общие этапы движения.
-                </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-ink">Состав группы</h4>
+                  <p className="mt-1 text-xs text-steel">
+                    Все приборы ниже используют общий диалог и общие этапы движения.
+                  </p>
+                </div>
+                {canManage ? (
+                  <IconActionButton
+                    className="h-10 w-10 shrink-0"
+                    disabled={updateBatchItemsMutation.isPending}
+                    icon={<Icon className="h-4 w-4" name="plus" />}
+                    label="Добавить прибор в группу поверки"
+                    onClick={() => setItemsModalOpen(true)}
+                  />
+                ) : null}
               </div>
               <div className="space-y-2">
                 {batch.items.map((item) => (
@@ -654,16 +789,33 @@ function VerificationBatchCard({
                       >
                         {item.equipmentName}
                       </Link>
-                      {item.arshinUrl ? (
-                        <a
-                          className={actionButtonCompactClass}
-                          href={item.arshinUrl}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          Arshin
-                        </a>
-                      ) : null}
+                      <div className="flex items-center gap-2">
+                        {item.arshinUrl ? (
+                          <a
+                            className={actionButtonCompactClass}
+                            href={item.arshinUrl}
+                            rel="noreferrer"
+                            target="_blank"
+                          >
+                            Arshin
+                          </a>
+                        ) : null}
+                        {canManage ? (
+                          <IconActionButton
+                            disabled={pendingMembershipEquipmentId === item.equipmentId}
+                            icon={
+                              pendingMembershipEquipmentId === item.equipmentId ? (
+                                <span className="text-sm leading-none">…</span>
+                              ) : (
+                                <Icon className="h-4 w-4" name="delete" />
+                              )
+                            }
+                            label={`Убрать прибор «${item.equipmentName}» из группы поверки`}
+                            onClick={() => void handleRemoveEquipmentFromBatch(item.equipmentId)}
+                            size="tiny"
+                          />
+                        ) : null}
+                      </div>
                     </div>
                     <p className="mt-1 text-xs text-steel">
                       {[
@@ -690,7 +842,7 @@ function VerificationBatchCard({
                 {formError ? <p className="text-sm text-[#b04c43]">{formError}</p> : null}
                 {verificationMilestoneDefinitions.map((milestone) => (
                   <div
-                    className="tone-child grid items-center gap-3 rounded-2xl border border-line px-3 py-3 md:grid-cols-[minmax(0,0.88fr)_minmax(196px,0.92fr)_84px]"
+                    className="tone-child grid items-center gap-3 rounded-2xl border border-line px-3 py-3 md:grid-cols-[minmax(0,0.82fr)_minmax(248px,1.04fr)_84px]"
                     key={milestone.key}
                   >
                     <div className="min-w-0">
@@ -922,6 +1074,30 @@ function VerificationBatchCard({
             title="Подтверждение завершения"
             onClose={() => setCloseConfirmOpen(false)}
             onConfirm={() => void handleCloseBatch()}
+          />
+          <ProcessBatchItemsModal
+            description="Можно добавить только свободные СИ без активной поверки."
+            emptyMessage="Подходящих СИ для добавления в группу не найдено."
+            errorMessage={
+              candidateEquipmentQuery.error instanceof Error
+                ? candidateEquipmentQuery.error.message
+                : null
+            }
+            isLoading={candidateEquipmentQuery.isLoading}
+            items={candidateItems}
+            onAdd={(equipmentId) => void handleAddEquipmentToBatch(equipmentId)}
+            onClose={() => {
+              if (updateBatchItemsMutation.isPending) {
+                return;
+              }
+              setItemsModalOpen(false);
+              setItemsSearchQuery("");
+            }}
+            onSearchChange={setItemsSearchQuery}
+            open={itemsModalOpen}
+            pendingEquipmentId={pendingMembershipEquipmentId}
+            searchValue={itemsSearchQuery}
+            title="Добавить СИ в группу поверки"
           />
         </div>
       ) : null}
@@ -1160,7 +1336,7 @@ function VerificationQueueRow({
                 {item.equipmentName}
               </Link>
               <span className="rounded-full border border-line px-2 py-0.5 text-[11px] text-steel">
-                архив
+                Архив
               </span>
             </div>
             <p className="text-xs text-steel">
@@ -1209,8 +1385,8 @@ function VerificationQueueRow({
         </button>
       <div className="mt-3">
         <ProcessTimelineStrip
-          items={buildVerificationTimeline(item, lifecycleStatus).items}
-          segments={buildVerificationTimeline(item, lifecycleStatus).segments}
+          items={buildVerificationTimeline(item).items}
+          segments={buildVerificationTimeline(item).segments}
         />
       </div>
         {expanded ? (
@@ -1298,8 +1474,8 @@ function VerificationQueueRow({
 
       <div className="mt-3">
         <ProcessTimelineStrip
-          items={buildVerificationTimeline(item, lifecycleStatus).items}
-          segments={buildVerificationTimeline(item, lifecycleStatus).segments}
+          items={buildVerificationTimeline(item).items}
+          segments={buildVerificationTimeline(item).segments}
         />
       </div>
 
@@ -1611,11 +1787,13 @@ function VerificationInfoRow({
   );
 }
 
-function buildVerificationTimeline(
-  item: VerificationQueueItem,
-  lifecycleStatus: VerificationTab,
-): VerificationTimelineModel {
+function buildVerificationTimeline(item: VerificationQueueItem): VerificationTimelineModel {
   const milestones = [
+    {
+      key: "sentToVerificationAt",
+      label: `Отправлено в ${item.routeDestination}`,
+      value: item.sentToVerificationAt,
+    },
     {
       key: "receivedAtDestinationAt",
       label: `Получение в ${item.routeDestination}`,
@@ -1648,8 +1826,6 @@ function buildVerificationTimeline(
     },
   ];
 
-  const currentKey = lifecycleStatus === "active" ? milestones.find((stage) => !stage.value)?.key ?? null : null;
-
   const items = milestones.map((stage) => {
     const position = milestones.length > 1 ? milestones.findIndex((item) => item.key === stage.key) / (milestones.length - 1) : 0;
 
@@ -1659,16 +1835,6 @@ function buildVerificationTimeline(
         label: stage.label,
         value: formatDateOnly(stage.value),
         status: "done" as const,
-        position,
-      };
-    }
-
-    if (currentKey === stage.key) {
-      return {
-        key: stage.key,
-        label: stage.label,
-        value: "Текущий этап",
-        status: "current" as const,
         position,
       };
     }
@@ -1687,12 +1853,14 @@ function buildVerificationTimeline(
   };
 }
 
-function buildVerificationBatchTimeline(
-  batch: VerificationGroup,
-  lifecycleStatus: VerificationTab,
-): VerificationTimelineModel {
+function buildVerificationBatchTimeline(batch: VerificationGroup): VerificationTimelineModel {
   const anchor = batch.items[0];
   const milestones = [
+    {
+      key: "sentToVerificationAt",
+      label: `Отправлено в ${anchor.routeDestination}`,
+      value: anchor.sentToVerificationAt,
+    },
     {
       key: "receivedAtDestinationAt",
       label: `Получение в ${anchor.routeDestination}`,
@@ -1725,8 +1893,6 @@ function buildVerificationBatchTimeline(
     },
   ];
 
-  const currentKey = lifecycleStatus === "active" ? milestones.find((stage) => !stage.value)?.key ?? null : null;
-
   const items = milestones.map((stage) => {
     const position = milestones.length > 1 ? milestones.findIndex((item) => item.key === stage.key) / (milestones.length - 1) : 0;
 
@@ -1736,16 +1902,6 @@ function buildVerificationBatchTimeline(
         label: stage.label,
         value: formatDateOnly(stage.value),
         status: "done" as const,
-        position,
-      };
-    }
-
-    if (currentKey === stage.key) {
-      return {
-        key: stage.key,
-        label: stage.label,
-        value: "Текущий этап",
-        status: "current" as const,
         position,
       };
     }
@@ -1762,6 +1918,16 @@ function buildVerificationBatchTimeline(
     items,
     segments: buildVerificationTimelineSegments(milestones),
   };
+}
+
+function buildEquipmentCandidateSubtitle(item: EquipmentItem): string {
+  return [
+    item.objectName,
+    item.modification,
+    item.serialNumber ? `зав. № ${item.serialNumber}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 }
 
 function buildVerificationTimelineSegments(

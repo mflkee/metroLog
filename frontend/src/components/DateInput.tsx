@@ -80,7 +80,12 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
   }
 
   function handleSetToday() {
-    const todayIsoDate = new Date().toISOString().slice(0, 10);
+    const now = new Date();
+    const todayIsoDate = [
+      String(now.getFullYear()).padStart(4, "0"),
+      String(now.getMonth() + 1).padStart(2, "0"),
+      String(now.getDate()).padStart(2, "0"),
+    ].join("-");
     setDisplayValue(formatIsoDateForDisplay(todayIsoDate));
     onChange(todayIsoDate);
   }
@@ -100,7 +105,6 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
         autoComplete="off"
         className={["date-input__field", className].filter(Boolean).join(" ")}
         inputMode="numeric"
-        pattern="\\d{2}\\.\\d{2}\\.\\d{4}"
         placeholder={placeholder ?? "дд.мм.гггг"}
         ref={ref}
         style={style}

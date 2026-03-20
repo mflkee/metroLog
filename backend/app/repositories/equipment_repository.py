@@ -94,7 +94,34 @@ class EquipmentRepository:
         self.session.flush()
         return equipment
 
+    def normalize_transient_statuses(self) -> None:
+        active_repair_exists = exists(
+            select(Repair.id).where(
+                Repair.equipment_id == Equipment.id,
+                Repair.closed_at.is_(None),
+            )
+        )
+        active_verification_exists = exists(
+            select(Verification.id).where(
+                Verification.equipment_id == Equipment.id,
+                Verification.closed_at.is_(None),
+            )
+        )
+        statement = (
+            update(Equipment)
+            .where(
+                Equipment.status.in_(
+                    [EquipmentStatus.IN_REPAIR, EquipmentStatus.IN_VERIFICATION]
+                ),
+                ~active_repair_exists,
+                ~active_verification_exists,
+            )
+            .values(status=EquipmentStatus.IN_WORK)
+        )
+        self.session.execute(statement)
+
     def get_by_id(self, equipment_id: int) -> Equipment | None:
+        self.normalize_transient_statuses()
         statement = (
             select(Equipment)
             .options(
@@ -118,6 +145,7 @@ class EquipmentRepository:
         status: EquipmentStatus | None = None,
         equipment_type: EquipmentType | None = None,
     ) -> list[Equipment]:
+        self.normalize_transient_statuses()
         statement = (
             select(Equipment)
             .options(

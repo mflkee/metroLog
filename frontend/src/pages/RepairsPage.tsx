@@ -355,7 +355,13 @@ function RepairQueueRow({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 space-y-2">
             <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-base font-semibold text-ink">{item.equipmentName}</h3>
+              <Link
+                className="text-base font-semibold text-ink transition hover:text-signal-info"
+                onClick={(event) => event.stopPropagation()}
+                to={`/equipment/${item.equipmentId}`}
+              >
+                {item.equipmentName}
+              </Link>
               <span className="rounded-full border border-line px-2 py-0.5 text-[11px] uppercase tracking-[0.14em] text-steel">
                 {equipmentTypeLabels[item.equipmentType]}
               </span>
@@ -373,16 +379,27 @@ function RepairQueueRow({
             </p>
           </div>
 
-          <svg
-            aria-hidden="true"
-            className={`mt-1 h-5 w-5 shrink-0 text-steel transition-transform ${expanded ? "rotate-180" : ""}`}
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="1.8"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" d="m6.75 9 5.25 6 5.25-6" />
-          </svg>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              className={actionButtonCompactClass}
+              onClick={(event) => event.stopPropagation()}
+              to={`/equipment/${item.equipmentId}`}
+            >
+              Карточка
+            </Link>
+            <span className="mt-1 shrink-0 text-steel">
+              <svg
+                aria-hidden="true"
+                className={`h-5 w-5 transition-transform ${expanded ? "rotate-180" : ""}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="1.8"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="m6.75 9 5.25 6 5.25-6" />
+              </svg>
+            </span>
+          </div>
         </div>
 
         <ProcessTimelineStrip

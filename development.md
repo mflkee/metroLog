@@ -7,7 +7,7 @@ Short working buffer for the current state of the project.
 Phase 2 - Equipment Registry Foundation
 
 ## Current Status
-Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin search by certificate number, detail fetch by `vri_id`, a fuller collapsible SI block on the equipment card, manual refresh of an existing SI card by entering a new certificate number, bulk Excel import by certificate numbers into the selected folder, Excel export of the current registry selection, a richer first repair flow from the equipment card with route fields, dialog messages, and repair attachments, the separate repairs page with active/archive tabs, search, editable repair milestone dates, derived deadline chain, and overdue calculation, the first independent verification flow for `SI`, the separate `Поверка СИ` page with active/archive tabs, search, milestone editing, explicit completion with confirmation, grouped verification with shared batch messages and shared batch milestone updates, informative expandable archived verification entries with ZIP download, and an archive link from the equipment card.
+Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin search by certificate number, detail fetch by `vri_id`, a fuller collapsible SI block on the equipment card, manual refresh of an existing SI card by entering a new certificate number, bulk Excel import by certificate numbers into the selected folder, Excel export of the current registry selection, a richer first repair flow from the equipment card with route fields, dialog messages, and repair attachments, the separate repairs page with active/archive tabs, search, editable repair milestone dates, derived deadline chain, overdue calculation, and semantic process-strip segments, the first independent verification flow for `SI`, the separate `Поверка СИ` page with active/archive tabs, search, milestone editing, explicit completion with confirmation, grouped verification with shared batch messages and shared batch milestone updates, informative expandable archived verification entries with ZIP download, and an archive link from the equipment card.
 
 ## Completed
 - Stage 1 internal auth is working: bootstrap admin, admin-created users, temporary passwords, forced password change, profile metadata, and admin user-detail pages.
@@ -75,6 +75,9 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 - Repair timeline logic is now clarified: the `100-day` repair deadline belongs to the milestone `Ремонт произведен`, not to the end of the whole process; the visual repair strip uses an approximately `250-day` baseline window and expands further only when real dates go beyond it.
 - Repair and verification milestone dates are now validated chronologically on both frontend and backend: a later stage cannot be saved before an earlier stage exists or with a date earlier than the previous completed stage.
 - Process strips now support semantic colored intervals: completed operations should be shown as green segments with hover duration, while overdue parts of repair should be shown as red segments with explicit hover explanation.
+- Deadline markers on repair strips now use semantic colors too: on-time completion becomes green, active non-overdue deadlines stay neutral, and only real overdue deadlines stay red.
+- Expandable process panels now default to collapsed state across cards and process pages instead of auto-opening after data load.
+- Shared `DateInput` now uses compact `dd.mm.yyyy` presentation everywhere and provides a `Сегодня` shortcut button.
 
 ## Current Scripts
 - `scripts/check.sh`
@@ -84,7 +87,22 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 - `scripts/docker/deploy.sh`
 - `scripts/docker/smoke.sh`
 
+## Remaining Gaps
+- Repair completion is still not implemented from `/repairs`; verification already has the full close/archive loop, repair does not.
+- Completed repairs still do not produce the same informative archive experience as verification: archive list entry, ZIP download, and card-level archive record/link are missing.
+- Grouped repair exists only as registry-side creation; it still lacks grouped workspace parity with grouped verification:
+  - shared grouped repair dialog,
+  - shared grouped repair milestone editing,
+  - grouped repair completion and archive behavior.
+- Process batch membership is still not editable after creation for repair or verification, even though this remains part of the target product model.
+
 ## Next
-- Add close/archive behavior for repair with the same informative archive pattern already used for verification.
-- Start grouped repair actions from the equipment registry.
-- Add explicit repair completion flow from the dedicated `Ремонты` page and move closed repairs into an informative archive.
+1. Implement explicit repair completion on `/repairs`, gated by `paid_at`.
+2. Move completed repair into archived repairs with the same informative archive pattern already used for verification.
+3. Add compact archived repair record and archive link on the equipment card under attachments/process blocks.
+4. Bring grouped repair to parity with grouped verification:
+   - grouped repair card on `/repairs`,
+   - one shared batch dialog,
+   - one shared milestone editor,
+   - grouped completion/archive flow.
+5. After repair archive parity is done, return to batch membership editing and later exports for dedicated repair/verification views if they are still needed.

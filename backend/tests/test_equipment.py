@@ -1553,6 +1553,105 @@ async def test_si_can_have_independent_active_verification_with_its_own_dialog(
         == "Для этого прибора уже есть активная поверка."
     )
 
+    close_verification_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/verification/close",
+        headers=headers,
+    )
+    assert close_verification_response.status_code == 200
+
+    equipment_detail_after_close_response = await client.get(
+        f"/api/v1/equipment/{equipment['id']}",
+        headers=headers,
+    )
+    assert equipment_detail_after_close_response.status_code == 200
+    equipment_detail_after_close = equipment_detail_after_close_response.json()
+    assert equipment_detail_after_close["status"] == "IN_REPAIR"
+    assert equipment_detail_after_close["active_repair"] is not None
+    assert equipment_detail_after_close["active_verification"] is None
+
+
+@pytest.mark.anyio
+async def test_closing_verification_restores_equipment_status_to_in_work(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Закрытие поверки"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "ХАЛ",
+            "equipment_type": "SI",
+            "name": "Термометр",
+            "status": "IN_WORK",
+            "si_verification": {
+                "vri_id": "vri-close-verification-1",
+                "arshin_url": "https://fgis.gost.ru/fundmetrology/cm/results/vri-close-verification-1",
+                "mit_number": "30000-01",
+                "mit_title": "Термометр",
+                "mit_notation": "TM-100",
+                "mi_number": "THERM-001",
+                "result_docnum": "CERT-CLOSE-001",
+                "verification_date": "2026-03-01T00:00:00",
+                "valid_date": "2027-03-01T00:00:00",
+                "raw_payload_json": {"source": "test"},
+                "detail_payload_json": {
+                    "miInfo": {
+                        "singleMI": {
+                            "mitypeNumber": "30000-01",
+                            "mitypeTitle": "Термометр",
+                            "mitypeType": "TM-100",
+                            "manufactureNum": "THERM-001",
+                            "manufactureYear": 2024,
+                            "modification": "серия T",
+                        }
+                    }
+                },
+            },
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    create_verification_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/verification",
+        headers=headers,
+        data={
+            "route_city": "Тюмень",
+            "route_destination": "ЦСМ",
+            "sent_to_verification_at": "2026-03-20",
+        },
+    )
+    assert create_verification_response.status_code == 201
+
+    close_verification_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/verification/close",
+        headers=headers,
+    )
+    assert close_verification_response.status_code == 200
+
+    equipment_detail_response = await client.get(
+        f"/api/v1/equipment/{equipment['id']}",
+        headers=headers,
+    )
+    assert equipment_detail_response.status_code == 200
+    equipment_detail = equipment_detail_response.json()
+    assert equipment_detail["status"] == "IN_WORK"
+    assert equipment_detail["active_repair"] is None
+    assert equipment_detail["active_verification"] is None
+
 
 @pytest.mark.anyio
 async def test_verification_queue_lists_active_si_verifications(

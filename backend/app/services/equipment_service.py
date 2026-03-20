@@ -953,6 +953,7 @@ class EquipmentService:
     ) -> Verification:
         verification = self._get_active_verification(equipment_id=equipment_id)
         verification.closed_at = date.today()
+        self._sync_equipment_status(equipment=verification.equipment)
         self.session.commit()
         self.session.refresh(verification)
         return verification
@@ -976,6 +977,8 @@ class EquipmentService:
         closed_at = date.today()
         for verification in verifications:
             verification.closed_at = closed_at
+        for verification in verifications:
+            self._sync_equipment_status(equipment=verification.equipment)
 
         self.session.commit()
         for verification in verifications:
@@ -1711,6 +1714,22 @@ class EquipmentService:
                 detail="Для этого прибора нет активной поверки.",
             )
         return verification
+
+    def _sync_equipment_status(self, *, equipment: Equipment) -> None:
+        if self.repairs.get_active_by_equipment_id(equipment_id=equipment.id) is not None:
+            equipment.status = EquipmentStatus.IN_REPAIR
+            return
+
+        if (
+            equipment.equipment_type == EquipmentType.SI
+            and self.verifications.get_active_by_equipment_id(equipment_id=equipment.id)
+            is not None
+        ):
+            equipment.status = EquipmentStatus.IN_VERIFICATION
+            return
+
+        if equipment.status in {EquipmentStatus.IN_REPAIR, EquipmentStatus.IN_VERIFICATION}:
+            equipment.status = EquipmentStatus.IN_WORK
 
     def _get_repair_message(self, *, repair_id: int, message_id: int) -> RepairMessage:
         message = self.repair_messages.get_by_id(message_id)

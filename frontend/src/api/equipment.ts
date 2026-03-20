@@ -822,7 +822,7 @@ export async function createEquipmentRepair(
   const formData = new FormData();
   formData.set("route_city", payload.routeCity);
   formData.set("route_destination", payload.routeDestination);
-  formData.set("sent_to_repair_at", payload.sentToRepairAt);
+  formData.set("sent_to_repair_at", normalizeDateForApi(payload.sentToRepairAt));
   if (payload.initialMessageText.trim()) {
     formData.set("initial_message_text", payload.initialMessageText.trim());
   }
@@ -849,7 +849,7 @@ export async function createRepairBatch(
       equipment_ids: payload.equipmentIds,
       route_city: payload.routeCity,
       route_destination: payload.routeDestination,
-      sent_to_repair_at: payload.sentToRepairAt,
+      sent_to_repair_at: normalizeDateForApi(payload.sentToRepairAt),
       initial_message_text: payload.initialMessageText.trim() || null,
     },
   });
@@ -865,14 +865,14 @@ export async function updateEquipmentRepairMilestones(
     method: "PATCH",
     token,
     body: {
-      sent_to_repair_at: payload.sentToRepairAt ?? null,
-      arrived_to_destination_at: payload.arrivedToDestinationAt ?? null,
-      sent_from_repair_at: payload.sentFromRepairAt ?? null,
-      sent_from_irkutsk_at: payload.sentFromIrkutskAt ?? null,
-      arrived_to_lensk_at: payload.arrivedToLenskAt ?? null,
-      actually_received_at: payload.actuallyReceivedAt ?? null,
-      incoming_control_at: payload.incomingControlAt ?? null,
-      paid_at: payload.paidAt ?? null,
+      sent_to_repair_at: normalizeOptionalDateForApi(payload.sentToRepairAt),
+      arrived_to_destination_at: normalizeOptionalDateForApi(payload.arrivedToDestinationAt),
+      sent_from_repair_at: normalizeOptionalDateForApi(payload.sentFromRepairAt),
+      sent_from_irkutsk_at: normalizeOptionalDateForApi(payload.sentFromIrkutskAt),
+      arrived_to_lensk_at: normalizeOptionalDateForApi(payload.arrivedToLenskAt),
+      actually_received_at: normalizeOptionalDateForApi(payload.actuallyReceivedAt),
+      incoming_control_at: normalizeOptionalDateForApi(payload.incomingControlAt),
+      paid_at: normalizeOptionalDateForApi(payload.paidAt),
     },
   });
   return mapEquipmentRepair(response);
@@ -886,7 +886,7 @@ export async function createEquipmentVerification(
   const formData = new FormData();
   formData.set("route_city", payload.routeCity);
   formData.set("route_destination", payload.routeDestination);
-  formData.set("sent_to_verification_at", payload.sentToVerificationAt);
+  formData.set("sent_to_verification_at", normalizeDateForApi(payload.sentToVerificationAt));
   if (payload.initialMessageText.trim()) {
     formData.set("initial_message_text", payload.initialMessageText.trim());
   }
@@ -917,7 +917,7 @@ export async function createVerificationBatch(
       batch_name: payload.batchName,
       route_city: payload.routeCity,
       route_destination: payload.routeDestination,
-      sent_to_verification_at: payload.sentToVerificationAt,
+      sent_to_verification_at: normalizeDateForApi(payload.sentToVerificationAt),
       initial_message_text: payload.initialMessageText.trim() || null,
     },
   });
@@ -935,12 +935,12 @@ export async function updateEquipmentVerificationMilestones(
       method: "PATCH",
       token,
       body: {
-        received_at_destination_at: payload.receivedAtDestinationAt ?? null,
-        handed_to_csm_at: payload.handedToCsmAt ?? null,
-        verification_completed_at: payload.verificationCompletedAt ?? null,
-        picked_up_from_csm_at: payload.pickedUpFromCsmAt ?? null,
-        shipped_back_at: payload.shippedBackAt ?? null,
-        returned_from_verification_at: payload.returnedFromVerificationAt ?? null,
+        received_at_destination_at: normalizeOptionalDateForApi(payload.receivedAtDestinationAt),
+        handed_to_csm_at: normalizeOptionalDateForApi(payload.handedToCsmAt),
+        verification_completed_at: normalizeOptionalDateForApi(payload.verificationCompletedAt),
+        picked_up_from_csm_at: normalizeOptionalDateForApi(payload.pickedUpFromCsmAt),
+        shipped_back_at: normalizeOptionalDateForApi(payload.shippedBackAt),
+        returned_from_verification_at: normalizeOptionalDateForApi(payload.returnedFromVerificationAt),
       },
     },
   );
@@ -958,12 +958,12 @@ export async function updateVerificationBatchMilestones(
       method: "PATCH",
       token,
       body: {
-        received_at_destination_at: payload.receivedAtDestinationAt ?? null,
-        handed_to_csm_at: payload.handedToCsmAt ?? null,
-        verification_completed_at: payload.verificationCompletedAt ?? null,
-        picked_up_from_csm_at: payload.pickedUpFromCsmAt ?? null,
-        shipped_back_at: payload.shippedBackAt ?? null,
-        returned_from_verification_at: payload.returnedFromVerificationAt ?? null,
+        received_at_destination_at: normalizeOptionalDateForApi(payload.receivedAtDestinationAt),
+        handed_to_csm_at: normalizeOptionalDateForApi(payload.handedToCsmAt),
+        verification_completed_at: normalizeOptionalDateForApi(payload.verificationCompletedAt),
+        picked_up_from_csm_at: normalizeOptionalDateForApi(payload.pickedUpFromCsmAt),
+        shipped_back_at: normalizeOptionalDateForApi(payload.shippedBackAt),
+        returned_from_verification_at: normalizeOptionalDateForApi(payload.returnedFromVerificationAt),
       },
     },
   );
@@ -1541,6 +1541,14 @@ function mapEquipment(item: RawEquipment): EquipmentItem {
   const activeVerification = item.active_verification
     ? mapEquipmentVerification(item.active_verification)
     : null;
+  const resolvedStatus =
+    activeRepair
+      ? "IN_REPAIR"
+      : activeVerification
+        ? "IN_VERIFICATION"
+        : item.status === "IN_REPAIR" || item.status === "IN_VERIFICATION"
+          ? "IN_WORK"
+          : item.status;
   return {
     id: item.id,
     folderId: item.folder_id,
@@ -1551,7 +1559,7 @@ function mapEquipment(item: RawEquipment): EquipmentItem {
     modification: item.modification,
     serialNumber: item.serial_number,
     manufactureYear: item.manufacture_year,
-    status: activeRepair ? "IN_REPAIR" : activeVerification ? "IN_VERIFICATION" : item.status,
+    status: resolvedStatus,
     currentLocationManual: item.current_location_manual,
     activeRepair,
     activeVerification,
@@ -1819,6 +1827,72 @@ function emptyToNull(value: string | null | undefined): string | null {
   }
   const normalized = value.trim();
   return normalized ? normalized : null;
+}
+
+function normalizeDateForApi(value: string): string {
+  const normalized = value.trim();
+  if (!normalized) {
+    return normalized;
+  }
+
+  return parseDateInputToIso(normalized) ?? normalized;
+}
+
+function normalizeOptionalDateForApi(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value.trim();
+  if (!normalized) {
+    return null;
+  }
+
+  return parseDateInputToIso(normalized) ?? normalized;
+}
+
+function parseDateInputToIso(value: string): string | null {
+  const isoMatch = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return isValidDateParts(isoMatch[1], isoMatch[2], isoMatch[3])
+      ? `${isoMatch[1]}-${isoMatch[2]}-${isoMatch[3]}`
+      : null;
+  }
+
+  const displayMatch = value.match(/^(\d{1,2})[.\-/ ](\d{1,2})[.\-/ ](\d{4})$/);
+  if (displayMatch) {
+    const day = displayMatch[1].padStart(2, "0");
+    const month = displayMatch[2].padStart(2, "0");
+    const year = displayMatch[3];
+    return isValidDateParts(year, month, day) ? `${year}-${month}-${day}` : null;
+  }
+
+  return null;
+}
+
+function isValidDateParts(year: string, month: string, day: string): boolean {
+  const numericYear = Number(year);
+  const numericMonth = Number(month);
+  const numericDay = Number(day);
+
+  if (
+    !Number.isInteger(numericYear)
+    || !Number.isInteger(numericMonth)
+    || !Number.isInteger(numericDay)
+  ) {
+    return false;
+  }
+
+  if (numericMonth < 1 || numericMonth > 12 || numericDay < 1 || numericDay > 31) {
+    return false;
+  }
+
+  const candidate = new Date(Date.UTC(numericYear, numericMonth - 1, numericDay));
+  return (
+    candidate.getUTCFullYear() === numericYear
+    && candidate.getUTCMonth() === numericMonth - 1
+    && candidate.getUTCDate() === numericDay
+  );
 }
 
 function buildEquipmentFilterSearch(filters: FetchEquipmentFilters = {}): string {

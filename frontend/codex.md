@@ -48,6 +48,7 @@ Compactness is a hard requirement:
 Date input formatting is a hard UI rule:
 - every date field, date input, and date picker in the application must use the Russian-style `dd.mm.yyyy` presentation,
 - `mm/dd/yyyy` style is not allowed anywhere in the product UI,
+- the shared date input may expose a compact `Сегодня` shortcut for operational workflows,
 - this rule applies consistently across registry forms, repair workflows, verification workflows, filters, and modal dialogs.
 
 ### 2. Backend-driven business logic

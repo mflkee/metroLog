@@ -13,6 +13,8 @@ import {
   buildSIVerificationPayloadFromArshin,
   createEquipment,
   createEquipmentFolder,
+  createEquipmentRepair,
+  createEquipmentVerification,
   createRepairBatch,
   createVerificationBatch,
   deleteEquipmentBatch,
@@ -377,16 +379,27 @@ export function EquipmentPage() {
       }),
   });
 
-  const createVerificationBatchMutation = useMutation({
-    mutationFn: () =>
-      createVerificationBatch(token ?? "", {
+  const createVerificationBatchMutation = useMutation<unknown, Error, void>({
+    mutationFn: () => {
+      if (selectedEquipmentIds.length === 1) {
+        return createEquipmentVerification(token ?? "", selectedEquipmentIds[0], {
+          routeCity: verificationBatchForm.routeCity,
+          routeDestination: verificationBatchForm.routeDestination,
+          sentToVerificationAt: verificationBatchForm.sentToVerificationAt,
+          initialMessageText: verificationBatchForm.initialMessageText,
+          files: [],
+        });
+      }
+
+      return createVerificationBatch(token ?? "", {
         equipmentIds: selectedEquipmentIds,
         batchName: verificationBatchForm.batchName,
         routeCity: verificationBatchForm.routeCity,
         routeDestination: verificationBatchForm.routeDestination,
         sentToVerificationAt: verificationBatchForm.sentToVerificationAt,
         initialMessageText: verificationBatchForm.initialMessageText,
-      }),
+      });
+    },
     onSuccess: async () => {
       setSelectedEquipmentIds([]);
       setVerificationBatchForm(defaultVerificationBatchForm);
@@ -396,15 +409,26 @@ export function EquipmentPage() {
     },
   });
 
-  const createRepairBatchMutation = useMutation({
-    mutationFn: () =>
-      createRepairBatch(token ?? "", {
+  const createRepairBatchMutation = useMutation<unknown, Error, void>({
+    mutationFn: () => {
+      if (selectedEquipmentIds.length === 1) {
+        return createEquipmentRepair(token ?? "", selectedEquipmentIds[0], {
+          routeCity: repairBatchForm.routeCity,
+          routeDestination: repairBatchForm.routeDestination,
+          sentToRepairAt: repairBatchForm.sentToRepairAt,
+          initialMessageText: repairBatchForm.initialMessageText,
+          files: [],
+        });
+      }
+
+      return createRepairBatch(token ?? "", {
         equipmentIds: selectedEquipmentIds,
         routeCity: repairBatchForm.routeCity,
         routeDestination: repairBatchForm.routeDestination,
         sentToRepairAt: repairBatchForm.sentToRepairAt,
         initialMessageText: repairBatchForm.initialMessageText,
-      }),
+      });
+    },
     onSuccess: async () => {
       setSelectedEquipmentIds([]);
       setRepairBatchForm(defaultRepairBatchForm);
@@ -429,6 +453,12 @@ export function EquipmentPage() {
   const areAllSelectedItemsSi =
     selectedEquipmentItems.length > 0
     && selectedEquipmentItems.every((item) => item.equipmentType === "SI");
+  const hasSelectedItemsWithActiveRepair = selectedEquipmentItems.some(
+    (item) => item.activeRepair !== null,
+  );
+  const hasSelectedItemsWithActiveVerification = selectedEquipmentItems.some(
+    (item) => item.activeVerification !== null,
+  );
   const deferredFolderSearchQuery = useDeferredValue(folderSearchQuery);
 
   const existingObjectNames = useMemo(() => {
@@ -564,6 +594,9 @@ export function EquipmentPage() {
   }
 
   function openVerificationBatchModal() {
+    if (selectedEquipmentIds.length === 0 || hasSelectedItemsWithActiveVerification) {
+      return;
+    }
     setVerificationBatchForm({
       ...defaultVerificationBatchForm,
       batchName: selectedFolder ? `${selectedFolder.name} / поверка` : "",
@@ -573,6 +606,9 @@ export function EquipmentPage() {
   }
 
   function openRepairBatchModal() {
+    if (selectedEquipmentIds.length === 0 || hasSelectedItemsWithActiveRepair) {
+      return;
+    }
     setRepairBatchForm(defaultRepairBatchForm);
     createRepairBatchMutation.reset();
     setActiveModal({ kind: "repair-batch" });
@@ -704,8 +740,8 @@ export function EquipmentPage() {
   return (
     <section className="space-y-4">
       <PageHeader
-        title="Оборудование"
-        description="Общий реестр оборудования: сначала папка, затем рабочая таблица приборов."
+        title={selectedFolder ? selectedFolder.name : "Оборудование"}
+        description={selectedFolder ? "" : "Общий реестр оборудования"}
       />
 
       {!selectedFolder ? (
@@ -823,17 +859,14 @@ export function EquipmentPage() {
 
       {selectedFolder ? (
         <section className="space-y-4 rounded-[30px] border border-line bg-white p-5 shadow-panel">
-          <div className="flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-start lg:justify-between">
-            <div className="space-y-3">
+          <div className="flex flex-col gap-4 border-b border-line pb-5 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
               <button className={subtleButtonClass} type="button" onClick={leaveFolderWorkspace}>
                 Все папки
               </button>
-              <div>
-                <h2 className="text-2xl font-semibold text-ink">{selectedFolder.name}</h2>
-                <p className="mt-1 max-w-3xl text-sm text-steel">
-                  {selectedFolder.description || "Рабочая область папки без дополнительного описания."}
-                </p>
-              </div>
+              <span className="rounded-full border border-line px-3 py-1 text-sm text-steel">
+                {selectedFolder.name}
+              </span>
             </div>
 
             {canManage ? (
@@ -902,20 +935,12 @@ export function EquipmentPage() {
           </div>
 
           <section className="space-y-4">
-            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-              <div className="xl:max-w-[60ch]">
-                <h3 className="text-lg font-semibold text-ink">Реестр приборов</h3>
-                <p className="mt-1 max-w-[clamp(36ch,42vw,60ch)] text-sm leading-5 text-steel">
-                  Базовые данные здесь, полные сведения открываются в карточке прибора.
-                </p>
-              </div>
-
-              <div className="grid gap-3 md:grid-cols-3 xl:min-w-[820px]">
+            <div className="grid gap-3 md:grid-cols-3">
                 <label className="block text-sm text-steel">
                   Поиск
                   <input
                     className="form-input"
-                    placeholder="Наименование, объект, серийный номер, локация"
+                    placeholder="Наименование, объект, серийный номер, местонахождение"
                     type="search"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
@@ -954,7 +979,6 @@ export function EquipmentPage() {
                   </select>
                 </label>
               </div>
-            </div>
 
             {equipmentQuery.isLoading ? <p className="text-sm text-steel">Загружаем оборудование...</p> : null}
             {equipmentQuery.isError ? (
@@ -977,6 +1001,16 @@ export function EquipmentPage() {
                   <span className="text-sm text-steel">
                     Выбрано: {selectedEquipmentIds.length}
                   </span>
+                  {selectedEquipmentIds.length > 0 && hasSelectedItemsWithActiveRepair ? (
+                    <span className="text-sm text-steel">
+                      В наборе уже есть приборы с активным ремонтом.
+                    </span>
+                  ) : null}
+                  {selectedEquipmentIds.length > 0 && hasSelectedItemsWithActiveVerification ? (
+                    <span className="text-sm text-steel">
+                      В наборе уже есть приборы с активной поверкой.
+                    </span>
+                  ) : null}
                   {selectedEquipmentIds.length > 0 && !areAllSelectedItemsSi ? (
                     <span className="text-sm text-steel">
                       В поверку можно отправить только набор, где все приборы относятся к СИ.
@@ -1001,7 +1035,7 @@ export function EquipmentPage() {
                   </button>
                   <button
                     className={batchRepairButtonClass}
-                    disabled={selectedEquipmentIds.length === 0}
+                    disabled={selectedEquipmentIds.length === 0 || hasSelectedItemsWithActiveRepair}
                     type="button"
                     onClick={openRepairBatchModal}
                   >
@@ -1009,7 +1043,11 @@ export function EquipmentPage() {
                   </button>
                   <button
                     className={batchVerificationButtonClass}
-                    disabled={selectedEquipmentIds.length === 0 || !areAllSelectedItemsSi}
+                    disabled={
+                      selectedEquipmentIds.length === 0
+                      || !areAllSelectedItemsSi
+                      || hasSelectedItemsWithActiveVerification
+                    }
                     type="button"
                     onClick={openVerificationBatchModal}
                   >
@@ -1049,7 +1087,7 @@ export function EquipmentPage() {
                       <th className="px-3 py-2">Серийный</th>
                       <th className="px-3 py-2">Год выпуска</th>
                       <th className="px-3 py-2">Объект</th>
-                      <th className="px-3 py-2">Локация</th>
+                      <th className="px-3 py-2">Местонахождение</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1626,13 +1664,17 @@ export function EquipmentPage() {
       </Modal>
 
       <Modal
-        description="Массовая отправка создаст активный ремонт для всех отмеченных приборов с общим маршрутом и стартовой датой."
+        description={
+          selectedEquipmentIds.length === 1
+            ? "Будет создан один активный ремонт для выбранного прибора."
+            : "Массовая отправка создаст активный ремонт для всех отмеченных приборов с общим маршрутом и стартовой датой."
+        }
         open={activeModal?.kind === "repair-batch"}
-        title="Массовая отправка в ремонт"
+        title={selectedEquipmentIds.length === 1 ? "Отправить в ремонт" : "Массовая отправка в ремонт"}
         onClose={closeRepairBatchModal}
       >
         <form className="space-y-4" onSubmit={(event) => void handleRepairBatchSubmit(event)}>
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2">
             <label className="block text-sm text-steel">
               Откуда
               <input
@@ -1658,24 +1700,24 @@ export function EquipmentPage() {
                 }
               />
             </label>
-            <label className="block text-sm text-steel">
-              Дата отправки
-              <DateInput
-                className="form-input form-input--compact"
-                value={repairBatchForm.sentToRepairAt}
-                onChange={(value) =>
-                  setRepairBatchForm((current) => ({
-                    ...current,
-                    sentToRepairAt: value,
-                  }))
-                }
-              />
-            </label>
           </div>
+          <label className="block text-sm text-steel">
+            Дата отправки
+            <DateInput
+              className="form-input form-input--compact"
+              value={repairBatchForm.sentToRepairAt}
+              onChange={(value) =>
+                setRepairBatchForm((current) => ({
+                  ...current,
+                  sentToRepairAt: value,
+                }))
+              }
+            />
+          </label>
           <label className="block text-sm text-steel">
             Первое сообщение
             <textarea
-              className="form-input min-h-[88px] resize-none py-3"
+              className="form-input min-h-[92px] resize-none py-3"
               placeholder="Например: партия приборов упакована и отправлена в ремонт."
               value={repairBatchForm.initialMessageText}
               onChange={(event) =>
@@ -1687,19 +1729,24 @@ export function EquipmentPage() {
             />
           </label>
           <div className="tone-parent rounded-2xl border border-line px-4 py-3 text-sm text-steel">
-            В ремонт сейчас уйдет {selectedEquipmentIds.length} прибор(ов).
+            {selectedEquipmentIds.length === 1
+              ? "В ремонт сейчас уйдет 1 прибор."
+              : `В ремонт сейчас уйдет ${selectedEquipmentIds.length} прибор(ов).`}
           </div>
           {createRepairBatchMutation.isError ? (
             <p className="text-sm text-[#b04c43]">
               {getMutationErrorMessage(
                 createRepairBatchMutation.error,
-                "Не удалось отправить отмеченные приборы в ремонт.",
+                selectedEquipmentIds.length === 1
+                  ? "Не удалось отправить прибор в ремонт."
+                  : "Не удалось отправить отмеченные приборы в ремонт.",
               )}
             </p>
           ) : null}
           <div className="flex justify-end">
             <button
-              className="btn-primary px-4 py-2 text-sm disabled:opacity-60"
+              aria-label={selectedEquipmentIds.length === 1 ? "Подтвердить отправку в ремонт" : "Подтвердить массовую отправку в ремонт"}
+              className="btn-primary disabled:opacity-60"
               disabled={
                 createRepairBatchMutation.isPending
                 || selectedEquipmentIds.length === 0
@@ -1709,30 +1756,42 @@ export function EquipmentPage() {
               }
               type="submit"
             >
-              {createRepairBatchMutation.isPending ? "Создаем..." : "Отправить в ремонт"}
+              {createRepairBatchMutation.isPending ? (
+                "…"
+              ) : (
+                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              )}
             </button>
           </div>
         </form>
       </Modal>
 
       <Modal
-        description="Групповая поверка создаст отдельные активные записи для выбранных СИ и объединит их общим названием группы."
+        description={
+          selectedEquipmentIds.length === 1
+            ? "Будет создана одна активная поверка для выбранного СИ."
+            : "Групповая поверка создаст отдельные активные записи для выбранных СИ и объединит их общим названием группы."
+        }
         open={activeModal?.kind === "verification-batch"}
-        title="Групповая поверка"
+        title={selectedEquipmentIds.length === 1 ? "Отправить в поверку" : "Групповая поверка"}
         onClose={closeVerificationBatchModal}
       >
         <form className="space-y-4" onSubmit={(event) => void handleVerificationBatchSubmit(event)}>
-          <label className="block text-sm text-steel">
-            Название группы
-            <input
-              className="form-input"
-              type="text"
-              value={verificationBatchForm.batchName}
-              onChange={(event) =>
-                setVerificationBatchForm((current) => ({ ...current, batchName: event.target.value }))
-              }
-            />
-          </label>
+          {selectedEquipmentIds.length > 1 ? (
+            <label className="block text-sm text-steel">
+              Название группы
+              <input
+                className="form-input"
+                type="text"
+                value={verificationBatchForm.batchName}
+                onChange={(event) =>
+                  setVerificationBatchForm((current) => ({ ...current, batchName: event.target.value }))
+                }
+              />
+            </label>
+          ) : null}
           <div className="grid gap-3 md:grid-cols-3">
             <label className="block text-sm text-steel">
               Откуда
@@ -1788,13 +1847,17 @@ export function EquipmentPage() {
             />
           </label>
           <div className="tone-parent rounded-2xl border border-line px-4 py-3 text-sm text-steel">
-            В группу сейчас войдет {selectedEquipmentIds.length} прибор(ов).
+            {selectedEquipmentIds.length === 1
+              ? "В поверку сейчас уйдет 1 прибор."
+              : `В группу сейчас войдет ${selectedEquipmentIds.length} прибор(ов).`}
           </div>
           {createVerificationBatchMutation.isError ? (
             <p className="text-sm text-[#b04c43]">
               {getMutationErrorMessage(
                 createVerificationBatchMutation.error,
-                "Не удалось создать групповую поверку.",
+                selectedEquipmentIds.length === 1
+                  ? "Не удалось отправить прибор в поверку."
+                  : "Не удалось создать групповую поверку.",
               )}
             </p>
           ) : null}
@@ -1804,7 +1867,7 @@ export function EquipmentPage() {
               disabled={
                 createVerificationBatchMutation.isPending
                 || selectedEquipmentIds.length === 0
-                || !verificationBatchForm.batchName.trim()
+                || (selectedEquipmentIds.length > 1 && !verificationBatchForm.batchName.trim())
                 || !verificationBatchForm.routeCity.trim()
                 || !verificationBatchForm.routeDestination.trim()
                 || !verificationBatchForm.sentToVerificationAt
@@ -1813,6 +1876,8 @@ export function EquipmentPage() {
             >
               {createVerificationBatchMutation.isPending ? (
                 "Создаем..."
+              ) : selectedEquipmentIds.length === 1 ? (
+                "Отправить в поверку"
               ) : (
                 <>
                   <Icon className="h-4 w-4" name="plus" />
@@ -1922,5 +1987,9 @@ function getMutationErrorMessage(error: unknown, fallback: string): string {
 }
 
 function getTodayDateInputValue(): string {
-  return new Date().toISOString().slice(0, 10);
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 }

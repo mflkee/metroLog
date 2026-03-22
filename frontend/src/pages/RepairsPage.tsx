@@ -626,17 +626,9 @@ function RepairQueueRow({
         <div className="space-y-4 border-t border-line px-4 pb-4 pt-4 md:px-5">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
             <section className="tone-child rounded-2xl border border-line p-4 shadow-panel">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-ink">Прибор</h4>
-                  <p className="text-xs text-steel">Краткая информация и быстрый переход в карточку.</p>
-                </div>
-                <Link
-                  className={actionButtonCompactClass}
-                  to={`/equipment/${item.equipmentId}`}
-                >
-                  Открыть карточку
-                </Link>
+              <div>
+                <h4 className="text-sm font-semibold text-ink">Прибор</h4>
+                <p className="text-xs text-steel">Краткая информация о приборе.</p>
               </div>
 
               <dl className="mt-4 space-y-2 text-sm">

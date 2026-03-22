@@ -1561,29 +1561,9 @@ function VerificationQueueRow({
         <div className="mt-4 space-y-4 border-t border-line pt-4">
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.88fr)_minmax(0,1.12fr)]">
             <section className="tone-child rounded-2xl border border-line p-4 shadow-panel">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <h4 className="text-sm font-semibold text-ink">Прибор</h4>
-                  <p className="text-xs text-steel">Краткая информация и быстрый переход в карточку.</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {item.arshinUrl ? (
-                    <a
-                      className={actionButtonCompactClass}
-                      href={item.arshinUrl}
-                      rel="noreferrer"
-                      target="_blank"
-                    >
-                      Arshin
-                    </a>
-                  ) : null}
-                  <Link
-                    className={actionButtonCompactClass}
-                    to={`/equipment/${item.equipmentId}`}
-                  >
-                    Открыть карточку
-                  </Link>
-                </div>
+              <div>
+                <h4 className="text-sm font-semibold text-ink">Прибор</h4>
+                <p className="text-xs text-steel">Краткая информация о приборе.</p>
               </div>
 
               <dl className="mt-4 space-y-2 text-sm">

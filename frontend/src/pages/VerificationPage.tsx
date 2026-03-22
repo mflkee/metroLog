@@ -654,6 +654,7 @@ function VerificationBatchCard({
             </p>
             <p className="text-xs text-steel">
               {[
+                anchor.sentToVerificationAt ? `отправлена ${formatDateOnly(anchor.sentToVerificationAt)}` : null,
                 anchor.closedAt ? `закрыта ${formatDateOnly(anchor.closedAt)}` : null,
               ]
                 .filter(Boolean)
@@ -785,6 +786,9 @@ function VerificationBatchCard({
           </div>
           <p className="text-xs text-steel">
             {[anchor.routeCity, anchor.routeDestination].filter(Boolean).join(" → ")}
+          </p>
+          <p className="text-xs text-steel">
+            Отправлена: {formatDateOnly(anchor.sentToVerificationAt)}
           </p>
         </div>
         <span className="mt-1 shrink-0 text-steel">

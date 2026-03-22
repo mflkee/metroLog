@@ -1281,6 +1281,7 @@ function RepairBatchCard({
               </p>
               <p className="text-xs text-steel">
                 {[
+                  anchor.sentToRepairAt ? `отправлен ${formatDate(anchor.sentToRepairAt)}` : null,
                   anchor.closedAt ? `закрыт ${formatDate(anchor.closedAt)}` : null,
                 ]
                   .filter(Boolean)
@@ -1416,6 +1417,9 @@ function RepairBatchCard({
             </div>
             <p className="text-sm text-steel">
               {[anchor.routeCity, anchor.routeDestination].filter(Boolean).join(" → ")}
+            </p>
+            <p className="text-xs text-steel">
+              Отправлен: {formatDate(anchor.sentToRepairAt)}
             </p>
           </div>
 

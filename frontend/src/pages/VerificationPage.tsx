@@ -1415,6 +1415,9 @@ function VerificationQueueRow({
               {[item.routeCity, item.routeDestination].filter(Boolean).join(" → ")}
             </p>
             <p className="text-xs text-steel">
+              Дата отправки: {formatDateOnly(item.sentToVerificationAt)}
+            </p>
+            <p className="text-xs text-steel">
               {[
                 item.resultDocnum ? `свид. ${item.resultDocnum}` : null,
                 item.closedAt ? `закрыта ${formatDateOnly(item.closedAt)}` : null,
@@ -1511,6 +1514,9 @@ function VerificationQueueRow({
               .filter(Boolean)
               .join(" · ")}
           </p>
+          <p className="text-xs text-steel">
+            Дата отправки: {formatDateOnly(item.sentToVerificationAt)}
+          </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {item.arshinUrl ? (
@@ -1524,11 +1530,11 @@ function VerificationQueueRow({
             </a>
           ) : null}
           <Link
-            className={actionButtonCompactClass}
+            className={actionButtonClass}
             onClick={(event) => event.stopPropagation()}
             to={`/equipment/${item.equipmentId}`}
           >
-            Карточка
+            Открыть карточку
           </Link>
           <span className="mt-1 shrink-0 text-steel">
             <svg

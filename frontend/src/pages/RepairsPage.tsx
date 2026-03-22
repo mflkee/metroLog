@@ -555,7 +555,11 @@ function RepairQueueRow({
               {item.serialNumber ? ` · № ${item.serialNumber}` : ""}
               {item.routeCity || item.routeDestination ? ` · ${item.routeCity} → ${item.routeDestination}` : ""}
             </p>
-            {isArchived ? (
+            {!isArchived ? (
+              <p className="text-xs text-steel">
+                Дата отправки: {formatDate(item.sentToRepairAt)}
+              </p>
+            ) : (
               <p className="text-xs text-steel">
                 {[
                   item.resultDocnum ? `свид. ${item.resultDocnum}` : null,
@@ -564,16 +568,16 @@ function RepairQueueRow({
                   .filter(Boolean)
                   .join(" · ")}
               </p>
-            ) : null}
+            )}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
             <Link
-              className={actionButtonCompactClass}
+              className={actionButtonClass}
               onClick={(event) => event.stopPropagation()}
               to={`/equipment/${item.equipmentId}`}
             >
-              Карточка
+              Открыть карточку
             </Link>
             {isArchived ? (
               <IconActionButton

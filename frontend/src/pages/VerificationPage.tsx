@@ -1521,12 +1521,14 @@ function VerificationQueueRow({
         <div className="flex flex-wrap items-center gap-2">
           {item.arshinUrl ? (
             <a
-              className={actionButtonCompactClass}
+              className={actionButtonClass}
               href={item.arshinUrl}
               rel="noreferrer"
               target="_blank"
+              onClick={(event) => event.stopPropagation()}
+              title="Открыть запись о поверке в Аршине"
             >
-              Arshin
+              Аршин
             </a>
           ) : null}
           <Link

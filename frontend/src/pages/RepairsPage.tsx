@@ -572,6 +572,18 @@ function RepairQueueRow({
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            {item.equipmentType === "SI" ? (
+              <a
+                className={actionButtonClass}
+                href="https://fgis.gost.ru/fundmetrology/registry/verification/results"
+                rel="noreferrer"
+                target="_blank"
+                onClick={(event) => event.stopPropagation()}
+                title="Открыть реестр поверок в Аршине"
+              >
+                Аршин
+              </a>
+            ) : null}
             <Link
               className={actionButtonClass}
               onClick={(event) => event.stopPropagation()}

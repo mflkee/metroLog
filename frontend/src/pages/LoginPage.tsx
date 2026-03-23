@@ -42,7 +42,7 @@ export function LoginPage() {
       <div>
         <h2 className="text-xl font-semibold text-ink">Вход</h2>
         <p className="mt-2 text-sm text-steel">
-          Внутренний вход для пользователей, которых создает администратор.
+          Войди под учетной записью, которую создал администратор.
         </p>
       </div>
       <form className="space-y-4" onSubmit={handleSubmit}>

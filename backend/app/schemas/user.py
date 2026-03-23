@@ -29,6 +29,8 @@ class UserRead(BaseModel):
     mention_email_notifications_enabled: bool
     theme_preference: UserThemePreference | None
     enabled_theme_options: list[UserThemePreference] | None
+    last_login_at: datetime | None
+    last_seen_at: datetime | None
     created_at: datetime
     updated_at: datetime
 

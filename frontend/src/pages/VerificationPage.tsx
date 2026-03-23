@@ -791,7 +791,7 @@ function VerificationBatchCard({
                             rel="noreferrer"
                             target="_blank"
                           >
-                            Arshin
+                            Аршин
                           </a>
                         ) : null}
                       </div>
@@ -928,7 +928,7 @@ function VerificationBatchCard({
                             rel="noreferrer"
                             target="_blank"
                           >
-                            Arshin
+                            Аршин
                           </a>
                         ) : null}
                         {canManage ? (

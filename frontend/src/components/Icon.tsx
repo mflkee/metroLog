@@ -6,6 +6,8 @@ export type IconName =
   | "settings"
   | "events"
   | "users"
+  | "help"
+  | "monitor"
   | "plus"
   | "check"
   | "edit"
@@ -68,6 +70,22 @@ export function Icon({ name, className }: IconProps) {
         <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
           <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 19.5a7.5 7.5 0 0 1 15 0" />
+        </svg>
+      );
+    case "help":
+      return (
+        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.09 9a3 3 0 1 1 5.82 1c0 2-3 2-3 4" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 17.25h.008v.008H12z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+        </svg>
+      );
+    case "monitor":
+      return (
+        <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 5.25h16.5v10.5H3.75z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 18.75h6" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.75v3" />
         </svg>
       );
     case "plus":

@@ -5,9 +5,11 @@ import { ShellLayout } from "@/app/ShellLayout";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { DeveloperDashboardPage } from "@/pages/DeveloperDashboardPage";
 import { EquipmentDetailsPage } from "@/pages/EquipmentDetailsPage";
 import { EquipmentPage } from "@/pages/EquipmentPage";
 import { EventsPage } from "@/pages/EventsPage";
+import { HelpPage } from "@/pages/HelpPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilePage } from "@/pages/ProfilePage";
@@ -43,6 +45,7 @@ export const router = createBrowserRouter([
           { path: "/repairs", element: <RepairsPage /> },
           { path: "/settings", element: <SettingsPage /> },
           { path: "/profile", element: <ProfilePage /> },
+          { path: "/help", element: <HelpPage /> },
           {
             element: <RequireRoles allowedRoles={["ADMINISTRATOR", "MKAIR"]} />,
             children: [{ path: "/events", element: <EventsPage /> }],
@@ -50,6 +53,7 @@ export const router = createBrowserRouter([
           {
             element: <RequireRoles allowedRoles={["ADMINISTRATOR"]} />,
             children: [
+              { path: "/developer", element: <DeveloperDashboardPage /> },
               { path: "/admin/users", element: <AdminUsersPage /> },
               { path: "/admin/users/:userId", element: <UserDetailsPage /> },
             ],

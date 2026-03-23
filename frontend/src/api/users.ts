@@ -22,6 +22,8 @@ type RawUser = {
   mention_email_notifications_enabled: boolean;
   theme_preference: ThemeName | null;
   enabled_theme_options: ThemeName[] | null;
+  last_login_at: string | null;
+  last_seen_at: string | null;
   created_at: string;
   updated_at: string;
 };

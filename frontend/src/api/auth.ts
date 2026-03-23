@@ -23,6 +23,8 @@ type RawUser = {
   mention_email_notifications_enabled: boolean;
   theme_preference: ThemeName | null;
   enabled_theme_options: ThemeName[] | null;
+  last_login_at: string | null;
+  last_seen_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -53,6 +55,8 @@ export type AuthUser = {
   mentionEmailNotificationsEnabled: boolean;
   themePreference: ThemeName | null;
   enabledThemes: ThemeName[] | null;
+  lastLoginAt: string | null;
+  lastSeenAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -187,6 +191,8 @@ export function mapUser(user: RawUser): AuthUser {
     mentionEmailNotificationsEnabled: user.mention_email_notifications_enabled,
     themePreference: user.theme_preference,
     enabledThemes: user.enabled_theme_options,
+    lastLoginAt: user.last_login_at,
+    lastSeenAt: user.last_seen_at,
     createdAt: user.created_at,
     updatedAt: user.updated_at,
   };

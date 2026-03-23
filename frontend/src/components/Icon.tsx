@@ -8,7 +8,6 @@ export type IconName =
   | "users"
   | "help"
   | "monitor"
-=======
   | "plus"
   | "check"
   | "edit"
@@ -89,7 +88,6 @@ export function Icon({ name, className }: IconProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.75v3" />
         </svg>
       );
-=======
 
     case "plus":
       return (

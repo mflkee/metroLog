@@ -51,6 +51,8 @@ async def test_bootstrap_admin_can_login_and_is_forced_to_change_password(
     payload = response.json()
     assert payload["user"]["role"] == "ADMINISTRATOR"
     assert payload["user"]["must_change_password"] is True
+    assert payload["user"]["last_login_at"] is not None
+    assert payload["user"]["last_seen_at"] is not None
 
 
 @pytest.mark.anyio
@@ -152,6 +154,7 @@ async def test_created_user_must_change_password_and_can_clear_flag(
     )
     assert me_response.status_code == 200
     assert me_response.json()["must_change_password"] is False
+    assert me_response.json()["last_seen_at"] is not None
 
 
 @pytest.mark.anyio

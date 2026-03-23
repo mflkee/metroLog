@@ -10,6 +10,7 @@ export type NavigationItem = {
 const baseNavigationItems: NavigationItem[] = [
   { icon: "home", label: "Главная", description: "Оперативный обзор", to: "/dashboard" },
   { icon: "equipment", label: "Оборудование", description: "Папки, группы, реестр", to: "/equipment" },
+  { icon: "verification", label: "Аршин", description: "Поиск и добавление СИ", to: "/arshin" },
   {
     icon: "verification",
     label: "Поверка СИ",

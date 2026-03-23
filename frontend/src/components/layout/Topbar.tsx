@@ -7,6 +7,7 @@ const routeLabels: Array<{ match: RegExp; label: string }> = [
   { match: /^\/dashboard$/, label: "Главная" },
   { match: /^\/equipment$/, label: "Оборудование" },
   { match: /^\/equipment\/\d+$/, label: "Карточка прибора" },
+  { match: /^\/arshin$/, label: "Аршин" },
   { match: /^\/verification\/si$/, label: "Поверка СИ" },
   { match: /^\/repairs$/, label: "Ремонты" },
   { match: /^\/events$/, label: "Журнал событий" },

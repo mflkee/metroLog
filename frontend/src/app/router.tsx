@@ -4,6 +4,7 @@ import { RequireAuth, RequireGuest, RequireRoles } from "@/app/RouteGuards";
 import { ShellLayout } from "@/app/ShellLayout";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
+import { ArshinPage } from "@/pages/ArshinPage";
 import { DashboardPage } from "@/pages/DashboardPage";
 import { DeveloperDashboardPage } from "@/pages/DeveloperDashboardPage";
 import { EquipmentDetailsPage } from "@/pages/EquipmentDetailsPage";
@@ -41,6 +42,7 @@ export const router = createBrowserRouter([
           { path: "/dashboard", element: <DashboardPage /> },
           { path: "/equipment", element: <EquipmentPage /> },
           { path: "/equipment/:equipmentId", element: <EquipmentDetailsPage /> },
+          { path: "/arshin", element: <ArshinPage /> },
           { path: "/verification/si", element: <VerificationPage /> },
           { path: "/repairs", element: <RepairsPage /> },
           { path: "/settings", element: <SettingsPage /> },

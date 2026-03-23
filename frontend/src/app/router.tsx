@@ -8,6 +8,7 @@ import { DashboardPage } from "@/pages/DashboardPage";
 import { EquipmentDetailsPage } from "@/pages/EquipmentDetailsPage";
 import { EquipmentPage } from "@/pages/EquipmentPage";
 import { EventsPage } from "@/pages/EventsPage";
+import { HelpPage } from "@/pages/HelpPage";
 import { LoginPage } from "@/pages/LoginPage";
 import { NotFoundPage } from "@/pages/NotFoundPage";
 import { ProfilePage } from "@/pages/ProfilePage";
@@ -43,6 +44,7 @@ export const router = createBrowserRouter([
           { path: "/repairs", element: <RepairsPage /> },
           { path: "/settings", element: <SettingsPage /> },
           { path: "/profile", element: <ProfilePage /> },
+          { path: "/help", element: <HelpPage /> },
           {
             element: <RequireRoles allowedRoles={["ADMINISTRATOR", "MKAIR"]} />,
             children: [{ path: "/events", element: <EventsPage /> }],

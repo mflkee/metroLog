@@ -43,6 +43,8 @@ type RawEquipment = {
   manufacture_year: number | null;
   status: EquipmentStatus;
   current_location_manual: string | null;
+  compliance_date: string | null;
+  compliance_interval_months: number | null;
   active_repair: RawEquipmentRepair | null;
   active_verification: RawEquipmentVerification | null;
   si_verification: RawSIVerification | null;
@@ -209,6 +211,8 @@ export type EquipmentItem = {
   manufactureYear: number | null;
   status: EquipmentStatus;
   currentLocationManual: string | null;
+  complianceDate: string | null;
+  complianceIntervalMonths: number | null;
   activeRepair: EquipmentRepair | null;
   activeVerification: EquipmentVerification | null;
   siVerification: EquipmentSIVerification | null;
@@ -422,6 +426,8 @@ export type CreateEquipmentPayload = {
   manufactureYear: number | null;
   status: EquipmentStatus;
   currentLocationManual: string;
+  complianceDate: string | null;
+  complianceIntervalMonths: number | null;
   siVerification?: CreateEquipmentSIVerificationPayload | null;
 };
 
@@ -1609,6 +1615,8 @@ export async function createEquipment(
       manufacture_year: payload.manufactureYear,
       status: payload.status,
       current_location_manual: emptyToNull(payload.currentLocationManual),
+      compliance_date: emptyToNull(payload.complianceDate),
+      compliance_interval_months: payload.complianceIntervalMonths,
       si_verification: payload.siVerification ? mapSIVerificationPayload(payload.siVerification) : null,
     },
   });
@@ -1634,6 +1642,8 @@ export async function updateEquipment(
       manufacture_year: payload.manufactureYear,
       status: payload.status,
       current_location_manual: emptyToNull(payload.currentLocationManual),
+      compliance_date: emptyToNull(payload.complianceDate),
+      compliance_interval_months: payload.complianceIntervalMonths,
     },
   });
   return mapEquipment(response);
@@ -1684,6 +1694,93 @@ export function getEquipmentStatusLabel(item: Pick<EquipmentItem, "status" | "ac
     return equipmentStatusLabels.IN_VERIFICATION;
   }
   return equipmentStatusLabels[item.status];
+}
+
+export function getEquipmentNextDueDate(
+  item: Pick<EquipmentItem, "equipmentType" | "complianceDate" | "complianceIntervalMonths" | "siVerification">,
+): string | null {
+  if (item.equipmentType === "SI") {
+    return item.siVerification?.validDate ?? null;
+  }
+
+  if (item.equipmentType !== "IO" && item.equipmentType !== "VO") {
+    return null;
+  }
+
+  if (!item.complianceDate || !item.complianceIntervalMonths) {
+    return null;
+  }
+
+  return addMonthsToIsoDate(item.complianceDate, item.complianceIntervalMonths);
+}
+
+export function getEquipmentValidFromDate(
+  item: Pick<EquipmentItem, "equipmentType" | "complianceDate" | "siVerification">,
+): string | null {
+  if (item.equipmentType === "SI") {
+    return item.siVerification?.verificationDate ?? null;
+  }
+
+  if (item.equipmentType !== "IO" && item.equipmentType !== "VO") {
+    return null;
+  }
+
+  return item.complianceDate ?? null;
+}
+
+export function getEquipmentNextDueColumnLabel(item: Pick<EquipmentItem, "equipmentType">): string {
+  if (item.equipmentType === "SI") {
+    return "След. поверка";
+  }
+  if (item.equipmentType === "IO") {
+    return "След. аттестация";
+  }
+  if (item.equipmentType === "VO") {
+    return "След. освид.";
+  }
+  return "След. срок";
+}
+
+export function getEquipmentComplianceDateLabel(
+  equipmentType: EquipmentType,
+): string | null {
+  if (equipmentType === "IO") {
+    return "Дата аттестации";
+  }
+  if (equipmentType === "VO") {
+    return "Дата тех. освидетельствования";
+  }
+  return null;
+}
+
+export function getEquipmentCompliancePeriodLabel(
+  equipmentType: EquipmentType,
+): string | null {
+  if (equipmentType === "IO") {
+    return "Период аттестации";
+  }
+  if (equipmentType === "VO") {
+    return "Период тех. освидетельствования";
+  }
+  return null;
+}
+
+export function formatComplianceIntervalMonths(value: number | null): string {
+  if (!value) {
+    return "—";
+  }
+  const years = value / 12;
+  if (Number.isInteger(years)) {
+    const wholeYears = Number(years);
+    if (wholeYears === 1) {
+      return "1 год";
+    }
+    if (wholeYears >= 2 && wholeYears <= 4) {
+      return `${wholeYears} года`;
+    }
+    return `${wholeYears} лет`;
+  }
+  return `${value} мес.`;
 }
 
 export function getVerificationProgressLabel(
@@ -1796,6 +1893,8 @@ function mapEquipment(item: RawEquipment): EquipmentItem {
     manufactureYear: item.manufacture_year,
     status: resolvedStatus,
     currentLocationManual: item.current_location_manual,
+    complianceDate: item.compliance_date,
+    complianceIntervalMonths: item.compliance_interval_months,
     activeRepair,
     activeVerification,
     siVerification: item.si_verification ? mapEquipmentSIVerification(item.si_verification) : null,
@@ -1848,6 +1947,27 @@ function mapEquipmentVerification(
     createdAt: verification.created_at,
     updatedAt: verification.updated_at,
   };
+}
+
+function addMonthsToIsoDate(isoDate: string, months: number): string | null {
+  if (!isoDate || !months) {
+    return null;
+  }
+
+  const [yearString, monthString, dayString] = isoDate.slice(0, 10).split("-");
+  const year = Number(yearString);
+  const month = Number(monthString);
+  const day = Number(dayString);
+  if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+    return null;
+  }
+
+  const totalMonths = month - 1 + months;
+  const nextYear = year + Math.floor(totalMonths / 12);
+  const nextMonth = (totalMonths % 12) + 1;
+  const daysInMonth = new Date(nextYear, nextMonth, 0).getDate();
+  const nextDay = Math.min(day, daysInMonth);
+  return `${String(nextYear).padStart(4, "0")}-${String(nextMonth).padStart(2, "0")}-${String(nextDay).padStart(2, "0")}`;
 }
 
 function mapRepairMessageAttachment(

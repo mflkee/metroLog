@@ -32,6 +32,7 @@ import {
   type VerificationMessageAttachment,
   type VerificationQueueItem,
 } from "@/api/equipment";
+import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
@@ -46,7 +47,7 @@ import {
   type ProcessTimelineStripSegment,
 } from "@/components/ProcessTimelineStrip";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
+import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { validateVerificationMilestoneOrder } from "@/lib/milestoneValidation";
 import { useAuthStore } from "@/store/auth";
 
@@ -107,6 +108,7 @@ export function VerificationPage() {
   const tab: VerificationTab = searchParams.get("tab") === "archived" ? "archived" : "active";
   const targetVerificationId = Number(searchParams.get("verificationId") ?? "");
   const targetEquipmentId = Number(searchParams.get("equipmentId") ?? "");
+  const targetMessageId = Number(searchParams.get("messageId") ?? "");
   const targetBatchKey = searchParams.get("batchKey");
 
   const verificationQuery = useQuery({
@@ -118,6 +120,17 @@ export function VerificationPage() {
       }),
     enabled: Boolean(token),
   });
+
+  const mentionUsersQuery = useQuery({
+    queryKey: ["mention-users"],
+    queryFn: () => fetchMentionUsers(token ?? ""),
+    enabled: Boolean(token),
+  });
+
+  const mentionSuggestions = useMemo(
+    () => buildMentionSuggestionOptions(mentionUsersQuery.data ?? []),
+    [mentionUsersQuery.data],
+  );
 
   const activeCount = useMemo(
     () => (tab === "active" ? verificationQuery.data?.length ?? 0 : null),
@@ -274,7 +287,10 @@ export function VerificationPage() {
                 isTarget={Boolean(targetBatchKey) && group.key === targetBatchKey}
                 key={`${tab}-${group.key}`}
                 lifecycleStatus={tab}
+                mentionSuggestions={mentionSuggestions}
                 onUpdated={invalidateVerificationQueries}
+                targetEquipmentId={Number.isInteger(targetEquipmentId) ? targetEquipmentId : null}
+                targetMessageId={Number.isInteger(targetMessageId) ? targetMessageId : null}
                 token={token ?? ""}
               />
             ) : (
@@ -294,7 +310,9 @@ export function VerificationPage() {
                 item={group.items[0]}
                 key={`${tab}-${group.items[0].verificationId}`}
                 lifecycleStatus={tab}
+                mentionSuggestions={mentionSuggestions}
                 onUpdated={invalidateVerificationQueries}
+                targetMessageId={Number.isInteger(targetMessageId) ? targetMessageId : null}
                 token={token ?? ""}
               />
             ),
@@ -312,6 +330,9 @@ function VerificationBatchCard({
   lifecycleStatus,
   onUpdated,
   isTarget,
+  targetEquipmentId,
+  targetMessageId,
+  mentionSuggestions,
 }: {
   batch: VerificationGroup;
   token: string;
@@ -319,6 +340,9 @@ function VerificationBatchCard({
   lifecycleStatus: VerificationTab;
   onUpdated: () => Promise<void>;
   isTarget: boolean;
+  targetEquipmentId: number | null;
+  targetMessageId: number | null;
+  mentionSuggestions: Array<{ value: string; label: string }>;
 }) {
   const anchor = batch.items[0];
   const isArchived = lifecycleStatus === "archived";
@@ -332,6 +356,8 @@ function VerificationBatchCard({
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [flashActive, setFlashActive] = useState(false);
+  const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
   const [itemsModalOpen, setItemsModalOpen] = useState(false);
@@ -345,8 +371,8 @@ function VerificationBatchCard({
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const textSuggestions = useMemo(
-    () => buildVerificationTextSuggestions(batch.items),
-    [batch.items],
+    () => [...mentionSuggestions, ...buildVerificationTextSuggestions(batch.items)],
+    [batch.items, mentionSuggestions],
   );
 
   useEffect(() => {
@@ -365,17 +391,42 @@ function VerificationBatchCard({
       return;
     }
     setExpanded(true);
+    if (targetMessageId) {
+      setDialogExpanded(true);
+    }
+    setFlashActive(true);
     window.setTimeout(() => {
       articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       articleRef.current?.focus({ preventScroll: true });
     }, 60);
-  }, [isTarget]);
+    const timeoutId = window.setTimeout(() => setFlashActive(false), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTarget, targetMessageId]);
 
   const messagesQuery = useQuery({
     queryKey: ["verification-batch-messages", anchor.batchKey, anchor.equipmentId],
     queryFn: () => fetchEquipmentVerificationMessages(token, anchor.equipmentId),
     enabled: Boolean(anchor.batchKey) && expanded,
   });
+
+  useEffect(() => {
+    if (
+      !isTarget
+      || !targetMessageId
+      || !messagesQuery.data?.some((message) => message.id === targetMessageId)
+    ) {
+      return;
+    }
+    setDialogExpanded(true);
+    setFlashingMessageId(targetMessageId);
+    window.setTimeout(() => {
+      document
+        .getElementById(`verification-batch-message-${anchor.batchKey}-${targetMessageId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    const timeoutId = window.setTimeout(() => setFlashingMessageId(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [anchor.batchKey, isTarget, messagesQuery.data, targetMessageId]);
 
   const candidateEquipmentQuery = useQuery({
     queryKey: [
@@ -410,9 +461,19 @@ function VerificationBatchCard({
   const candidateSearchSuggestions = useMemo(
     () =>
       sortAutocompleteSuggestions(
-        candidateItems.flatMap((item) => [item.title, item.subtitle, item.meta]),
+        (candidateEquipmentQuery.data ?? [])
+          .filter((item) => !batch.items.some((batchItem) => batchItem.equipmentId === item.id))
+          .filter((item) => item.activeVerification === null)
+          .flatMap((item) => [
+            item.name,
+            item.objectName,
+            item.modification,
+            item.serialNumber,
+            item.currentLocationManual,
+            item.siVerification?.resultDocnum,
+          ]),
       ),
-    [candidateItems],
+    [batch.items, candidateEquipmentQuery.data],
   );
 
   const updateMilestonesMutation = useMutation({
@@ -629,7 +690,10 @@ function VerificationBatchCard({
   if (isArchived) {
     return (
       <article
-        className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel"
+        className={[
+          "tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel",
+          flashActive ? "process-target-flash" : "",
+        ].join(" ")}
         ref={articleRef}
         tabIndex={-1}
       >
@@ -706,7 +770,13 @@ function VerificationBatchCard({
                 </div>
                 <div className="space-y-2">
                   {batch.items.map((groupItem) => (
-                    <div className="tone-child rounded-2xl border border-line px-3 py-3" key={groupItem.verificationId}>
+                    <div
+                      className={[
+                        "tone-child rounded-2xl border border-line px-3 py-3",
+                        groupItem.equipmentId === targetEquipmentId ? "process-target-flash" : "",
+                      ].join(" ")}
+                      key={groupItem.verificationId}
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <Link
                           className="text-sm font-medium text-ink transition hover:text-signal-info"
@@ -757,7 +827,14 @@ function VerificationBatchCard({
   }
 
   return (
-    <article className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel">
+    <article
+      className={[
+        "tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel",
+        flashActive ? "process-target-flash" : "",
+      ].join(" ")}
+      ref={articleRef}
+      tabIndex={-1}
+    >
       <button
         aria-expanded={expanded}
         className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
@@ -830,7 +907,10 @@ function VerificationBatchCard({
               <div className="space-y-2">
                 {batch.items.map((item) => (
                   <div
-                    className="tone-child rounded-2xl border border-line px-3 py-3"
+                    className={[
+                      "tone-child rounded-2xl border border-line px-3 py-3",
+                      item.equipmentId === targetEquipmentId ? "process-target-flash" : "",
+                    ].join(" ")}
                     key={item.verificationId}
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -991,7 +1071,11 @@ function VerificationBatchCard({
 
               {messagesQuery.data?.map((message) => (
                 <article
-                  className="tone-grandchild rounded-2xl border border-line px-4 py-3"
+                  className={[
+                    "tone-grandchild rounded-2xl border border-line px-4 py-3",
+                    flashingMessageId === message.id ? "process-target-flash" : "",
+                  ].join(" ")}
+                  id={`verification-batch-message-${anchor.batchKey}-${message.id}`}
                   key={message.id}
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -1165,6 +1249,8 @@ function VerificationQueueRow({
   lifecycleStatus,
   onUpdated,
   isTarget,
+  targetMessageId,
+  mentionSuggestions,
 }: {
   item: VerificationQueueItem;
   token: string;
@@ -1172,6 +1258,8 @@ function VerificationQueueRow({
   lifecycleStatus: VerificationTab;
   onUpdated: () => Promise<void>;
   isTarget: boolean;
+  targetMessageId: number | null;
+  mentionSuggestions: Array<{ value: string; label: string }>;
 }) {
   const isArchived = lifecycleStatus === "archived";
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -1185,12 +1273,17 @@ function VerificationQueueRow({
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [flashActive, setFlashActive] = useState(false);
+  const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
-  const textSuggestions = useMemo(() => buildVerificationTextSuggestions([item]), [item]);
+  const textSuggestions = useMemo(
+    () => [...mentionSuggestions, ...buildVerificationTextSuggestions([item])],
+    [item, mentionSuggestions],
+  );
 
   useEffect(() => {
     setForm(buildMilestonesFormState(item));
@@ -1208,17 +1301,38 @@ function VerificationQueueRow({
       return;
     }
     setExpanded(true);
+    if (targetMessageId) {
+      setDialogExpanded(true);
+    }
+    setFlashActive(true);
     window.setTimeout(() => {
       articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       articleRef.current?.focus({ preventScroll: true });
     }, 60);
-  }, [isTarget]);
+    const timeoutId = window.setTimeout(() => setFlashActive(false), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTarget, targetMessageId]);
 
   const messagesQuery = useQuery({
     queryKey: ["verification-messages", item.equipmentId],
     queryFn: () => fetchEquipmentVerificationMessages(token, item.equipmentId),
     enabled: Boolean(token) && expanded && dialogExpanded && !isArchived,
   });
+
+  useEffect(() => {
+    if (!isTarget || !targetMessageId || !messagesQuery.data?.some((message) => message.id === targetMessageId)) {
+      return;
+    }
+    setDialogExpanded(true);
+    setFlashingMessageId(targetMessageId);
+    window.setTimeout(() => {
+      document
+        .getElementById(`verification-message-${item.equipmentId}-${targetMessageId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    const timeoutId = window.setTimeout(() => setFlashingMessageId(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTarget, item.equipmentId, messagesQuery.data, targetMessageId]);
 
   const updateMilestonesMutation = useMutation({
     mutationFn: () =>
@@ -1388,7 +1502,10 @@ function VerificationQueueRow({
   if (isArchived) {
     return (
       <article
-        className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel"
+        className={[
+          "tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel",
+          flashActive ? "process-target-flash" : "",
+        ].join(" ")}
         ref={articleRef}
         tabIndex={-1}
       >
@@ -1480,7 +1597,14 @@ function VerificationQueueRow({
   }
 
   return (
-    <article className="tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel">
+    <article
+      className={[
+        "tone-parent rounded-2xl border border-line px-4 py-3 shadow-panel",
+        flashActive ? "process-target-flash" : "",
+      ].join(" ")}
+      ref={articleRef}
+      tabIndex={-1}
+    >
       <button
         aria-expanded={expanded}
         className="flex w-full flex-wrap items-start justify-between gap-3 text-left"
@@ -1697,7 +1821,14 @@ function VerificationQueueRow({
                 {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
 
                 {messagesQuery.data?.map((message) => (
-                  <article className="tone-grandchild rounded-2xl border border-line px-4 py-3" key={message.id}>
+                  <article
+                    className={[
+                      "tone-grandchild rounded-2xl border border-line px-4 py-3",
+                      flashingMessageId === message.id ? "process-target-flash" : "",
+                    ].join(" ")}
+                    id={`verification-message-${item.equipmentId}-${message.id}`}
+                    key={message.id}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="text-xs text-steel">{formatVerificationMessageMeta(message)}</div>
                       {canManage || message.authorUserId === currentUserId ? (

@@ -42,3 +42,12 @@ async def change_password(
 ) -> AuthActionResponse:
     AuthService(db).change_password(user=current_user, payload=payload)
     return AuthActionResponse(message="Password changed successfully.")
+
+
+@router.post("/test-mention-email", response_model=AuthActionResponse)
+async def test_mention_email(
+    current_user: CurrentUser,
+    db: DbSession,
+) -> AuthActionResponse:
+    AuthService(db).send_test_mention_email(user=current_user)
+    return AuthActionResponse(message="Тестовое письмо отправлено.")

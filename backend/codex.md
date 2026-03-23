@@ -232,12 +232,17 @@ Fields:
 * status
 * group_id nullable
 * current_location_manual
+* compliance_date nullable for `ИО` / `ВО`
+* compliance_interval_months nullable for `ИО` / `ВО`
 * created_at
 * updated_at
 
 Registry behavior:
 
 * the common equipment registry must contain both SI and non-SI records in one structure,
+* `SI` next-control date comes from Arshin verification validity,
+* `ИО` and `ВО` may carry manual control date plus period,
+* backend should keep these manual control fields in the same `equipment` entity rather than in a parallel side table until a broader metrology model is needed,
 * every equipment row belongs to one explicit category from `SI`, `IO`, `VO`, or `OTHER`,
 * `SI` is separate because only it later participates in the Arshin workflow,
 * the common equipment list should expose only basic operational fields,
@@ -647,6 +652,11 @@ Current implementation baseline:
 * rows store category, action, title, optional description, actor snapshot, optional equipment snapshot, optional folder snapshot, optional `batch_key`, and timestamps,
 * the first production slice already logs core folder, equipment, repair, verification, message, attachment, comment, and Arshin-refresh actions,
 * list API must support free-text search plus category and period filters.
+* mention notifications are a separate best-effort channel:
+  * active users are exposed as mention candidates,
+  * equipment comments and repair/verification messages may trigger email notifications when they contain recognized `@mentions`,
+  * notification transport must read SMTP credentials from environment configuration rather than from hardcoded repository values,
+  * deep links inside mention emails should target the exact comment or process message whenever possible.
 
 ### Rule 11 - Initial access matrix
 

@@ -1,5 +1,6 @@
 import { apiRequest } from "@/api/client";
 import { mapUser, type AuthUser, type UserRole } from "@/api/auth";
+import type { DashboardWidgetKey } from "@/lib/dashboard";
 import type { ThemeName } from "@/store/theme";
 
 type RawUser = {
@@ -16,6 +17,9 @@ type RawUser = {
   organization: string | null;
   position: string | null;
   facility: string | null;
+  dashboard_folder_id: number | null;
+  dashboard_widget_options: DashboardWidgetKey[] | null;
+  mention_email_notifications_enabled: boolean;
   theme_preference: ThemeName | null;
   enabled_theme_options: ThemeName[] | null;
   created_at: string;
@@ -25,6 +29,13 @@ type RawUser = {
 type RawUserTemporaryPasswordResponse = {
   user: RawUser;
   temporary_password: string;
+};
+
+type RawUserMention = {
+  id: number;
+  display_name: string;
+  email: string;
+  mention_key: string;
 };
 
 export type CreateUserPayload = {
@@ -49,12 +60,32 @@ export type UserTemporaryPasswordResponse = {
   temporaryPassword: string;
 };
 
+export type UserMention = {
+  id: number;
+  displayName: string;
+  email: string;
+  mentionKey: string;
+};
+
 export async function fetchUsers(token: string): Promise<AuthUser[]> {
   const response = await apiRequest<RawUser[]>("/users", {
     method: "GET",
     token,
   });
   return response.map(mapUser);
+}
+
+export async function fetchMentionUsers(token: string): Promise<UserMention[]> {
+  const response = await apiRequest<RawUserMention[]>("/users/mentions", {
+    method: "GET",
+    token,
+  });
+  return response.map((item) => ({
+    id: item.id,
+    displayName: item.display_name,
+    email: item.email,
+    mentionKey: item.mention_key,
+  }));
 }
 
 export async function fetchUserById(token: string, userId: number): Promise<AuthUser> {

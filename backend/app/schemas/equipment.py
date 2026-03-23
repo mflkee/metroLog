@@ -197,6 +197,8 @@ class EquipmentRead(BaseModel):
     manufacture_year: int | None
     status: EquipmentStatus
     current_location_manual: str | None
+    compliance_date: date | None = None
+    compliance_interval_months: int | None = None
     active_repair: RepairRead | None = None
     active_verification: VerificationRead | None = None
     si_verification: SIVerificationRead | None = None
@@ -382,6 +384,8 @@ class EquipmentCreateRequest(BaseModel):
     manufacture_year: int | None = None
     status: EquipmentStatus = EquipmentStatus.IN_WORK
     current_location_manual: str | None = None
+    compliance_date: date | None = None
+    compliance_interval_months: int | None = None
     si_verification: SIVerificationCreateRequest | None = None
 
 
@@ -418,6 +422,8 @@ class EquipmentUpdateRequest(BaseModel):
     manufacture_year: int | None = None
     status: EquipmentStatus | None = None
     current_location_manual: str | None = None
+    compliance_date: date | None = None
+    compliance_interval_months: int | None = None
 
 
 class EquipmentBulkDeleteRequest(BaseModel):

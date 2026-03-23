@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.user import User, UserRole
 from app.repositories.user_repository import UserRepository
-from app.schemas.user import UserCreateRequest, UserUpdateRequest
+from app.schemas.user import UserCreateRequest, UserMentionRead, UserUpdateRequest
 from app.utils.password_policy import validate_password_policy
 from app.utils.security import create_temporary_password, hash_password
 
@@ -62,6 +62,10 @@ class UserService:
 
     def list_users(self) -> list[User]:
         return self.users.list_all()
+
+    def list_mention_users(self) -> list[UserMentionRead]:
+        users = self.users.list_active()
+        return build_user_mention_reads(users)
 
     def get_user(self, *, user_id: int) -> User:
         user = self.users.get_by_id(user_id)
@@ -221,3 +225,63 @@ def _normalize_optional_name(value: str | None) -> str | None:
             detail="Patronymic is too long. Maximum length is 255 characters.",
         )
     return normalized
+
+
+def build_user_mention_reads(users: list[User]) -> list[UserMentionRead]:
+    mention_keys = build_user_mention_keys(users)
+    return [
+        UserMentionRead(
+            id=user.id,
+            display_name=_format_user_display_name(user),
+            email=user.email,
+            mention_key=mention_keys[user.id],
+        )
+        for user in users
+    ]
+
+
+def build_user_mention_keys(users: list[User]) -> dict[int, str]:
+    base_counts: dict[str, int] = {}
+    bases: dict[int, str] = {}
+
+    for user in users:
+        base = _build_user_mention_base(user)
+        normalized_base = base.lower()
+        bases[user.id] = base
+        base_counts[normalized_base] = base_counts.get(normalized_base, 0) + 1
+
+    result: dict[int, str] = {}
+    for user in users:
+        base = bases[user.id]
+        if base_counts[base.lower()] > 1:
+            result[user.id] = f"{base}{user.id}"
+        else:
+            result[user.id] = base
+    return result
+
+
+def _build_user_mention_base(user: User) -> str:
+    last_name = _normalize_mention_chunk(user.last_name)
+    first_name = _normalize_mention_chunk(user.first_name)
+    patronymic = _normalize_mention_chunk(user.patronymic or "")
+
+    if last_name:
+        initials = f"{first_name[:1]}{patronymic[:1]}".strip()
+        candidate = f"{last_name}{initials}"
+        if candidate:
+            return candidate
+
+    if first_name:
+        return first_name
+
+    email_local_part = _normalize_mention_chunk(user.email.split("@", maxsplit=1)[0])
+    return email_local_part or f"user{user.id}"
+
+
+def _normalize_mention_chunk(value: str) -> str:
+    return "".join(character for character in value if character.isalnum())
+
+
+def _format_user_display_name(user: User) -> str:
+    parts = [user.last_name.strip(), user.first_name.strip(), (user.patronymic or "").strip()]
+    return " ".join(part for part in parts if part)

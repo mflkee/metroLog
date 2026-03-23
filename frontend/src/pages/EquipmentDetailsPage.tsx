@@ -1,5 +1,5 @@
 import { type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -23,7 +23,12 @@ import {
   downloadRepairMessageAttachment,
   downloadVerificationMessageAttachment,
   downloadEquipmentAttachment,
+  formatComplianceIntervalMonths,
   getEquipmentStatusLabel,
+  getEquipmentComplianceDateLabel,
+  getEquipmentCompliancePeriodLabel,
+  getEquipmentNextDueDate,
+  getEquipmentNextDueColumnLabel,
   getVerificationProgressLabel,
   equipmentStatusLabels,
   equipmentTypeLabels,
@@ -60,8 +65,9 @@ import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
+import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { useAuthStore } from "@/store/auth";
+import { fetchMentionUsers } from "@/api/users";
 
 type EquipmentFormState = {
   folderId: string;
@@ -74,6 +80,8 @@ type EquipmentFormState = {
   manufactureYear: string;
   status: EquipmentStatus;
   currentLocationManual: string;
+  complianceDate: string;
+  complianceIntervalMonths: string;
 };
 
 type RepairFormState = {
@@ -94,11 +102,19 @@ type VerificationFormState = {
 
 const equipmentTypeOptions: EquipmentType[] = ["SI", "IO", "VO", "OTHER"];
 const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "ARCHIVED"];
+const complianceIntervalOptions = [
+  { value: "12", label: "1 год" },
+  { value: "24", label: "2 года" },
+  { value: "36", label: "3 года" },
+  { value: "48", label: "4 года" },
+  { value: "60", label: "5 лет" },
+] as const;
 
 export function EquipmentDetailsPage() {
   const { equipmentId } = useParams();
   const parsedEquipmentId = Number(equipmentId);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
@@ -156,6 +172,8 @@ export function EquipmentDetailsPage() {
   const verificationMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const editCommentInputRef = useRef<HTMLTextAreaElement | null>(null);
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
+  const targetCommentId = Number(searchParams.get("commentId") ?? "");
+  const [flashingCommentId, setFlashingCommentId] = useState<number | null>(null);
 
   const equipmentQuery = useQuery({
     queryKey: ["equipment-item", parsedEquipmentId],
@@ -194,6 +212,12 @@ export function EquipmentDetailsPage() {
     queryKey: ["equipment-comments", parsedEquipmentId],
     queryFn: () => fetchEquipmentComments(token ?? "", parsedEquipmentId),
     enabled: Boolean(token) && Number.isInteger(parsedEquipmentId) && parsedEquipmentId > 0,
+  });
+
+  const mentionUsersQuery = useQuery({
+    queryKey: ["mention-users"],
+    queryFn: () => fetchMentionUsers(token ?? ""),
+    enabled: Boolean(token),
   });
 
   const repairMessagesQuery = useQuery({
@@ -254,6 +278,10 @@ export function EquipmentDetailsPage() {
         manufactureYear: form.manufactureYear ? Number(form.manufactureYear) : null,
         status: form.status,
         currentLocationManual: form.currentLocationManual,
+        complianceDate: form.complianceDate || null,
+        complianceIntervalMonths: form.complianceIntervalMonths
+          ? Number(form.complianceIntervalMonths)
+          : null,
       });
     },
     onSuccess: async () => {
@@ -490,6 +518,10 @@ export function EquipmentDetailsPage() {
       manufactureYear: equipmentQuery.data.manufactureYear ? String(equipmentQuery.data.manufactureYear) : "",
       status: equipmentQuery.data.status,
       currentLocationManual: equipmentQuery.data.currentLocationManual ?? "",
+      complianceDate: equipmentQuery.data.complianceDate ?? "",
+      complianceIntervalMonths: equipmentQuery.data.complianceIntervalMonths
+        ? String(equipmentQuery.data.complianceIntervalMonths)
+        : "",
     });
   }, [equipmentQuery.data]);
 
@@ -546,6 +578,14 @@ export function EquipmentDetailsPage() {
       routeDestinationSuggestions,
     ],
   );
+  const mentionSuggestions = useMemo(
+    () => buildMentionSuggestionOptions(mentionUsersQuery.data ?? []),
+    [mentionUsersQuery.data],
+  );
+  const textareaSuggestions = useMemo(
+    () => [...mentionSuggestions, ...processTextSuggestions],
+    [mentionSuggestions, processTextSuggestions],
+  );
   const selectedFolderGroups = useMemo(
     () => groups.filter((group) => group.folderId === Number(form?.folderId ?? equipmentQuery.data?.folderId ?? 0)),
     [equipmentQuery.data?.folderId, form?.folderId, groups],
@@ -583,6 +623,21 @@ export function EquipmentDetailsPage() {
     : null;
   const latestArchivedRepair = repairHistory.length
     ? repairHistory[0]
+    : null;
+  const nextDueDate = equipmentQuery.data ? getEquipmentNextDueDate(equipmentQuery.data) : null;
+  const activeRepairLink = activeRepair
+    ? `/repairs?tab=active&equipmentId=${parsedEquipmentId}${
+      activeRepair.batchKey
+        ? `&batchKey=${encodeURIComponent(activeRepair.batchKey)}`
+        : `&repairId=${activeRepair.id}`
+    }`
+    : null;
+  const activeVerificationLink = activeVerification
+    ? `/verification/si?tab=active&equipmentId=${parsedEquipmentId}${
+      activeVerification.batchKey
+        ? `&batchKey=${encodeURIComponent(activeVerification.batchKey)}`
+        : `&verificationId=${activeVerification.id}`
+    }`
     : null;
   const siDetail = useMemo(
     () =>
@@ -644,7 +699,27 @@ export function EquipmentDetailsPage() {
     setVerificationExpanded(false);
     setRepairDialogExpanded(false);
     setVerificationDialogExpanded(false);
+    setCommentsExpanded(false);
   }, [parsedEquipmentId]);
+
+  useEffect(() => {
+    if (!Number.isInteger(targetCommentId) || targetCommentId <= 0 || !comments.length) {
+      return;
+    }
+    if (!comments.some((comment) => comment.id === targetCommentId)) {
+      return;
+    }
+
+    setCommentsExpanded(true);
+    setFlashingCommentId(targetCommentId);
+    window.setTimeout(() => {
+      document
+        .getElementById(`equipment-comment-${targetCommentId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    const timeoutId = window.setTimeout(() => setFlashingCommentId(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [comments, targetCommentId]);
 
   if (!token) {
     return null;
@@ -966,6 +1041,23 @@ export function EquipmentDetailsPage() {
                     equipmentQuery.data.manufactureYear ? String(equipmentQuery.data.manufactureYear) : "Не указан",
                   ],
                   ["Текущее местоположение", equipmentQuery.data.currentLocationManual || "Не указано"],
+                  ...(
+                    equipmentQuery.data.equipmentType === "IO" || equipmentQuery.data.equipmentType === "VO"
+                      ? [
+                          [
+                            getEquipmentComplianceDateLabel(equipmentQuery.data.equipmentType) ?? "Контрольная дата",
+                            equipmentQuery.data.complianceDate
+                              ? formatDateOnly(equipmentQuery.data.complianceDate)
+                              : "Не указана",
+                          ],
+                          [
+                            getEquipmentCompliancePeriodLabel(equipmentQuery.data.equipmentType) ?? "Контрольный период",
+                            formatComplianceIntervalMonths(equipmentQuery.data.complianceIntervalMonths),
+                          ],
+                        ]
+                      : []
+                  ),
+                  [getEquipmentNextDueColumnLabel(equipmentQuery.data), nextDueDate ? formatDateOnly(nextDueDate) : "-"],
                 ].map(([label, value], index) => (
                   <div
                     key={label}
@@ -984,15 +1076,32 @@ export function EquipmentDetailsPage() {
 
               {activeRepair ? (
                 <section className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
-                  <button
+                  <div
                     aria-expanded={repairExpanded}
                     className="flex w-full items-start justify-between gap-3 text-left"
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setRepairExpanded((current) => !current)}
+                    onKeyDown={(event) =>
+                      handleExpandableToggleKeyDown(event, () =>
+                        setRepairExpanded((current) => !current),
+                      )
+                    }
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3">
-                        <h3 className="text-base font-semibold text-ink">Прибор находится в ремонте</h3>
+                        {activeRepairLink ? (
+                          <Link
+                            className="text-base font-semibold text-ink transition hover:text-signal-info focus-visible:text-signal-info"
+                            to={activeRepairLink}
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            Прибор находится в ремонте
+                          </Link>
+                        ) : (
+                          <h3 className="text-base font-semibold text-ink">Прибор находится в ремонте</h3>
+                        )}
                         <span className="rounded-full bg-[var(--bg-primary)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-signal-info">
                           Активный
                         </span>
@@ -1020,7 +1129,7 @@ export function EquipmentDetailsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
                       </svg>
                     </span>
-                  </button>
+                  </div>
 
                   {repairExpanded ? (
                     <>
@@ -1148,7 +1257,7 @@ export function EquipmentDetailsPage() {
                           maxLength={4000}
                           placeholder="Новое сообщение по ремонту"
                           rows={2}
-                          suggestions={processTextSuggestions}
+                          suggestions={textareaSuggestions}
                           value={repairMessageDraft}
                           onChange={setRepairMessageDraft}
                           onKeyDown={handleTextareaSubmitShortcut}
@@ -1217,15 +1326,32 @@ export function EquipmentDetailsPage() {
 
               {activeVerification ? (
                 <section className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
-                  <button
+                  <div
                     aria-expanded={verificationExpanded}
                     className="flex w-full items-start justify-between gap-3 text-left"
-                    type="button"
+                    role="button"
+                    tabIndex={0}
                     onClick={() => setVerificationExpanded((current) => !current)}
+                    onKeyDown={(event) =>
+                      handleExpandableToggleKeyDown(event, () =>
+                        setVerificationExpanded((current) => !current),
+                      )
+                    }
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-3">
-                        <h3 className="text-base font-semibold text-ink">Прибор находится в поверке</h3>
+                        {activeVerificationLink ? (
+                          <Link
+                            className="text-base font-semibold text-ink transition hover:text-signal-info focus-visible:text-signal-info"
+                            to={activeVerificationLink}
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            Прибор находится в поверке
+                          </Link>
+                        ) : (
+                          <h3 className="text-base font-semibold text-ink">Прибор находится в поверке</h3>
+                        )}
                         <span className="rounded-full bg-[var(--bg-primary)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-signal-info">
                           Активная
                         </span>
@@ -1253,7 +1379,7 @@ export function EquipmentDetailsPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" d="m6 9 6 6 6-6" />
                       </svg>
                     </span>
-                  </button>
+                  </div>
 
                   {verificationExpanded ? (
                     <>
@@ -1386,7 +1512,7 @@ export function EquipmentDetailsPage() {
                           maxLength={4000}
                           placeholder="Новое сообщение по поверке"
                           rows={2}
-                          suggestions={processTextSuggestions}
+                          suggestions={textareaSuggestions}
                           value={verificationMessageDraft}
                           onChange={setVerificationMessageDraft}
                           onKeyDown={handleTextareaSubmitShortcut}
@@ -1775,7 +1901,7 @@ export function EquipmentDetailsPage() {
                         maxLength={4000}
                         placeholder="Новая заметка по прибору"
                         rows={2}
-                        suggestions={processTextSuggestions}
+                        suggestions={textareaSuggestions}
                         value={commentDraft}
                         onChange={setCommentDraft}
                         onKeyDown={handleTextareaSubmitShortcut}
@@ -1816,8 +1942,12 @@ export function EquipmentDetailsPage() {
                     <div className="mt-4 space-y-3 border-t border-line pt-4">
                       {comments.map((comment) => (
                         <article
+                          id={`equipment-comment-${comment.id}`}
                           key={comment.id}
-                          className="tone-child rounded-2xl border border-line px-4 py-3"
+                          className={[
+                            "tone-child rounded-2xl border border-line px-4 py-3",
+                            flashingCommentId === comment.id ? "process-target-flash" : "",
+                          ].join(" ")}
                         >
                           <div className="flex items-start justify-between gap-3">
                             <div className="text-xs text-steel">
@@ -1858,7 +1988,7 @@ export function EquipmentDetailsPage() {
                                 className="form-input min-h-[56px] overflow-hidden py-3 resize-none"
                                 maxLength={4000}
                                 rows={2}
-                                suggestions={processTextSuggestions}
+                                suggestions={textareaSuggestions}
                                 value={commentEditDraft}
                                 onChange={setCommentEditDraft}
                                 onKeyDown={handleTextareaSubmitShortcut}
@@ -2040,7 +2170,7 @@ export function EquipmentDetailsPage() {
                       {latestArchivedVerification ? (
                         <Link
                           className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
-                          to={`/verification/si?tab=archived${
+                          to={`/verification/si?tab=archived&equipmentId=${parsedEquipmentId}${
                             latestArchivedVerification.batchKey
                               ? `&batchKey=${encodeURIComponent(latestArchivedVerification.batchKey)}`
                               : `&verificationId=${latestArchivedVerification.verificationId}`
@@ -2085,7 +2215,7 @@ export function EquipmentDetailsPage() {
                   {latestArchivedRepair ? (
                     <Link
                       className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
-                      to={`/repairs?tab=archived${
+                      to={`/repairs?tab=archived&equipmentId=${parsedEquipmentId}${
                         latestArchivedRepair.batchKey
                           ? `&batchKey=${encodeURIComponent(latestArchivedRepair.batchKey)}`
                           : `&repairId=${latestArchivedRepair.repairId}`
@@ -2174,7 +2304,7 @@ export function EquipmentDetailsPage() {
               <AutocompleteTextarea
                 className="form-input min-h-[92px] resize-none py-3"
                 placeholder="Прибор упакован и отправлен в ремонт"
-                suggestions={processTextSuggestions}
+                suggestions={textareaSuggestions}
                 value={repairForm.initialMessageText}
                 onChange={(value) =>
                   setRepairForm((current) => ({
@@ -2303,7 +2433,7 @@ export function EquipmentDetailsPage() {
               <AutocompleteTextarea
                 className="form-input min-h-[92px] resize-none py-3"
                 placeholder="Прибор упакован и отправлен в поверку"
-                suggestions={processTextSuggestions}
+                suggestions={textareaSuggestions}
                 value={verificationForm.initialMessageText}
                 onChange={(value) =>
                   setVerificationForm((current) => ({
@@ -2434,7 +2564,18 @@ export function EquipmentDetailsPage() {
                   onChange={(event) =>
                     setForm((current) =>
                       current
-                        ? { ...current, equipmentType: event.target.value as EquipmentType }
+                        ? {
+                            ...current,
+                            equipmentType: event.target.value as EquipmentType,
+                            complianceDate:
+                              event.target.value === "IO" || event.target.value === "VO"
+                                ? current.complianceDate
+                                : "",
+                            complianceIntervalMonths:
+                              event.target.value === "IO" || event.target.value === "VO"
+                                ? current.complianceIntervalMonths || "12"
+                                : "",
+                          }
                         : current,
                     )
                   }
@@ -2528,10 +2669,47 @@ export function EquipmentDetailsPage() {
                     setForm((current) =>
                       current ? { ...current, manufactureYear: event.target.value } : current,
                     )
-                  }
-                />
-              </label>
-            </div>
+                }
+              />
+            </label>
+          </div>
+            {(form.equipmentType === "IO" || form.equipmentType === "VO") ? (
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block text-sm text-steel">
+                  {getEquipmentComplianceDateLabel(form.equipmentType)}
+                  <DateInput
+                    className="form-input form-input--compact"
+                    value={form.complianceDate}
+                    onChange={(value) =>
+                      setForm((current) =>
+                        current ? { ...current, complianceDate: value } : current,
+                      )
+                    }
+                  />
+                </label>
+                <label className="block text-sm text-steel">
+                  {getEquipmentCompliancePeriodLabel(form.equipmentType)}
+                  <select
+                    className="form-input"
+                    value={form.complianceIntervalMonths}
+                    onChange={(event) =>
+                      setForm((current) =>
+                        current
+                          ? { ...current, complianceIntervalMonths: event.target.value }
+                          : current,
+                      )
+                    }
+                  >
+                    <option value="">Не задан</option>
+                    {complianceIntervalOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            ) : null}
             <label className="block text-sm text-steel">
               Текущее местоположение
               <AutocompleteInput
@@ -3016,6 +3194,18 @@ function handleTextareaSubmitShortcut(event: KeyboardEvent<HTMLTextAreaElement>)
 
   event.preventDefault();
   event.currentTarget.form?.requestSubmit();
+}
+
+function handleExpandableToggleKeyDown(
+  event: KeyboardEvent<HTMLElement>,
+  onToggle: () => void,
+): void {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  onToggle();
 }
 
 function insertEmojiAtCursor(

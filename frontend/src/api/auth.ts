@@ -1,4 +1,5 @@
 import { apiRequest } from "@/api/client";
+import type { DashboardWidgetKey } from "@/lib/dashboard";
 import type { ThemeName } from "@/store/theme";
 
 export type UserRole = "ADMINISTRATOR" | "MKAIR" | "CUSTOMER";
@@ -17,6 +18,9 @@ type RawUser = {
   organization: string | null;
   position: string | null;
   facility: string | null;
+  dashboard_folder_id: number | null;
+  dashboard_widget_options: DashboardWidgetKey[] | null;
+  mention_email_notifications_enabled: boolean;
   theme_preference: ThemeName | null;
   enabled_theme_options: ThemeName[] | null;
   created_at: string;
@@ -44,6 +48,9 @@ export type AuthUser = {
   organization: string | null;
   position: string | null;
   facility: string | null;
+  dashboardFolderId: number | null;
+  dashboardWidgets: DashboardWidgetKey[] | null;
+  mentionEmailNotificationsEnabled: boolean;
   themePreference: ThemeName | null;
   enabledThemes: ThemeName[] | null;
   createdAt: string;
@@ -77,6 +84,9 @@ export type UpdateProfilePayload = {
   organization?: string;
   position?: string;
   facility?: string;
+  dashboardFolderId?: number | null;
+  dashboardWidgets?: DashboardWidgetKey[] | null;
+  mentionEmailNotificationsEnabled?: boolean;
   themePreference?: ThemeName | null;
   enabledThemes?: ThemeName[] | null;
 };
@@ -127,11 +137,21 @@ export async function updateProfile(
       organization: payload.organization,
       position: payload.position,
       facility: payload.facility,
+      dashboard_folder_id: payload.dashboardFolderId,
+      dashboard_widget_options: payload.dashboardWidgets,
+      mention_email_notifications_enabled: payload.mentionEmailNotificationsEnabled,
       theme_preference: payload.themePreference,
       enabled_theme_options: payload.enabledThemes,
     },
   });
   return mapUser(response);
+}
+
+export async function sendTestMentionEmail(token: string): Promise<AuthActionResponse> {
+  return apiRequest<AuthActionResponse>("/auth/test-mention-email", {
+    method: "POST",
+    token,
+  });
 }
 
 function mapAuthResponse(response: RawAuthResponse): AuthResponse {
@@ -162,6 +182,9 @@ export function mapUser(user: RawUser): AuthUser {
     organization: user.organization,
     position: user.position,
     facility: user.facility,
+    dashboardFolderId: user.dashboard_folder_id,
+    dashboardWidgets: user.dashboard_widget_options,
+    mentionEmailNotificationsEnabled: user.mention_email_notifications_enabled,
     themePreference: user.theme_preference,
     enabledThemes: user.enabled_theme_options,
     createdAt: user.created_at,

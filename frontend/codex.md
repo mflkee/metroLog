@@ -103,6 +103,17 @@ Event-log specific rule:
 - grouped rows should stay compact and must not list all member devices inline,
 - single process references in the journal should use the same compact equipment label pattern: name, modification, serial number.
 
+Dashboard-specific rule:
+- `/dashboard` should be driven by the folder selected in user settings rather than by a global unscoped dataset,
+- widget visibility on the dashboard should be user-configurable via settings checkboxes,
+- mention email notifications should also be user-configurable via settings rather than hardcoded globally,
+- dashboard visuals should stay compact and operational: summary metrics, simple charts, lists, and overdue counters are preferred over decorative heavy widgets,
+- if no dashboard folder is selected yet, the page should show a clear empty state that routes the user into settings.
+
+Archive-navigation rule:
+- when the user opens an archived repair or verification from the equipment card, the destination page should not only scroll to the correct record but also visually highlight it,
+- if the target is a grouped process, the specific equipment item inside the group should flash so the operator immediately sees where the current device is located.
+
 ### 6. One page - one function
 Navigation should follow clear functional separation similar to workbook sheets.
 
@@ -223,6 +234,14 @@ Registry process actions:
 * true grouped semantics start only when more than one item is selected,
 * the UI must disable repair send when any selected row already has an active repair,
 * the UI must disable verification send when any selected row already has an active verification.
+
+Registry compliance rule:
+
+* `SI` shows the next control date from Arshin (`valid_date`),
+* `ИО` shows the next attestation date from manually entered control date + period,
+* `ВО` shows the next technical-inspection date from manually entered control date + period,
+* the registry should expose one compact final column for that next date,
+* if no manual date exists yet for `ИО` or `ВО`, the registry should show `-`.
 
 Creation flow difference:
 
@@ -1049,6 +1068,10 @@ Additional shell styling rules:
   * verification dialog messages,
   * initial process messages,
   * suggestions should prefer useful entities like serial numbers, certificate numbers, object names, routes, and equipment names instead of noisy generic word completion.
+* `@mention` inside comments and process dialogs should reuse the same textarea-autocomplete infrastructure:
+  * typing `@` should propose active users,
+  * accepting a mention should keep keyboard-first behavior,
+  * deep links from mention emails should expand the relevant card/dialog and flash the exact target comment or message.
 
 Theme tuning rules:
 

@@ -13,6 +13,10 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 - Stage 1 internal auth is working: bootstrap admin, admin-created users, temporary passwords, forced password change, profile metadata, and admin user-detail pages.
 - Theme preference is now treated as user-bound shell personalization and should persist in the user profile across clients after login.
 - Settings page now manages which themes remain visible in the top-right switcher; default visible themes stay `light`, `gray`, and `dark`.
+- Settings page now also owns dashboard personalization:
+  - the user selects one folder as the analytics scope for `/dashboard`,
+  - the user enables or disables dashboard widgets with checkboxes,
+  - dashboard preferences are stored on the user profile just like shell theme preferences.
 - Stage 2 registry foundation is present: folders, groups, equipment registry, equipment details, edit/delete flows, and basic filtering/search.
 - When a folder workspace is open, the equipment page should stay minimal: folder name, actions, filters, and the table itself without explanatory text blocks above the registry.
 - Registry-facing status must reflect an active repair, so an item with an open repair should show as `IN_REPAIR`.
@@ -64,6 +68,32 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
   - single repair/verification events should lead into the corresponding single process entry rather than the generic equipment card,
   - grouped journal rows should not expand into per-equipment lists; the group link is the main drill-down,
   - single process rows should show the compact equipment reference: name, modification, and serial number.
+- `/dashboard` is no longer a stub:
+  - it now builds analytics from the user-selected folder in settings,
+  - widget visibility is controlled by per-user dashboard settings,
+  - the main page currently covers summary cards, status/type distributions, top locations, repair-overdue counters, upcoming verification expiry, and recent events for the selected folder.
+- Dashboard personalization now also includes:
+  - per-user switch for mention emails,
+  - additional optional widgets for completed processes and average process duration,
+  - broader upcoming-deadline coverage so the dashboard can surface not only SI verification expiry but also manual next-control dates for `ИО` and `ВО`.
+- User-facing personalization is per-user rather than global:
+  - shell theme,
+  - enabled theme set,
+  - dashboard folder,
+  - dashboard widget visibility,
+  - mention email notifications
+  are all stored on the authenticated user profile and should remain stable across clients after login.
+- Mentions and email notifications are now introduced as a first operational notification slice:
+  - `/users/mentions` returns active users as mention candidates for any authenticated user,
+  - free-text comments and repair/verification dialogs now support `@mention` autocomplete through the shared textarea autocomplete component,
+  - equipment comments may notify mentioned users by email,
+  - repair and verification messages may notify mentioned users by email,
+  - settings include a direct `Тестовое письмо` action so SMTP can be verified against the current user's email without creating a second account,
+  - deep links from mention emails must open the exact comment or process message and flash that target in view.
+- Archive navigation from the equipment card now keeps process context stronger:
+  - links into archived repair/verification now include `equipmentId`,
+  - single archived process cards flash as the target row after navigation,
+  - grouped archived cards flash the specific equipment tile inside the group so the operator can immediately see where the current device sits.
 - Equipment card repair flow now uses route fields instead of repair organization: operator specifies city and destination when sending a device to repair.
 - Repair creation may optionally include the first repair dialog message with files, photos, documents, or checks, but the repair may also be created empty and the dialog can be filled later.
 - Backend now enforces one active repair per equipment item and stores repair dialog messages with per-message attachments.
@@ -136,19 +166,30 @@ Current small Stage 2 slice is implemented: `SI` onboarding now includes Arshin 
 
 ## Remaining Gaps
 - Batch membership editing is implemented, but UX polish around candidate picking, empty states, and possible confirmation affordances may still be refined later.
-- `Dashboard` is still a placeholder; now that the audit log exists, it can use recent events and active-process summaries instead of hardcoded stubs.
+- Dashboard content is live, but it can still grow with more operational metrics such as completed repairs, completed verifications, month-over-month throughput, and heavier repair/verification aging counters.
+- Mention notifications currently depend on SMTP environment configuration and best-effort email delivery; transport health and retry policy are still minimal.
+- `ИО` and `ВО` now support manual control metadata:
+  - control date,
+  - control period in months,
+  - registry-facing `След. срок` based on attestation for `ИО` and technical inspection for `ВО`,
+  - if no control date is set, the registry should show `-`.
 - Event logging currently covers the main operational actions, but it may still be expanded later if the product needs narrower audit slices or stronger dashboard counters.
 
 ## Next
-1. Build `/dashboard` on top of the now-existing process queues and event journal:
-   - recent events,
-   - active repairs,
-   - active verifications,
-   - overdue summaries,
-   - quick links into the busiest operational areas.
-2. Continue visual and workflow polish around process pages and archive views now that grouped membership editing, exports, and the event journal are in place.
+1. Continue visual and workflow polish around process pages, event journal rows, and archive views now that grouped membership editing, exports, dashboard, and event journal are in place.
+2. Expand dashboard metrics:
+   - completed repairs,
+   - completed verifications,
+   - aging buckets,
+   - facility/object trend slices,
+   - stronger overdue breakdowns by stage.
 3. If operators need it later, add a stronger management layer for existing batches:
    - explicit candidate filters,
    - optional confirmation on removing a member from a group,
    - clearer history markers for join/leave operations inside dialogs.
 4. Consider separate export variants later only if operators need narrower reporting slices than the current queue exports.
+5. If mention emails become a core workflow, add transport observability:
+   - delivery log,
+   - failure counters,
+   - resend/retry policy,
+   - possibly in-app notification mirrors.

@@ -7,12 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.user import User
+from app.repositories.equipment_repository import EquipmentFolderRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
 )
 from app.schemas.user import UserProfileUpdateRequest
+from app.services.notification_service import (
+    NotificationConfigurationError,
+    NotificationDeliveryError,
+    NotificationService,
+)
 from app.utils.password_policy import validate_password_policy
 from app.utils.security import (
     create_access_token,
@@ -25,6 +31,8 @@ class AuthService:
     def __init__(self, session: Session) -> None:
         self.session = session
         self.users = UserRepository(session)
+        self.folders = EquipmentFolderRepository(session)
+        self.notifications = NotificationService()
 
     def login(self, payload: LoginRequest) -> tuple[User, str]:
         email = _normalize_email(payload.email)
@@ -77,6 +85,19 @@ class AuthService:
             user.position = _normalize_optional_text(payload.position, limit=255)
         if "facility" in payload.model_fields_set:
             user.facility = _normalize_optional_text(payload.facility, limit=255)
+        if "dashboard_folder_id" in payload.model_fields_set:
+            user.dashboard_folder_id = _normalize_dashboard_folder_id(
+                payload.dashboard_folder_id,
+                folders=self.folders,
+            )
+        if "dashboard_widget_options" in payload.model_fields_set:
+            user.dashboard_widget_options = _normalize_dashboard_widget_options(
+                payload.dashboard_widget_options
+            )
+        if "mention_email_notifications_enabled" in payload.model_fields_set:
+            user.mention_email_notifications_enabled = bool(
+                payload.mention_email_notifications_enabled
+            )
         if "theme_preference" in payload.model_fields_set:
             user.theme_preference = payload.theme_preference
         if "enabled_theme_options" in payload.model_fields_set:
@@ -86,6 +107,23 @@ class AuthService:
         self.session.commit()
         self.session.refresh(user)
         return user
+
+    def send_test_mention_email(self, *, user: User) -> None:
+        try:
+            self.notifications.send_test_email(
+                recipient_email=user.email,
+                recipient_name=_format_user_display_name(user),
+            )
+        except NotificationConfigurationError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+        except NotificationDeliveryError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
 
     def _create_access_token_for_user(self, user: User) -> str:
         return create_access_token(
@@ -143,3 +181,74 @@ def _normalize_enabled_theme_options(values: list[object] | None) -> list[str] |
         )
 
     return normalized
+
+
+def _normalize_dashboard_folder_id(
+    value: int | None,
+    *,
+    folders: EquipmentFolderRepository,
+) -> int | None:
+    if value is None:
+        return None
+    if value <= 0:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Папка дашборда выбрана некорректно.",
+        )
+    folder = folders.get_by_id(value)
+    if folder is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Выбранная папка для дашборда не найдена.",
+        )
+    return value
+
+
+def _normalize_dashboard_widget_options(values: list[str] | None) -> list[str] | None:
+    if values is None:
+        return None
+
+    allowed = {
+        "summary_cards",
+        "status_distribution",
+        "type_distribution",
+        "top_locations",
+        "repair_overdue",
+        "verification_expiry",
+        "completed_processes",
+        "average_durations",
+        "recent_events",
+    }
+
+    normalized: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        candidate = str(value).strip()
+        if not candidate:
+            continue
+        if candidate not in allowed:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Неизвестный виджет дашборда: {candidate}.",
+            )
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        normalized.append(candidate)
+
+    if not normalized:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Хотя бы один виджет дашборда должен оставаться включенным.",
+        )
+
+    return normalized
+
+
+def _format_user_display_name(user: User) -> str:
+    parts = [user.last_name.strip(), user.first_name.strip()]
+    if user.patronymic:
+        patronymic = user.patronymic.strip()
+        if patronymic:
+            parts.append(patronymic)
+    return " ".join(part for part in parts if part).strip() or user.email

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import re
+from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from io import BytesIO, StringIO
@@ -47,6 +48,7 @@ from app.repositories.equipment_repository import (
     VerificationRepository,
 )
 from app.repositories.event_repository import EventLogRepository
+from app.repositories.user_repository import UserRepository
 from app.schemas.arshin import ArshinSearchResultRead, ArshinVriDetailRead
 from app.schemas.equipment import (
     EquipmentCommentCreateRequest,
@@ -72,6 +74,8 @@ from app.schemas.equipment import (
     VerificationQueueItemRead,
 )
 from app.services.arshin_service import ArshinService
+from app.services.notification_service import NotificationService
+from app.services.user_service import build_user_mention_keys
 
 
 class EquipmentService:
@@ -90,6 +94,8 @@ class EquipmentService:
         self.verification_message_attachments = VerificationMessageAttachmentRepository(session)
         self.si_verifications = SIVerificationRepository(session)
         self.events = EventLogRepository(session)
+        self.users = UserRepository(session)
+        self.notifications = NotificationService()
 
     def list_folders(self) -> list[EquipmentFolder]:
         return self.folders.list_all()
@@ -356,6 +362,14 @@ class EquipmentService:
             manufacture_year=_validate_manufacture_year(payload.manufacture_year),
             status=payload.status,
             current_location_manual=_normalize_optional_text(payload.current_location_manual),
+            compliance_date=_normalize_equipment_compliance_date(
+                payload.equipment_type,
+                payload.compliance_date,
+            ),
+            compliance_interval_months=_normalize_equipment_compliance_interval_months(
+                payload.equipment_type,
+                payload.compliance_interval_months,
+            ),
         )
         self.equipment.add(equipment)
         if payload.si_verification is not None:
@@ -483,6 +497,20 @@ class EquipmentService:
                 payload.current_location_manual
             )
             changed_fields.append("местонахождение")
+
+        if "compliance_date" in payload.model_fields_set:
+            equipment.compliance_date = _normalize_equipment_compliance_date(
+                equipment.equipment_type,
+                payload.compliance_date,
+            )
+            changed_fields.append(_get_equipment_compliance_date_field_label(equipment.equipment_type))
+
+        if "compliance_interval_months" in payload.model_fields_set:
+            equipment.compliance_interval_months = _normalize_equipment_compliance_interval_months(
+                equipment.equipment_type,
+                payload.compliance_interval_months,
+            )
+            changed_fields.append(_get_equipment_compliance_interval_field_label(equipment.equipment_type))
 
         if current_user is not None and changed_fields:
             self._record_equipment_event(
@@ -759,9 +787,10 @@ class EquipmentService:
             "Серийный номер",
             "Год выпуска",
             "Объект",
-            "Локация",
+            "Местонахождение",
             "Номер свидетельства",
             "Действительно до",
+            "Следующий срок",
         ]
         sheet.append(headers)
 
@@ -789,6 +818,7 @@ class EquipmentService:
                         if verification is not None and verification.valid_date is not None
                         else None
                     ),
+                    _format_export_date(_get_equipment_next_due_date(equipment)),
                 ]
             )
 
@@ -971,8 +1001,9 @@ class EquipmentService:
         equipment.status = EquipmentStatus.IN_REPAIR
         self.repairs.add(repair)
         normalized_initial_text = _normalize_message_text(payload.initial_message_text)
+        initial_message: RepairMessage | None = None
         if normalized_initial_text is not None or files:
-            self._create_repair_message_record(
+            initial_message = self._create_repair_message_record(
                 repair=repair,
                 author=current_user,
                 payload=RepairMessageCreateRequest(text=normalized_initial_text),
@@ -999,6 +1030,13 @@ class EquipmentService:
         )
         self.session.commit()
         self.session.refresh(repair)
+        if initial_message is not None:
+            self.session.refresh(initial_message)
+            self._send_repair_message_mentions(
+                repair=repair,
+                message=initial_message,
+                actor=current_user,
+            )
         return repair
 
     def create_repair_batch(
@@ -1539,8 +1577,9 @@ class EquipmentService:
             equipment.status = EquipmentStatus.IN_VERIFICATION
         self.verifications.add(verification)
         normalized_initial_text = _normalize_message_text(payload.initial_message_text)
+        initial_message: VerificationMessage | None = None
         if normalized_initial_text is not None or files:
-            self._create_verification_message_record(
+            initial_message = self._create_verification_message_record(
                 verification=verification,
                 author=current_user,
                 payload=VerificationMessageCreateRequest(text=normalized_initial_text),
@@ -1567,6 +1606,13 @@ class EquipmentService:
         )
         self.session.commit()
         self.session.refresh(verification)
+        if initial_message is not None:
+            self.session.refresh(initial_message)
+            self._send_verification_message_mentions(
+                verification=verification,
+                message=initial_message,
+                actor=current_user,
+            )
         return verification
 
     def create_verification_batch(
@@ -2026,6 +2072,11 @@ class EquipmentService:
         )
         self.session.commit()
         self.session.refresh(message)
+        self._send_repair_message_mentions(
+            repair=repair,
+            message=message,
+            actor=author,
+        )
         return message
 
     def delete_repair_message(
@@ -2097,6 +2148,11 @@ class EquipmentService:
         )
         self.session.commit()
         self.session.refresh(message)
+        self._send_verification_message_mentions(
+            verification=verification,
+            message=message,
+            actor=author,
+        )
         return message
 
     def delete_verification_message(
@@ -2493,6 +2549,11 @@ class EquipmentService:
         )
         self.session.commit()
         self.session.refresh(comment)
+        self._send_equipment_comment_mentions(
+            equipment=equipment,
+            comment=comment,
+            actor=author,
+        )
         return comment
 
     def update_comment(
@@ -2505,6 +2566,7 @@ class EquipmentService:
     ) -> EquipmentComment:
         comment = self._get_comment(equipment_id=equipment_id, comment_id=comment_id)
         self._assert_comment_owner(comment=comment, current_user=current_user)
+        previous_text = comment.text
         comment.text = _normalize_comment_text(payload.text)
         equipment = self.get_equipment(equipment_id=equipment_id)
         self._record_equipment_event(
@@ -2516,6 +2578,12 @@ class EquipmentService:
         )
         self.session.commit()
         self.session.refresh(comment)
+        self._send_equipment_comment_mentions(
+            equipment=equipment,
+            comment=comment,
+            actor=current_user,
+            previous_text=previous_text,
+        )
         return comment
 
     def delete_comment(
@@ -2537,6 +2605,181 @@ class EquipmentService:
         )
         self.comments.delete(comment)
         self.session.commit()
+
+    def _send_equipment_comment_mentions(
+        self,
+        *,
+        equipment: Equipment,
+        comment: EquipmentComment,
+        actor: User,
+        previous_text: str | None = None,
+    ) -> None:
+        mentioned_users = self._resolve_mentioned_users(
+            text=comment.text,
+            exclude_user_id=actor.id,
+            previous_text=previous_text,
+        )
+        if not mentioned_users:
+            return
+
+        target_url = f"{settings.frontend_app_url}/equipment/{equipment.id}?commentId={comment.id}"
+        context_title = f"в карточке прибора «{equipment.name}»"
+        self._send_mention_emails(
+            users=mentioned_users,
+            actor=actor,
+            context_title=context_title,
+            message_preview=comment.text,
+            target_url=target_url,
+        )
+
+    def _send_repair_message_mentions(
+        self,
+        *,
+        repair: Repair,
+        message: RepairMessage,
+        actor: User,
+    ) -> None:
+        mentioned_users = self._resolve_mentioned_users(
+            text=message.text,
+            exclude_user_id=actor.id,
+        )
+        if not mentioned_users:
+            return
+
+        target_url = self._build_repair_message_url(repair=repair, message=message)
+        if repair.batch_key:
+            context_title = f"в групповом ремонте «{repair.batch_name or repair.route_destination}»"
+        else:
+            context_title = f"в ремонте прибора «{repair.equipment.name}»"
+        self._send_mention_emails(
+            users=mentioned_users,
+            actor=actor,
+            context_title=context_title,
+            message_preview=message.text,
+            target_url=target_url,
+        )
+
+    def _send_verification_message_mentions(
+        self,
+        *,
+        verification: Verification,
+        message: VerificationMessage,
+        actor: User,
+    ) -> None:
+        mentioned_users = self._resolve_mentioned_users(
+            text=message.text,
+            exclude_user_id=actor.id,
+        )
+        if not mentioned_users:
+            return
+
+        target_url = self._build_verification_message_url(
+            verification=verification,
+            message=message,
+        )
+        if verification.batch_key:
+            context_title = (
+                f"в групповой поверке «{verification.batch_name or verification.route_destination}»"
+            )
+        else:
+            context_title = f"в поверке прибора «{verification.equipment.name}»"
+        self._send_mention_emails(
+            users=mentioned_users,
+            actor=actor,
+            context_title=context_title,
+            message_preview=message.text,
+            target_url=target_url,
+        )
+
+    def _send_mention_emails(
+        self,
+        *,
+        users: list[User],
+        actor: User,
+        context_title: str,
+        message_preview: str | None,
+        target_url: str,
+    ) -> None:
+        actor_name = _format_user_display_name(actor)
+        for user in users:
+            if not user.mention_email_notifications_enabled:
+                continue
+            self.notifications.send_mention_email(
+                recipient_email=user.email,
+                recipient_name=_format_user_display_name(user),
+                actor_name=actor_name,
+                context_title=context_title,
+                message_preview=message_preview,
+                target_url=target_url,
+            )
+
+    def _resolve_mentioned_users(
+        self,
+        *,
+        text: str | None,
+        exclude_user_id: int | None = None,
+        previous_text: str | None = None,
+    ) -> list[User]:
+        if not text:
+            return []
+
+        active_users = self.users.list_active()
+        mention_keys = build_user_mention_keys(active_users)
+        users_by_id = {user.id: user for user in active_users}
+        mention_lookup = {
+            key.lower(): users_by_id[user_id]
+            for user_id, key in mention_keys.items()
+            if user_id in users_by_id
+        }
+
+        current_keys = _extract_mention_keys(text)
+        if previous_text:
+            previous_keys = _extract_mention_keys(previous_text)
+            current_keys = current_keys.difference(previous_keys)
+
+        resolved: list[User] = []
+        seen_user_ids: set[int] = set()
+        for mention_key in current_keys:
+            user = mention_lookup.get(mention_key.lower())
+            if user is None:
+                continue
+            if exclude_user_id is not None and user.id == exclude_user_id:
+                continue
+            if user.id in seen_user_ids:
+                continue
+            seen_user_ids.add(user.id)
+            resolved.append(user)
+        return resolved
+
+    def _build_repair_message_url(
+        self,
+        *,
+        repair: Repair,
+        message: RepairMessage,
+    ) -> str:
+        query_parts = [
+            f"equipmentId={repair.equipment_id}",
+            f"repairId={repair.id}",
+            f"messageId={message.id}",
+        ]
+        if repair.batch_key:
+            query_parts.append(f"batchKey={repair.batch_key}")
+        return f"{settings.frontend_app_url}/repairs?{'&'.join(query_parts)}"
+
+    def _build_verification_message_url(
+        self,
+        *,
+        verification: Verification,
+        message: VerificationMessage,
+    ) -> str:
+        query_parts = [
+            f"equipmentId={verification.equipment_id}",
+            f"verificationId={verification.id}",
+            f"messageId={message.id}",
+        ]
+        if verification.batch_key:
+            query_parts.append(f"batchKey={verification.batch_key}")
+        return f"{settings.frontend_app_url}/verification/si?{'&'.join(query_parts)}"
 
     def _record_equipment_event(
         self,
@@ -3433,6 +3676,16 @@ def _build_equipment_batch_member_label(equipment: Equipment) -> str:
     return equipment.name
 
 
+def _extract_mention_keys(text: str | None) -> set[str]:
+    if not text:
+        return set()
+    return {
+        match.group(1).strip().lower()
+        for match in re.finditer(r"(?<![\w@])@([A-Za-zА-Яа-яЁё0-9_]+)", text)
+        if match.group(1).strip()
+    }
+
+
 def _calculate_repair_overdue_days(
     *,
     repair_deadline_at: date,
@@ -3673,6 +3926,76 @@ def _validate_manufacture_year(value: int | None) -> int | None:
             detail="Manufacture year must be between 1900 and 2100.",
         )
     return value
+
+
+def _normalize_equipment_compliance_date(
+    equipment_type: EquipmentType,
+    value: date | None,
+) -> date | None:
+    if equipment_type not in {EquipmentType.IO, EquipmentType.VO}:
+        return None
+    return value
+
+
+def _normalize_equipment_compliance_interval_months(
+    equipment_type: EquipmentType,
+    value: int | None,
+) -> int | None:
+    if equipment_type not in {EquipmentType.IO, EquipmentType.VO}:
+        return None
+    if value is None:
+        return None
+    if value < 1 or value > 240:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Compliance interval must be between 1 and 240 months.",
+        )
+    return value
+
+
+def _get_equipment_compliance_date_field_label(equipment_type: EquipmentType) -> str:
+    if equipment_type == EquipmentType.IO:
+        return "дата аттестации"
+    if equipment_type == EquipmentType.VO:
+        return "дата техосвидетельствования"
+    return "контрольная дата"
+
+
+def _get_equipment_compliance_interval_field_label(equipment_type: EquipmentType) -> str:
+    if equipment_type == EquipmentType.IO:
+        return "период аттестации"
+    if equipment_type == EquipmentType.VO:
+        return "период техосвидетельствования"
+    return "контрольный период"
+
+
+def _add_months(base_date: date, months: int) -> date:
+    total_month = (base_date.month - 1) + months
+    year = base_date.year + total_month // 12
+    month = total_month % 12 + 1
+    day = min(base_date.day, monthrange(year, month)[1])
+    return date(year, month, day)
+
+
+def _get_equipment_next_due_date(equipment: Equipment) -> date | None:
+    if equipment.equipment_type == EquipmentType.SI:
+        if equipment.si_verification is None or equipment.si_verification.valid_date is None:
+            return None
+        return equipment.si_verification.valid_date.date()
+
+    if equipment.equipment_type not in {EquipmentType.IO, EquipmentType.VO}:
+        return None
+
+    if equipment.compliance_date is None or equipment.compliance_interval_months is None:
+        return None
+
+    return _add_months(equipment.compliance_date, equipment.compliance_interval_months)
+
+
+def _format_export_date(value: date | None) -> str | None:
+    if value is None:
+        return None
+    return value.strftime("%d.%m.%Y")
 
 
 def _format_user_display_name(user: User) -> str:

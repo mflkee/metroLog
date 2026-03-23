@@ -26,6 +26,10 @@ import {
   fetchEquipment,
   fetchEquipmentFolderSuggestions,
   getEquipmentStatusLabel,
+  getEquipmentComplianceDateLabel,
+  getEquipmentCompliancePeriodLabel,
+  getEquipmentNextDueDate,
+  getEquipmentValidFromDate,
   fetchEquipmentFolders,
   importSIEquipmentExcel,
   updateEquipment,
@@ -37,6 +41,7 @@ import {
   type EquipmentType,
   type UpdateEquipmentPayload,
 } from "@/api/equipment";
+import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
@@ -45,7 +50,7 @@ import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
+import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { useAuthStore } from "@/store/auth";
 
 const equipmentTypeOptions: EquipmentType[] = ["SI", "IO", "VO", "OTHER"];
@@ -54,6 +59,13 @@ const subtleButtonClass = "btn-secondary";
 const batchDangerButtonClass = "btn-danger";
 const batchRepairButtonClass = "btn-secondary";
 const batchVerificationButtonClass = "btn-accent";
+const complianceIntervalOptions = [
+  { value: "12", label: "1 год" },
+  { value: "24", label: "2 года" },
+  { value: "36", label: "3 года" },
+  { value: "48", label: "4 года" },
+  { value: "60", label: "5 лет" },
+] as const;
 
 type FolderFormState = {
   name: string;
@@ -71,6 +83,8 @@ type EquipmentFormState = {
   manufactureYear: string;
   status: EquipmentStatus;
   currentLocationManual: string;
+  complianceDate: string;
+  complianceIntervalMonths: string;
 };
 
 type SISearchFormState = {
@@ -100,7 +114,9 @@ type EquipmentSortKey =
   | "serialNumber"
   | "manufactureYear"
   | "objectName"
-  | "currentLocationManual";
+  | "currentLocationManual"
+  | "validFrom"
+  | "validTo";
 
 type EquipmentSortDirection = "asc" | "desc";
 
@@ -138,6 +154,8 @@ const defaultEquipmentForm: EquipmentFormState = {
   manufactureYear: "",
   status: "IN_WORK",
   currentLocationManual: "",
+  complianceDate: "",
+  complianceIntervalMonths: "",
 };
 
 const defaultSISearchForm: SISearchFormState = {
@@ -238,6 +256,12 @@ export function EquipmentPage() {
     queryKey: ["equipment-folder-suggestions", selectedFolderId ?? "none"],
     queryFn: () => fetchEquipmentFolderSuggestions(token ?? "", selectedFolderId ?? 0),
     enabled: Boolean(token) && selectedFolderId !== null,
+  });
+
+  const mentionUsersQuery = useQuery({
+    queryKey: ["mention-users"],
+    queryFn: () => fetchMentionUsers(token ?? ""),
+    enabled: Boolean(token),
   });
 
   const createFolderMutation = useMutation({
@@ -530,6 +554,10 @@ export function EquipmentPage() {
     () => sortAutocompleteSuggestions(folderSuggestionsQuery.data?.processBatchNames ?? []),
     [folderSuggestionsQuery.data?.processBatchNames],
   );
+  const mentionSuggestions = useMemo(
+    () => buildMentionSuggestionOptions(mentionUsersQuery.data ?? []),
+    [mentionUsersQuery.data],
+  );
 
   const folderSearchSuggestions = useMemo(
     () =>
@@ -540,8 +568,9 @@ export function EquipmentPage() {
   );
 
   const processTextSuggestions = useMemo(
-    () =>
-      sortAutocompleteSuggestions([
+    () => [
+      ...mentionSuggestions,
+      ...sortAutocompleteSuggestions([
         folders.find((folder) => folder.id === selectedFolderId)?.name,
         ...selectedEquipmentItems.flatMap((item) => [
           item.objectName,
@@ -558,12 +587,14 @@ export function EquipmentPage() {
         ...existingRouteCities,
         ...existingRouteDestinations,
       ]),
+    ],
     [
       existingLocations,
       existingObjectNames,
       existingRouteCities,
       existingRouteDestinations,
       folders,
+      mentionSuggestions,
       selectedFolderId,
       selectedEquipmentItems,
     ],
@@ -738,6 +769,12 @@ export function EquipmentPage() {
     setEquipmentForm((current) => ({
       ...current,
       equipmentType: nextType,
+      complianceDate:
+        nextType === "IO" || nextType === "VO" ? current.complianceDate : "",
+      complianceIntervalMonths:
+        nextType === "IO" || nextType === "VO"
+          ? current.complianceIntervalMonths || "12"
+          : "",
     }));
 
     if (nextType !== "SI") {
@@ -1204,11 +1241,11 @@ export function EquipmentPage() {
 
             {sortedEquipmentItems.length ? (
               <div className="tone-parent overflow-x-auto rounded-3xl border border-line shadow-panel">
-                <table className="min-w-full">
+                <table className="min-w-[1480px] w-full table-auto">
                   <thead>
                     <tr className="tone-child text-left text-xs uppercase tracking-[0.16em] text-steel">
                       {canManage ? (
-                        <th className="px-3 py-2">
+                        <th className="w-10 px-3 py-2">
                           <input
                             checked={areAllVisibleEquipmentSelected}
                             className="h-4 w-4 accent-[var(--accent)]"
@@ -1222,42 +1259,63 @@ export function EquipmentPage() {
                         label="Прибор"
                         sortKey="name"
                         onSort={handleSortColumn}
+                        className="w-[320px]"
                       />
                       <SortableTableHeader
                         activeSort={sortState}
                         label="Категория"
                         sortKey="equipmentType"
                         onSort={handleSortColumn}
+                        className="w-[120px]"
                       />
                       <SortableTableHeader
                         activeSort={sortState}
                         label="Статус"
                         sortKey="status"
                         onSort={handleSortColumn}
+                        className="w-[160px]"
                       />
                       <SortableTableHeader
                         activeSort={sortState}
                         label="Серийный"
                         sortKey="serialNumber"
                         onSort={handleSortColumn}
+                        className="w-[150px]"
                       />
                       <SortableTableHeader
                         activeSort={sortState}
                         label="Год выпуска"
                         sortKey="manufactureYear"
                         onSort={handleSortColumn}
+                        className="w-[128px]"
                       />
                       <SortableTableHeader
                         activeSort={sortState}
                         label="Объект"
                         sortKey="objectName"
                         onSort={handleSortColumn}
+                        className="w-[180px]"
                       />
                       <SortableTableHeader
                         activeSort={sortState}
                         label="Местонахождение"
                         sortKey="currentLocationManual"
                         onSort={handleSortColumn}
+                        className="w-[190px]"
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Действителен с"
+                        sortKey="validFrom"
+                        onSort={handleSortColumn}
+                        className="w-[142px]"
+                      />
+                      <SortableTableHeader
+                        activeSort={sortState}
+                        label="Действителен по"
+                        sortKey="validTo"
+                        onSort={handleSortColumn}
+                        className="w-[142px]"
                       />
                     </tr>
                   </thead>
@@ -1763,6 +1821,43 @@ export function EquipmentPage() {
               />
             </label>
           </div>
+          {(equipmentForm.equipmentType === "IO" || equipmentForm.equipmentType === "VO") ? (
+            <div className="grid gap-3 md:grid-cols-2">
+              <label className="block text-sm text-steel">
+                {getEquipmentComplianceDateLabel(equipmentForm.equipmentType)}
+                <DateInput
+                  className="form-input form-input--compact"
+                  value={equipmentForm.complianceDate}
+                  onChange={(value) =>
+                    setEquipmentForm((current) => ({
+                      ...current,
+                      complianceDate: value,
+                    }))
+                  }
+                />
+              </label>
+              <label className="block text-sm text-steel">
+                {getEquipmentCompliancePeriodLabel(equipmentForm.equipmentType)}
+                <select
+                  className="form-input"
+                  value={equipmentForm.complianceIntervalMonths}
+                  onChange={(event) =>
+                    setEquipmentForm((current) => ({
+                      ...current,
+                      complianceIntervalMonths: event.target.value,
+                    }))
+                  }
+                >
+                  <option value="">Не задан</option>
+                  {complianceIntervalOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          ) : null}
           <label className="block text-sm text-steel">
             Текущее местоположение
             <AutocompleteInput
@@ -2107,7 +2202,7 @@ function EquipmentRow({
   return (
     <tr className={`${rowIndex % 2 === 0 ? "tone-parent" : "tone-child"} text-sm text-ink`}>
       {canManage ? (
-        <td className="px-3 py-3 align-top">
+        <td className="w-10 px-3 py-3 align-top">
           <input
             checked={isSelected}
             className="mt-1 h-4 w-4 accent-[var(--accent)]"
@@ -2117,7 +2212,10 @@ function EquipmentRow({
         </td>
       ) : null}
       <td className="px-3 py-3 align-top">
-        <Link className="font-semibold text-ink transition hover:text-signal-info" to={`/equipment/${item.id}`}>
+        <Link
+          className="block min-w-[280px] font-semibold text-ink transition hover:text-signal-info"
+          to={`/equipment/${item.id}`}
+        >
           {item.name}
         </Link>
         <div className="mt-1 text-xs text-steel">{item.modification || "Без модификации"}</div>
@@ -2132,6 +2230,8 @@ function EquipmentRow({
       <td className="px-3 py-3 align-top">{item.manufactureYear || "—"}</td>
       <td className="px-3 py-3 align-top">{item.objectName}</td>
       <td className="px-3 py-3 align-top">{item.currentLocationManual || "Не указано"}</td>
+      <td className="px-3 py-3 align-top">{formatEquipmentValidityDate(getEquipmentValidFromDate(item))}</td>
+      <td className="px-3 py-3 align-top">{formatEquipmentValidityDate(getEquipmentNextDueDate(item))}</td>
     </tr>
   );
 }
@@ -2141,18 +2241,20 @@ function SortableTableHeader({
   sortKey,
   activeSort,
   onSort,
+  className,
 }: {
   label: string;
   sortKey: EquipmentSortKey;
   activeSort: EquipmentSortState | null;
   onSort: (key: EquipmentSortKey) => void;
+  className?: string;
 }) {
   const isActive = activeSort?.key === sortKey;
   const arrow =
     !isActive ? "↕" : activeSort.direction === "asc" ? "↑" : "↓";
 
   return (
-    <th className="px-3 py-2">
+    <th className={`px-3 py-2 ${className ?? ""}`}>
       <button
         className={`inline-flex items-center gap-2 transition ${
           isActive ? "text-ink" : "text-steel hover:text-ink"
@@ -2184,6 +2286,10 @@ function mapEquipmentFormToPayload(
     manufactureYear: form.manufactureYear ? Number(form.manufactureYear) : null,
     status: form.status,
     currentLocationManual: form.currentLocationManual,
+    complianceDate: form.complianceDate || null,
+    complianceIntervalMonths: form.complianceIntervalMonths
+      ? Number(form.complianceIntervalMonths)
+      : null,
     siVerification:
       form.equipmentType === "SI" && selectedSiResult
         ? buildSIVerificationPayloadFromArshin(selectedSiResult, selectedSiDetail)
@@ -2191,12 +2297,19 @@ function mapEquipmentFormToPayload(
   };
 }
 
-function getMutationErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
+function formatEquipmentValidityDate(value: string | null): string {
+  if (!value) {
+    return "-";
+  }
+  return new Intl.DateTimeFormat("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(new Date(value));
 }
 
 function getInitialSortDirection(key: EquipmentSortKey): EquipmentSortDirection {
-  if (key === "manufactureYear") {
+  if (key === "manufactureYear" || key === "validFrom") {
     return "desc";
   }
   return "asc";
@@ -2228,9 +2341,17 @@ function compareEquipmentItems(
       return compareText(left.objectName, right.objectName);
     case "currentLocationManual":
       return compareText(left.currentLocationManual ?? "", right.currentLocationManual ?? "");
+    case "validFrom":
+      return compareNullableDates(getEquipmentValidFromDate(left), getEquipmentValidFromDate(right));
+    case "validTo":
+      return compareNullableDates(getEquipmentNextDueDate(left), getEquipmentNextDueDate(right));
     default:
       return 0;
   }
+}
+
+function getMutationErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback;
 }
 
 const equipmentTypeSortOrder: Record<EquipmentType, number> = {
@@ -2272,6 +2393,19 @@ function compareNullableNumbers(left: number | null, right: number | null): numb
     return -1;
   }
   return left - right;
+}
+
+function compareNullableDates(left: string | null, right: string | null): number {
+  if (left === null && right === null) {
+    return 0;
+  }
+  if (left === null) {
+    return 1;
+  }
+  if (right === null) {
+    return -1;
+  }
+  return russianCollator.compare(left, right);
 }
 
 function compareText(left: string, right: string): number {

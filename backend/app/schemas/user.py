@@ -24,10 +24,20 @@ class UserRead(BaseModel):
     organization: str | None
     position: str | None
     facility: str | None
+    dashboard_folder_id: int | None
+    dashboard_widget_options: list[str] | None
+    mention_email_notifications_enabled: bool
     theme_preference: UserThemePreference | None
     enabled_theme_options: list[UserThemePreference] | None
     created_at: datetime
     updated_at: datetime
+
+
+class UserMentionRead(BaseModel):
+    id: int
+    display_name: str
+    email: str
+    mention_key: str
 
 
 class UserRoleUpdate(BaseModel):
@@ -57,6 +67,9 @@ class UserProfileUpdateRequest(BaseModel):
     organization: str | None = None
     position: str | None = None
     facility: str | None = None
+    dashboard_folder_id: int | None = None
+    dashboard_widget_options: list[str] | None = None
+    mention_email_notifications_enabled: bool | None = None
     theme_preference: UserThemePreference | None = None
     enabled_theme_options: list[UserThemePreference] | None = None
 

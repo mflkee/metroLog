@@ -207,6 +207,51 @@ async def test_operator_can_create_filter_and_update_registry_entities(
 
 
 @pytest.mark.anyio
+async def test_operator_can_store_manual_compliance_for_io_and_vo(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Поверочная", "description": None, "sort_order": 0},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Стенд ИО",
+            "equipment_type": "IO",
+            "name": "Стенд испытательный",
+            "status": "IN_WORK",
+            "compliance_date": "2026-03-01",
+            "compliance_interval_months": 24,
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+    assert equipment["compliance_date"] == "2026-03-01"
+    assert equipment["compliance_interval_months"] == 24
+
+    fetch_response = await client.get(
+        f"/api/v1/equipment/{equipment['id']}",
+        headers=headers,
+    )
+    assert fetch_response.status_code == 200
+    payload = fetch_response.json()
+    assert payload["compliance_date"] == "2026-03-01"
+    assert payload["compliance_interval_months"] == 24
+
+
+@pytest.mark.anyio
 async def test_operator_can_delete_equipment_batch(
     client: AsyncClient,
     db_engine,
@@ -1228,6 +1273,90 @@ async def test_equipment_comments_can_be_created_and_listed(
     )
     assert comments_after_delete_response.status_code == 200
     assert comments_after_delete_response.json() == []
+
+
+@pytest.mark.anyio
+async def test_user_mentions_are_available_and_comment_mention_triggers_notification(
+    client: AsyncClient,
+    db_engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    create_user_response = await client.post(
+        "/api/v1/users",
+        headers=headers,
+        json={
+            "first_name": "Григорий",
+            "last_name": "Макеев",
+            "patronymic": "Михайлович",
+            "email": "operator@example.com",
+            "role": "MKAIR",
+            "is_active": True,
+        },
+    )
+    assert create_user_response.status_code == 201
+
+    mention_users_response = await client.get("/api/v1/users/mentions", headers=headers)
+    assert mention_users_response.status_code == 200
+    mention_users = mention_users_response.json()
+    mentioned_user = next(item for item in mention_users if item["email"] == "operator@example.com")
+    assert mentioned_user["mention_key"]
+
+    sent_notifications: list[dict[str, str]] = []
+
+    def fake_send_mention_email(self, **kwargs):  # noqa: ANN001
+        sent_notifications.append(kwargs)
+
+    monkeypatch.setattr(
+        "app.services.notification_service.NotificationService.send_mention_email",
+        fake_send_mention_email,
+    )
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={
+            "name": "Упоминания",
+            "description": "Папка для теста mentions",
+            "sort_order": 1,
+        },
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Цех 1",
+            "equipment_type": "OTHER",
+            "name": "Компрессор",
+            "status": "IN_WORK",
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    create_comment_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/comments",
+        headers=headers,
+        json={
+            "text": f"Нужно проверить @{mentioned_user['mention_key']} перед запуском.",
+        },
+    )
+    assert create_comment_response.status_code == 201
+    comment = create_comment_response.json()
+
+    assert len(sent_notifications) == 1
+    assert sent_notifications[0]["recipient_email"] == "operator@example.com"
+    assert sent_notifications[0]["context_title"] == "в карточке прибора «Компрессор»"
+    assert sent_notifications[0]["target_url"].endswith(
+        f"/equipment/{equipment['id']}?commentId={comment['id']}"
+    )
 
 
 @pytest.mark.anyio

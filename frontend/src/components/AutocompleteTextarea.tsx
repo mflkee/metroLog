@@ -16,13 +16,20 @@ import {
   rankAutocompleteSuggestions,
 } from "@/lib/autocomplete";
 
+export type AutocompleteSuggestion =
+  | string
+  | {
+    value: string;
+    label: string;
+  };
+
 type AutocompleteTextareaProps = Omit<
   ComponentPropsWithoutRef<"textarea">,
   "value" | "onChange"
 > & {
   value: string;
   onChange: (value: string) => void;
-  suggestions: string[];
+  suggestions: AutocompleteSuggestion[];
   maxSuggestions?: number;
 };
 
@@ -48,6 +55,21 @@ export const AutocompleteTextarea = forwardRef<HTMLTextAreaElement, Autocomplete
     const [highlightedIndex, setHighlightedIndex] = useState(-1);
 
     const caretPosition = textareaRef.current?.selectionStart ?? value.length;
+    const normalizedSuggestions = useMemo(
+      () =>
+        Array.from(
+          new Map(
+            suggestions
+              .map((suggestion) =>
+                typeof suggestion === "string"
+                  ? { value: suggestion, label: suggestion }
+                  : suggestion
+              )
+              .map((suggestion) => [suggestion.value, suggestion]),
+          ).values(),
+        ),
+      [suggestions],
+    );
     const tokenContext = useMemo(
       () => getAutocompleteTokenContext(value, caretPosition),
       [caretPosition, value],
@@ -55,9 +77,17 @@ export const AutocompleteTextarea = forwardRef<HTMLTextAreaElement, Autocomplete
     const filteredSuggestions = useMemo(
       () =>
         tokenContext.token.trim()
-          ? rankAutocompleteSuggestions(suggestions, tokenContext.token).slice(0, maxSuggestions)
+          ? rankAutocompleteSuggestions(
+            normalizedSuggestions.map((suggestion) => suggestion.value),
+            tokenContext.token,
+          )
+            .slice(0, maxSuggestions)
+            .map((rankedValue) =>
+              normalizedSuggestions.find((suggestion) => suggestion.value === rankedValue),
+            )
+            .filter((suggestion): suggestion is { value: string; label: string } => Boolean(suggestion))
           : [],
-      [maxSuggestions, suggestions, tokenContext.token],
+      [maxSuggestions, normalizedSuggestions, tokenContext.token],
     );
 
     useEffect(() => {
@@ -162,7 +192,7 @@ export const AutocompleteTextarea = forwardRef<HTMLTextAreaElement, Autocomplete
 
       if ((event.key === "Enter" || event.key === "Tab") && open && highlightedIndex >= 0) {
         event.preventDefault();
-        handleSelect(filteredSuggestions[highlightedIndex]);
+        handleSelect(filteredSuggestions[highlightedIndex].value);
         return;
       }
 
@@ -199,7 +229,7 @@ export const AutocompleteTextarea = forwardRef<HTMLTextAreaElement, Autocomplete
           <div className="autocomplete-input__menu" id={listboxId} role="listbox">
             {filteredSuggestions.map((suggestion, index) => (
               <button
-                key={suggestion}
+                key={suggestion.value}
                 aria-selected={highlightedIndex === index}
                 className={[
                   "autocomplete-input__option",
@@ -212,11 +242,11 @@ export const AutocompleteTextarea = forwardRef<HTMLTextAreaElement, Autocomplete
                 type="button"
                 onMouseDown={(event) => {
                   event.preventDefault();
-                  handleSelect(suggestion);
+                  handleSelect(suggestion.value);
                 }}
                 onMouseEnter={() => setHighlightedIndex(index)}
               >
-                {suggestion}
+                {suggestion.label}
               </button>
             ))}
           </div>

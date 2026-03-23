@@ -32,6 +32,7 @@ import {
   type RepairMessageAttachment,
   type RepairQueueItem,
 } from "@/api/equipment";
+import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
@@ -47,7 +48,7 @@ import {
   type ProcessTimelineStripSegment,
 } from "@/components/ProcessTimelineStrip";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
+import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { validateRepairMilestoneOrder } from "@/lib/milestoneValidation";
 import { useAuthStore } from "@/store/auth";
 
@@ -95,6 +96,7 @@ export function RepairsPage() {
   const tab: RepairTab = searchParams.get("tab") === "archived" ? "archived" : "active";
   const targetRepairId = Number(searchParams.get("repairId") ?? "");
   const targetEquipmentId = Number(searchParams.get("equipmentId") ?? "");
+  const targetMessageId = Number(searchParams.get("messageId") ?? "");
   const targetBatchKey = searchParams.get("batchKey");
   const canManage = user?.role === "ADMINISTRATOR" || user?.role === "MKAIR";
 
@@ -107,6 +109,17 @@ export function RepairsPage() {
       }),
     enabled: Boolean(token),
   });
+
+  const mentionUsersQuery = useQuery({
+    queryKey: ["mention-users"],
+    queryFn: () => fetchMentionUsers(token ?? ""),
+    enabled: Boolean(token),
+  });
+
+  const mentionSuggestions = useMemo(
+    () => buildMentionSuggestionOptions(mentionUsersQuery.data ?? []),
+    [mentionUsersQuery.data],
+  );
 
   const summary = useMemo(() => {
     const items = repairsQuery.data ?? [];
@@ -266,6 +279,9 @@ export function RepairsPage() {
                 isTarget={Boolean(targetBatchKey) && group.key === targetBatchKey}
                 key={`${tab}-${group.key}`}
                 lifecycleStatus={tab}
+                mentionSuggestions={mentionSuggestions}
+                targetEquipmentId={Number.isInteger(targetEquipmentId) ? targetEquipmentId : null}
+                targetMessageId={Number.isInteger(targetMessageId) ? targetMessageId : null}
                 token={token ?? ""}
               />
             ) : (
@@ -285,6 +301,8 @@ export function RepairsPage() {
                 item={group.items[0]}
                 key={`${tab}-${group.items[0].repairId}`}
                 lifecycleStatus={tab}
+                mentionSuggestions={mentionSuggestions}
+                targetMessageId={Number.isInteger(targetMessageId) ? targetMessageId : null}
                 token={token ?? ""}
               />
             )
@@ -301,12 +319,16 @@ function RepairQueueRow({
   canManage,
   lifecycleStatus,
   isTarget,
+  targetMessageId,
+  mentionSuggestions,
 }: {
   item: RepairQueueItem;
   token: string;
   canManage: boolean;
   lifecycleStatus: RepairTab;
   isTarget: boolean;
+  targetMessageId: number | null;
+  mentionSuggestions: Array<{ value: string; label: string }>;
 }) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -318,6 +340,8 @@ function RepairQueueRow({
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [flashActive, setFlashActive] = useState(false);
+  const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
   const isArchived = lifecycleStatus === "archived";
@@ -325,7 +349,10 @@ function RepairQueueRow({
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const repairTimeline = buildRepairTimeline(item, isArchived);
-  const textSuggestions = useMemo(() => buildRepairTextSuggestions([item]), [item]);
+  const textSuggestions = useMemo(
+    () => [...mentionSuggestions, ...buildRepairTextSuggestions([item])],
+    [item, mentionSuggestions],
+  );
 
   useEffect(() => {
     setForm(buildRepairFormState(item));
@@ -343,17 +370,38 @@ function RepairQueueRow({
       return;
     }
     setExpanded(true);
+    if (targetMessageId) {
+      setDialogExpanded(true);
+    }
+    setFlashActive(true);
     window.setTimeout(() => {
       articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       articleRef.current?.focus({ preventScroll: true });
     }, 60);
-  }, [isTarget]);
+    const timeoutId = window.setTimeout(() => setFlashActive(false), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTarget, targetMessageId]);
 
   const messagesQuery = useQuery({
     queryKey: ["repair-messages", item.equipmentId],
     queryFn: () => fetchEquipmentRepairMessages(token, item.equipmentId),
     enabled: Boolean(token) && expanded && dialogExpanded && !isArchived,
   });
+
+  useEffect(() => {
+    if (!isTarget || !targetMessageId || !messagesQuery.data?.some((message) => message.id === targetMessageId)) {
+      return;
+    }
+    setDialogExpanded(true);
+    setFlashingMessageId(targetMessageId);
+    window.setTimeout(() => {
+      document
+        .getElementById(`repair-message-${item.equipmentId}-${targetMessageId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    const timeoutId = window.setTimeout(() => setFlashingMessageId(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTarget, item.equipmentId, messagesQuery.data, targetMessageId]);
 
   const updateMilestonesMutation = useMutation({
     mutationFn: () =>
@@ -516,7 +564,10 @@ function RepairQueueRow({
 
   return (
     <article
-      className="tone-parent rounded-3xl border border-line shadow-panel"
+      className={[
+        "tone-parent rounded-3xl border border-line shadow-panel",
+        flashActive ? "process-target-flash" : "",
+      ].join(" ")}
       ref={articleRef}
       tabIndex={-1}
     >
@@ -790,7 +841,14 @@ function RepairQueueRow({
                   {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
 
                   {messagesQuery.data?.map((message) => (
-                    <article className="tone-grandchild rounded-2xl border border-line px-4 py-3" key={message.id}>
+                    <article
+                      className={[
+                        "tone-grandchild rounded-2xl border border-line px-4 py-3",
+                        flashingMessageId === message.id ? "process-target-flash" : "",
+                      ].join(" ")}
+                      id={`repair-message-${item.equipmentId}-${message.id}`}
+                      key={message.id}
+                    >
                       <div className="flex items-start justify-between gap-3">
                         <div className="text-xs text-steel">{formatRepairMessageMeta(message)}</div>
                         {canManage || message.authorUserId === currentUserId ? (
@@ -930,12 +988,18 @@ function RepairBatchCard({
   canManage,
   lifecycleStatus,
   isTarget,
+  targetEquipmentId,
+  targetMessageId,
+  mentionSuggestions,
 }: {
   batch: RepairGroup;
   token: string;
   canManage: boolean;
   lifecycleStatus: RepairTab;
   isTarget: boolean;
+  targetEquipmentId: number | null;
+  targetMessageId: number | null;
+  mentionSuggestions: Array<{ value: string; label: string }>;
 }) {
   const queryClient = useQueryClient();
   const currentUserId = useAuthStore((state) => state.user?.id);
@@ -949,6 +1013,8 @@ function RepairBatchCard({
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [closeConfirmOpen, setCloseConfirmOpen] = useState(false);
+  const [flashActive, setFlashActive] = useState(false);
+  const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
   const [itemsModalOpen, setItemsModalOpen] = useState(false);
@@ -961,7 +1027,10 @@ function RepairBatchCard({
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const repairTimeline = buildRepairTimeline(anchor, isArchived);
-  const textSuggestions = useMemo(() => buildRepairTextSuggestions(batch.items), [batch.items]);
+  const textSuggestions = useMemo(
+    () => [...mentionSuggestions, ...buildRepairTextSuggestions(batch.items)],
+    [batch.items, mentionSuggestions],
+  );
 
   useEffect(() => {
     setForm(buildRepairFormState(anchor));
@@ -979,17 +1048,42 @@ function RepairBatchCard({
       return;
     }
     setExpanded(true);
+    if (targetMessageId) {
+      setDialogExpanded(true);
+    }
+    setFlashActive(true);
     window.setTimeout(() => {
       articleRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       articleRef.current?.focus({ preventScroll: true });
     }, 60);
-  }, [isTarget]);
+    const timeoutId = window.setTimeout(() => setFlashActive(false), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [isTarget, targetMessageId]);
 
   const messagesQuery = useQuery({
     queryKey: ["repair-batch-messages", anchor.batchKey, anchor.equipmentId],
     queryFn: () => fetchEquipmentRepairMessages(token, anchor.equipmentId),
     enabled: Boolean(token) && Boolean(anchor.batchKey) && expanded && dialogExpanded && !isArchived,
   });
+
+  useEffect(() => {
+    if (
+      !isTarget
+      || !targetMessageId
+      || !messagesQuery.data?.some((message) => message.id === targetMessageId)
+    ) {
+      return;
+    }
+    setDialogExpanded(true);
+    setFlashingMessageId(targetMessageId);
+    window.setTimeout(() => {
+      document
+        .getElementById(`repair-batch-message-${anchor.batchKey}-${targetMessageId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 80);
+    const timeoutId = window.setTimeout(() => setFlashingMessageId(null), 1800);
+    return () => window.clearTimeout(timeoutId);
+  }, [anchor.batchKey, isTarget, messagesQuery.data, targetMessageId]);
 
   const candidateEquipmentQuery = useQuery({
     queryKey: ["repair-batch-candidates", anchor.batchKey, anchor.folderId, deferredItemsSearchQuery],
@@ -1016,9 +1110,18 @@ function RepairBatchCard({
   const candidateSearchSuggestions = useMemo(
     () =>
       sortAutocompleteSuggestions(
-        candidateItems.flatMap((item) => [item.title, item.subtitle, item.meta]),
+        (candidateEquipmentQuery.data ?? [])
+          .filter((item) => !batch.items.some((batchItem) => batchItem.equipmentId === item.id))
+          .filter((item) => item.activeRepair === null)
+          .flatMap((item) => [
+            item.name,
+            item.objectName,
+            item.modification,
+            item.serialNumber,
+            item.currentLocationManual,
+          ]),
       ),
-    [candidateItems],
+    [batch.items, candidateEquipmentQuery.data],
   );
 
   const updateMilestonesMutation = useMutation({
@@ -1259,7 +1362,10 @@ function RepairBatchCard({
   if (isArchived) {
     return (
       <article
-        className="tone-parent rounded-3xl border border-line shadow-panel"
+        className={[
+          "tone-parent rounded-3xl border border-line shadow-panel",
+          flashActive ? "process-target-flash" : "",
+        ].join(" ")}
         ref={articleRef}
         tabIndex={-1}
       >
@@ -1344,7 +1450,13 @@ function RepairBatchCard({
                 </div>
                 <div className="mt-4 space-y-2">
                   {batch.items.map((groupItem) => (
-                    <div className="tone-grandchild rounded-2xl border border-line px-3 py-3" key={groupItem.repairId}>
+                    <div
+                      className={[
+                        "tone-grandchild rounded-2xl border border-line px-3 py-3",
+                        groupItem.equipmentId === targetEquipmentId ? "process-target-flash" : "",
+                      ].join(" ")}
+                      key={groupItem.repairId}
+                    >
                       <div className="flex items-center justify-between gap-3">
                         <Link
                           className="text-sm font-medium text-ink transition hover:text-signal-info"
@@ -1396,7 +1508,14 @@ function RepairBatchCard({
   }
 
   return (
-    <article className="tone-parent rounded-3xl border border-line shadow-panel">
+    <article
+      className={[
+        "tone-parent rounded-3xl border border-line shadow-panel",
+        flashActive ? "process-target-flash" : "",
+      ].join(" ")}
+      ref={articleRef}
+      tabIndex={-1}
+    >
       <button
         className="flex w-full flex-col gap-4 px-4 py-4 text-left md:px-5"
         onClick={() => setExpanded((current) => !current)}
@@ -1470,7 +1589,13 @@ function RepairBatchCard({
 
               <div className="mt-4 space-y-2">
                 {batch.items.map((groupItem) => (
-                  <div className="tone-grandchild rounded-2xl border border-line px-3 py-3" key={groupItem.repairId}>
+                  <div
+                    className={[
+                      "tone-grandchild rounded-2xl border border-line px-3 py-3",
+                      groupItem.equipmentId === targetEquipmentId ? "process-target-flash" : "",
+                    ].join(" ")}
+                    key={groupItem.repairId}
+                  >
                     <div className="flex items-center justify-between gap-3">
                       <Link
                         className="text-sm font-medium text-ink transition hover:text-signal-info"
@@ -1648,7 +1773,14 @@ function RepairBatchCard({
                 {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
 
                 {messagesQuery.data?.map((message) => (
-                  <article className="tone-grandchild rounded-2xl border border-line px-4 py-3" key={message.id}>
+                  <article
+                    className={[
+                      "tone-grandchild rounded-2xl border border-line px-4 py-3",
+                      flashingMessageId === message.id ? "process-target-flash" : "",
+                    ].join(" ")}
+                    id={`repair-batch-message-${anchor.batchKey}-${message.id}`}
+                    key={message.id}
+                  >
                     <div className="flex items-start justify-between gap-3">
                       <div className="text-xs text-steel">{formatRepairMessageMeta(message)}</div>
                       {canManage || message.authorUserId === currentUserId ? (

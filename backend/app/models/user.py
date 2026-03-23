@@ -55,6 +55,12 @@ class User(Base):
     organization: Mapped[str | None] = mapped_column(String(255), nullable=True)
     position: Mapped[str | None] = mapped_column(String(255), nullable=True)
     facility: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    dashboard_folder_id: Mapped[int | None] = mapped_column(nullable=True)
+    dashboard_widget_options: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    mention_email_notifications_enabled: Mapped[bool] = mapped_column(
+        nullable=False,
+        default=True,
+    )
     theme_preference: Mapped[UserThemePreference | None] = mapped_column(
         Enum(UserThemePreference, native_enum=False, length=32),
         nullable=True,

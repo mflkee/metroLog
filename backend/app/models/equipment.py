@@ -114,6 +114,8 @@ class Equipment(Base):
         default=EquipmentStatus.IN_WORK,
     )
     current_location_manual: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    compliance_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    compliance_interval_months: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

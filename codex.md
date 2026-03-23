@@ -835,6 +835,13 @@ Later phase, not part of initial MVP:
 - field-level audit history,
 - reporting.
 
+Current implemented baseline already includes part of that later list:
+- attachments,
+- Excel import/export,
+- dashboard,
+- event journal,
+- first email-notification slice for `@mentions`.
+
 ---
 
 ## Expected Repository Structure

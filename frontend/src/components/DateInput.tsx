@@ -1,10 +1,11 @@
 import {
-  type ChangeEvent,
+  type ClipboardEvent,
   type ComponentPropsWithoutRef,
   type FocusEvent,
   type KeyboardEvent as ReactKeyboardEvent,
   forwardRef,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -19,29 +20,45 @@ type DateInputProps = Omit<ComponentPropsWithoutRef<"input">, "type" | "value" |
   onEnter?: () => void;
 };
 
+const EDITABLE_POSITIONS = [0, 1, 3, 4, 6, 7, 8, 9] as const;
+const SLOT_COUNT = EDITABLE_POSITIONS.length;
+const MASK_DISPLAY = "__.__.____";
+
 export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function DateInput(
   { className, onBlur, onChange, onEnter, onKeyDown, placeholder, style, value, ...props },
   ref,
 ) {
-  const [displayValue, setDisplayValue] = useState(() => formatIsoDateForDisplay(value));
+  const [slots, setSlots] = useState<string[]>(() => slotsFromIsoDate(value));
+  const [focused, setFocused] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState<Date>(() => parseIsoDateToDate(value) ?? new Date());
+
   const containerRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const interactingInsideRef = useRef(false);
-  const selectedIsoDate = value ?? parseDateInput(displayValue);
+  const pendingSelectionRef = useRef<{ start: number; end: number } | null>(null);
+
+  const currentIsoFromSlots = useMemo(() => parseSlotsToIso(slots), [slots]);
+  const selectedIsoDate = currentIsoFromSlots ?? value ?? null;
   const selectedDate = useMemo(() => parseIsoDateToDate(selectedIsoDate), [selectedIsoDate]);
+  const selectedDateRef = useRef<Date | null>(selectedDate);
+  const hasAnyDigits = slots.some(Boolean);
+  const displayValue = focused || hasAnyDigits ? formatSlotsForDisplay(slots) : "";
 
   useEffect(() => {
-    setDisplayValue(formatIsoDateForDisplay(value));
+    setSlots(slotsFromIsoDate(value));
   }, [value]);
 
   useEffect(() => {
     if (!calendarOpen) {
       return;
     }
-    setCalendarMonth(selectedDate ?? new Date());
-  }, [calendarOpen, selectedIsoDate, selectedDate]);
+    setCalendarMonth(selectedDateRef.current ?? new Date());
+  }, [calendarOpen]);
+
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
 
   useEffect(() => {
     if (!calendarOpen) {
@@ -71,6 +88,16 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
     };
   }, [calendarOpen]);
 
+  useLayoutEffect(() => {
+    if (!pendingSelectionRef.current || document.activeElement !== inputRef.current) {
+      return;
+    }
+
+    const selection = pendingSelectionRef.current;
+    pendingSelectionRef.current = null;
+    inputRef.current?.setSelectionRange(selection.start, selection.end);
+  });
+
   function assignInputRef(node: HTMLInputElement | null) {
     inputRef.current = node;
     if (typeof ref === "function") {
@@ -82,6 +109,10 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
     }
   }
 
+  function queueCaret(position: number) {
+    pendingSelectionRef.current = { start: position, end: position };
+  }
+
   function markInteractingInside() {
     interactingInsideRef.current = true;
     window.setTimeout(() => {
@@ -89,17 +120,14 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
     }, 0);
   }
 
-  function commitDisplayValue(rawValue: string) {
-    const parsedIsoDate = parseDateInput(rawValue);
+  function syncExternalValue(nextSlots: string[]) {
+    const parsedIsoDate = parseSlotsToIso(nextSlots);
     if (parsedIsoDate) {
-      const nextDisplayValue = formatIsoDateForDisplay(parsedIsoDate);
-      setDisplayValue(nextDisplayValue);
       onChange(parsedIsoDate);
       return parsedIsoDate;
     }
 
-    if (!rawValue.trim()) {
-      setDisplayValue("");
+    if (!nextSlots.some(Boolean)) {
       onChange("");
       return "";
     }
@@ -107,19 +135,87 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
     return null;
   }
 
-  function handleChange(event: ChangeEvent<HTMLInputElement>) {
-    const nextDisplayValue = sanitizeDateInput(event.target.value);
-    setDisplayValue(nextDisplayValue);
-
-    if (!nextDisplayValue.trim()) {
-      onChange("");
+  function replaceSelectionWithDigits(rawDigits: string, start: number, end: number) {
+    const digits = rawDigits.replace(/\D/g, "");
+    if (!digits) {
       return;
     }
 
-    const parsedIsoDate = parseDateInput(nextDisplayValue);
-    if (parsedIsoDate) {
-      onChange(parsedIsoDate);
+    const nextSlots = [...slots];
+    const selectedSlotIndexes = getSelectedSlotIndexes(start, end);
+    const insertionStart = selectedSlotIndexes[0] ?? getSlotIndexAtOrAfter(start);
+    let slotIndex = insertionStart;
+
+    if (selectedSlotIndexes.length > 0) {
+      for (const selectedSlotIndex of selectedSlotIndexes) {
+        nextSlots[selectedSlotIndex] = "";
+      }
+      slotIndex = selectedSlotIndexes[0] ?? slotIndex;
     }
+
+    for (const digit of digits) {
+      if (slotIndex >= SLOT_COUNT) {
+        break;
+      }
+      nextSlots[slotIndex] = digit;
+      slotIndex += 1;
+    }
+
+    setSlots(nextSlots);
+    syncExternalValue(nextSlots);
+    queueCaret(getDisplayPositionForSlot(Math.min(slotIndex, SLOT_COUNT - 1), slotIndex >= SLOT_COUNT));
+  }
+
+  function clearSelectionOrSlot(start: number, end: number, direction: "backspace" | "delete") {
+    const nextSlots = [...slots];
+    const selectedSlotIndexes = getSelectedSlotIndexes(start, end);
+
+    if (selectedSlotIndexes.length > 0) {
+      for (const slotIndex of selectedSlotIndexes) {
+        nextSlots[slotIndex] = "";
+      }
+      setSlots(nextSlots);
+      syncExternalValue(nextSlots);
+      queueCaret(getDisplayPositionForSlot(selectedSlotIndexes[0]));
+      return;
+    }
+
+    const slotIndex =
+      direction === "backspace"
+        ? getSlotIndexBefore(start)
+        : getSlotIndexAtOrAfter(start);
+
+    if (slotIndex === null) {
+      return;
+    }
+
+    nextSlots[slotIndex] = "";
+    setSlots(nextSlots);
+    syncExternalValue(nextSlots);
+    queueCaret(getDisplayPositionForSlot(slotIndex));
+  }
+
+  function commitSlots(): string | null {
+    const parsedIsoDate = parseSlotsToIso(slots);
+    if (parsedIsoDate) {
+      const committedSlots = slotsFromIsoDate(parsedIsoDate);
+      setSlots(committedSlots);
+      onChange(parsedIsoDate);
+      return parsedIsoDate;
+    }
+
+    if (!slots.some(Boolean)) {
+      onChange("");
+      return "";
+    }
+
+    setSlots(slotsFromIsoDate(value));
+    return null;
+  }
+
+  function handleFocus() {
+    setFocused(true);
+    queueCaret(getDisplayPositionForSlot(getSlotIndexAtOrAfter(inputRef.current?.selectionStart ?? 0)));
   }
 
   function handleBlur(event: FocusEvent<HTMLInputElement>) {
@@ -132,44 +228,50 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
       return;
     }
 
-    const committed = commitDisplayValue(displayValue);
-    if (committed === null) {
-      setDisplayValue(formatIsoDateForDisplay(value));
-    }
-
+    commitSlots();
+    setFocused(false);
     setCalendarOpen(false);
     onBlur?.(event);
   }
 
-  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (event.key === "Enter") {
-      event.preventDefault();
-      event.stopPropagation();
+  function handleClick() {
+    const input = inputRef.current;
+    if (!input) {
+      return;
+    }
+    const currentPosition = input.selectionStart ?? 0;
+    queueCaret(getDisplayPositionForSlot(getSlotIndexAtOrAfter(currentPosition)));
+  }
 
-      const committed = commitDisplayValue(displayValue);
-      if (committed !== null || !displayValue.trim()) {
-        onEnter?.();
-      }
+  function handlePaste(event: ClipboardEvent<HTMLInputElement>) {
+    event.preventDefault();
+    const rawText = event.clipboardData.getData("text");
+    const parsedIsoDate = parseDateInput(rawText);
+
+    if (parsedIsoDate) {
+      const nextSlots = slotsFromIsoDate(parsedIsoDate);
+      setSlots(nextSlots);
+      onChange(parsedIsoDate);
+      queueCaret(getDisplayPositionForSlot(SLOT_COUNT - 1, true));
+      return;
     }
 
-    if (event.key === "ArrowDown" && (event.altKey || event.metaKey || event.ctrlKey)) {
-      event.preventDefault();
-      setCalendarOpen(true);
-    }
+    replaceSelectionWithDigits(rawText, event.currentTarget.selectionStart ?? 0, event.currentTarget.selectionEnd ?? 0);
+  }
 
-    if (event.key === "Escape" && calendarOpen) {
-      event.preventDefault();
-      setCalendarOpen(false);
-    }
-
-    onKeyDown?.(event);
+  function handleFallbackChange(nextValue: string) {
+    const nextSlots = slotsFromDisplayString(nextValue);
+    setSlots(nextSlots);
+    syncExternalValue(nextSlots);
   }
 
   function handleSetToday() {
     const todayIsoDate = formatDateObjectToIso(new Date());
-    setDisplayValue(formatIsoDateForDisplay(todayIsoDate));
+    const nextSlots = slotsFromIsoDate(todayIsoDate);
+    setSlots(nextSlots);
     onChange(todayIsoDate);
     setCalendarOpen(false);
+    queueCaret(getDisplayPositionForSlot(SLOT_COUNT - 1, true));
   }
 
   function handleCalendarSelect(date: Date | undefined) {
@@ -177,11 +279,112 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
       return;
     }
     const isoDate = formatDateObjectToIso(date);
-    setDisplayValue(formatIsoDateForDisplay(isoDate));
+    const nextSlots = slotsFromIsoDate(isoDate);
+    setSlots(nextSlots);
     onChange(isoDate);
     setCalendarMonth(date);
     setCalendarOpen(false);
     inputRef.current?.focus();
+    queueCaret(getDisplayPositionForSlot(SLOT_COUNT - 1, true));
+  }
+
+  function handleKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
+    const selectionStart = event.currentTarget.selectionStart ?? 0;
+    const selectionEnd = event.currentTarget.selectionEnd ?? selectionStart;
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const committed = commitSlots();
+      if (committed !== null || !slots.some(Boolean)) {
+        if (onEnter) {
+          onEnter();
+        } else {
+          event.currentTarget.form?.requestSubmit();
+        }
+      }
+      return;
+    }
+
+    if (event.key === "ArrowDown" && (event.altKey || event.metaKey || event.ctrlKey)) {
+      event.preventDefault();
+      setCalendarOpen(true);
+      return;
+    }
+
+    if (event.key === "Escape" && calendarOpen) {
+      event.preventDefault();
+      setCalendarOpen(false);
+      return;
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      const previousSlotIndex = getSlotIndexBefore(selectionStart);
+      if (previousSlotIndex !== null) {
+        queueCaret(getDisplayPositionForSlot(previousSlotIndex));
+      }
+      onKeyDown?.(event);
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      const nextSlotIndex = getSlotIndexAtOrAfter(selectionEnd + (selectionStart === selectionEnd ? 1 : 0));
+      if (nextSlotIndex !== null) {
+        queueCaret(getDisplayPositionForSlot(nextSlotIndex));
+      } else {
+        queueCaret(MASK_DISPLAY.length);
+      }
+      onKeyDown?.(event);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      queueCaret(getDisplayPositionForSlot(0));
+      onKeyDown?.(event);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      queueCaret(MASK_DISPLAY.length);
+      onKeyDown?.(event);
+      return;
+    }
+
+    if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      clearSelectionOrSlot(selectionStart, selectionEnd, event.key === "Backspace" ? "backspace" : "delete");
+      onKeyDown?.(event);
+      return;
+    }
+
+    if (event.metaKey || event.ctrlKey || event.altKey) {
+      onKeyDown?.(event);
+      return;
+    }
+
+    if (/^\d$/.test(event.key)) {
+      event.preventDefault();
+      replaceSelectionWithDigits(event.key, selectionStart, selectionEnd);
+      onKeyDown?.(event);
+      return;
+    }
+
+    if (event.key === "." || event.key === "/" || event.key === "-" || event.key === " ") {
+      event.preventDefault();
+      const nextSlotIndex = getSlotIndexAtOrAfter(selectionEnd + 1);
+      if (nextSlotIndex !== null) {
+        queueCaret(getDisplayPositionForSlot(nextSlotIndex));
+      }
+      onKeyDown?.(event);
+      return;
+    }
+
+    onKeyDown?.(event);
   }
 
   return (
@@ -207,8 +410,11 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
           type="text"
           value={displayValue}
           onBlur={handleBlur}
-          onChange={handleChange}
+          onChange={(event) => handleFallbackChange(event.target.value)}
+          onClick={handleClick}
+          onFocus={handleFocus}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
         />
 
         <button
@@ -275,12 +481,79 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
   );
 });
 
-function sanitizeDateInput(rawValue: string): string {
-  const sanitizedValue = rawValue.replace(/[^\d./\- ]+/g, "");
-  if (!sanitizedValue.trim()) {
-    return "";
+function getDisplayPositionForSlot(slotIndex: number | null, end = false): number {
+  if (slotIndex === null) {
+    return 0;
   }
-  return sanitizedValue.slice(0, 10);
+  if (end) {
+    return MASK_DISPLAY.length;
+  }
+  return EDITABLE_POSITIONS[Math.max(0, Math.min(slotIndex, SLOT_COUNT - 1))] ?? 0;
+}
+
+function getSlotIndexAtOrAfter(position: number): number {
+  for (let index = 0; index < SLOT_COUNT; index += 1) {
+    if (EDITABLE_POSITIONS[index] >= position) {
+      return index;
+    }
+  }
+  return SLOT_COUNT - 1;
+}
+
+function getSlotIndexBefore(position: number): number | null {
+  for (let index = SLOT_COUNT - 1; index >= 0; index -= 1) {
+    if (EDITABLE_POSITIONS[index] < position) {
+      return index;
+    }
+  }
+  return null;
+}
+
+function getSelectedSlotIndexes(start: number, end: number): number[] {
+  if (end <= start) {
+    return [];
+  }
+  return EDITABLE_POSITIONS
+    .map((position, index) => ({ position, index }))
+    .filter(({ position }) => position >= start && position < end)
+    .map(({ index }) => index);
+}
+
+function slotsFromIsoDate(value: string | null | undefined): string[] {
+  const displayValue = formatIsoDateForDisplay(value);
+  return slotsFromDisplayString(displayValue);
+}
+
+function slotsFromDisplayString(rawValue: string): string[] {
+  const nextSlots = Array.from({ length: SLOT_COUNT }, () => "");
+  const digits = rawValue.replace(/\D/g, "").slice(0, SLOT_COUNT);
+
+  for (let index = 0; index < digits.length; index += 1) {
+    nextSlots[index] = digits[index] ?? "";
+  }
+
+  return nextSlots;
+}
+
+function formatSlotsForDisplay(slots: string[]): string {
+  return MASK_DISPLAY.split("").map((character, index) => {
+    const slotIndex = EDITABLE_POSITIONS.indexOf(index as (typeof EDITABLE_POSITIONS)[number]);
+    if (slotIndex === -1) {
+      return character;
+    }
+    return slots[slotIndex] || "_";
+  }).join("");
+}
+
+function parseSlotsToIso(slots: string[]): string | null {
+  if (slots.some((slot) => !slot)) {
+    return null;
+  }
+
+  const day = `${slots[0]}${slots[1]}`;
+  const month = `${slots[2]}${slots[3]}`;
+  const year = `${slots[4]}${slots[5]}${slots[6]}${slots[7]}`;
+  return buildIsoDate(year, month, day);
 }
 
 function parseDateInput(rawValue: string): string | null {

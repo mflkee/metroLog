@@ -1,3 +1,5 @@
+import { type FormEvent } from "react";
+
 import { Modal } from "@/components/Modal";
 
 type DeleteConfirmModalProps = {
@@ -23,6 +25,14 @@ export function DeleteConfirmModal({
   onClose,
   onConfirm,
 }: DeleteConfirmModalProps) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isPending) {
+      return;
+    }
+    onConfirm();
+  }
+
   return (
     <Modal
       description={description}
@@ -31,20 +41,20 @@ export function DeleteConfirmModal({
       title={title}
       onClose={onClose}
     >
-      <div className="space-y-3">
+      <form className="space-y-3" onSubmit={handleSubmit}>
         {errorMessage ? <p className="text-sm text-[#b04c43]">{errorMessage}</p> : null}
         <div className="flex justify-end">
           <button
             aria-label={confirmLabel}
+            autoFocus
             className="btn-primary disabled:opacity-60"
             disabled={isPending}
-            type="button"
-            onClick={onConfirm}
+            type="submit"
           >
             {isPending ? pendingLabel : confirmLabel}
           </button>
         </div>
-      </div>
+      </form>
     </Modal>
   );
 }

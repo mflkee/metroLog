@@ -35,6 +35,14 @@ class UserRepository:
         statement = select(User).order_by(User.created_at.asc(), User.id.asc())
         return list(self.session.scalars(statement))
 
+    def list_active(self) -> list[User]:
+        statement = (
+            select(User)
+            .where(User.is_active.is_(True))
+            .order_by(User.last_name.asc(), User.first_name.asc(), User.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
     def count_all(self) -> int:
         statement = select(func.count()).select_from(User)
         return int(self.session.scalar(statement) or 0)

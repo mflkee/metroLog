@@ -4,6 +4,10 @@ from pathlib import Path
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+CONFIG_FILE_PATH = Path(__file__).resolve()
+BACKEND_ROOT = CONFIG_FILE_PATH.parents[2]
+PROJECT_ROOT = CONFIG_FILE_PATH.parents[3]
+
 
 class Settings(BaseSettings):
     app_name: str = "metroLog API"
@@ -23,13 +27,23 @@ class Settings(BaseSettings):
     arshin_public_results_base_url: str = "https://fgis.gost.ru/fundmetrology/cm/results/"
     arshin_api_timeout_seconds: float = 30.0
     attachment_storage_dir: str = "storage/equipment-attachments"
+    mention_notifications_enabled: bool = False
+    smtp_host: str | None = None
+    smtp_port: int = 465
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_from_name: str = "metroLog Robot"
     backend_cors_origins_raw: str = Field(
         default="http://localhost:5173",
         alias="BACKEND_CORS_ORIGINS",
     )
 
     model_config = SettingsConfigDict(
-        env_file=".env",
+        env_file=(
+            str(PROJECT_ROOT / ".env"),
+            str(BACKEND_ROOT / ".env"),
+        ),
         env_file_encoding="utf-8",
         extra="ignore",
     )

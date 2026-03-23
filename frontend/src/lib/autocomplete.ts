@@ -9,6 +9,28 @@ export function sortAutocompleteSuggestions(values: Iterable<string | null | und
   ).sort((left, right) => left.localeCompare(right, "ru-RU", { sensitivity: "base" }));
 }
 
+export function buildMentionSuggestionOptions(
+  values: Iterable<{
+    mentionKey: string;
+    displayName: string;
+    email?: string | null;
+  }>,
+): Array<{ value: string; label: string }> {
+  return Array.from(
+    new Map(
+      Array.from(values).map((item) => [
+        item.mentionKey,
+        {
+          value: `@${item.mentionKey}`,
+          label: item.email
+            ? `${item.displayName} · @${item.mentionKey} · ${item.email}`
+            : `${item.displayName} · @${item.mentionKey}`,
+        },
+      ]),
+    ).values(),
+  );
+}
+
 export function rankAutocompleteSuggestions(values: string[], query: string): string[] {
   const normalizedQuery = normalizeAutocompleteValue(query);
   const uniqueValues = sortAutocompleteSuggestions(values);

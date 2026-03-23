@@ -44,7 +44,7 @@ export function DeveloperDashboardPage() {
   return (
     <section className="space-y-6">
       <PageHeader
-        title="Dev Dashboard"
+        title="Панель мониторинга"
         description="Служебная панель администратора для быстрого контроля активности пользователей, последних входов и текущего онлайн-статуса."
       />
 
@@ -79,7 +79,7 @@ export function DeveloperDashboardPage() {
                   </p>
                 </div>
                 <span className="rounded-full border border-line px-3 py-1 text-xs font-semibold text-ink">
-                  {onlineUsers.length} online
+                  {onlineUsers.length} в сети
                 </span>
               </div>
 

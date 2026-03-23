@@ -8,10 +8,9 @@ export function AuthLayout() {
           <p className="text-sm font-semibold uppercase tracking-[0.24em] text-signal-info">
             metroLog
           </p>
-          <h1 className="text-3xl font-semibold text-ink">Вход в рабочую среду</h1>
+          <h1 className="text-3xl font-semibold text-ink">Вход в систему</h1>
           <p className="max-w-md text-sm text-steel">
-            Минималистичный вход в систему без лендинга. После аутентификации пользователь
-            попадает сразу в рабочий shell приложения.
+            Авторизация во внутренней рабочей среде. После входа откроется основное приложение.
           </p>
         </div>
         <Outlet />
@@ -19,4 +18,3 @@ export function AuthLayout() {
     </main>
   );
 }
-

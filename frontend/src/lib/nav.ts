@@ -29,8 +29,8 @@ const eventsNavigationItem: NavigationItem = {
 
 const developerNavigationItem: NavigationItem = {
   icon: "monitor",
-  label: "Dev",
-  description: "Статистика и активность пользователей",
+  label: "Мониторинг",
+  description: "Статистика, активность и состояние пользователей",
   to: "/developer",
 };
 

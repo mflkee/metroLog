@@ -21,22 +21,15 @@ export function AccountMenu() {
             </p>
           </div>
         ) : null}
-        <Link
-          className="rounded-full border border-line px-3 py-1.5 text-sm text-steel transition hover:border-signal-info hover:text-ink"
-          to="/profile"
-        >
+        <Link className="btn-secondary btn-sm" to="/profile">
           Профиль
         </Link>
         {user ? (
-          <button
-            className="rounded-full bg-[#dc3545] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#c82333]"
-            type="button"
-            onClick={clearSession}
-          >
+          <button className="btn-danger btn-sm" type="button" onClick={clearSession}>
             Выйти
           </button>
         ) : (
-          <Link className="rounded-full bg-ink px-3 py-1.5 text-sm font-medium text-white" to="/login">
+          <Link className="btn-primary btn-sm" to="/login">
             Войти
           </Link>
         )}

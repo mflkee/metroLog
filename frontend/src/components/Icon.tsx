@@ -88,7 +88,6 @@ export function Icon({ name, className }: IconProps) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 15.75v3" />
         </svg>
       );
-
     case "plus":
       return (
         <svg className={baseClassName} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">

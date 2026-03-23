@@ -787,10 +787,9 @@ class EquipmentService:
             "Серийный номер",
             "Год выпуска",
             "Объект",
-            "Местонахождение",
+            "Локация",
             "Номер свидетельства",
             "Действительно до",
-            "Следующий срок",
         ]
         sheet.append(headers)
 
@@ -818,7 +817,6 @@ class EquipmentService:
                         if verification is not None and verification.valid_date is not None
                         else None
                     ),
-                    _format_export_date(_get_equipment_next_due_date(equipment)),
                 ]
             )
 

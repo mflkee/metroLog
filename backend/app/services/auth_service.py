@@ -49,6 +49,12 @@ class AuthService:
                 detail="User account is inactive.",
             )
 
+        now = datetime.now(tz=UTC)
+        user.last_login_at = now
+        user.last_seen_at = now
+        self.session.commit()
+        self.session.refresh(user)
+
         return user, self._create_access_token_for_user(user)
 
     def change_password(self, *, user: User, payload: ChangePasswordRequest) -> None:

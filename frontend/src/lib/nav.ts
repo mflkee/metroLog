@@ -27,6 +27,13 @@ const eventsNavigationItem: NavigationItem = {
   to: "/events",
 };
 
+const developerNavigationItem: NavigationItem = {
+  icon: "monitor",
+  label: "Dev",
+  description: "Статистика и активность пользователей",
+  to: "/developer",
+};
+
 const adminUsersNavigationItem: NavigationItem = {
   icon: "users",
   label: "Пользователи",
@@ -42,7 +49,7 @@ export function getNavigationItems(role: UserRole | null | undefined): Navigatio
   }
 
   if (role === "ADMINISTRATOR") {
-    items.push(adminUsersNavigationItem);
+    items.push(developerNavigationItem, adminUsersNavigationItem);
   }
 
   return items;

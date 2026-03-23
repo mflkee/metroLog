@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -43,6 +44,13 @@ async def get_current_user(
             detail="User is not available.",
         )
 
+    now = datetime.now(tz=UTC)
+    last_seen_at = _coerce_utc(user.last_seen_at)
+    if last_seen_at is None or now - last_seen_at >= timedelta(minutes=5):
+        user.last_seen_at = now
+        db.commit()
+        db.refresh(user)
+
     return user
 
 
@@ -71,3 +79,11 @@ async def require_operator(current_user: CurrentUser) -> User:
 
 
 OperatorUser = Annotated[User, Depends(require_operator)]
+
+
+def _coerce_utc(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=UTC)
+    return value.astimezone(UTC)

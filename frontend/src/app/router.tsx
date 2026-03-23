@@ -5,6 +5,7 @@ import { ShellLayout } from "@/app/ShellLayout";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { AdminUsersPage } from "@/pages/AdminUsersPage";
 import { DashboardPage } from "@/pages/DashboardPage";
+import { DeveloperDashboardPage } from "@/pages/DeveloperDashboardPage";
 import { EquipmentDetailsPage } from "@/pages/EquipmentDetailsPage";
 import { EquipmentPage } from "@/pages/EquipmentPage";
 import { EventsPage } from "@/pages/EventsPage";
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
           {
             element: <RequireRoles allowedRoles={["ADMINISTRATOR"]} />,
             children: [
+              { path: "/developer", element: <DeveloperDashboardPage /> },
               { path: "/admin/users", element: <AdminUsersPage /> },
               { path: "/admin/users/:userId", element: <UserDetailsPage /> },
             ],

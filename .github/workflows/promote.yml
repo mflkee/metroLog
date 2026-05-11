@@ -1,44 +1,48 @@
-name: Deploy to Production
+name: Promote to Production
 
 on:
-  push:
-    branches: [release/*]
   workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "deploy" to promote staging to production'
+        required: true
+        default: ''
 
 jobs:
-  deploy:
+  promote:
     runs-on: [self-hosted, mkair]
     environment: production
+    if: github.event.inputs.confirm == 'deploy'
     steps:
       - name: Pull latest code
         run: |
           cd ~/apps/metroLog
           git fetch origin
-          git reset --hard origin/${{ github.ref_name }}
+          git reset --hard origin/main
 
-      - name: Backup
+      - name: Backup production database
         run: |
           cd ~/apps/metroLog
-          ./scripts/docker/backup.sh
+          docker compose exec -T postgres pg_dump -U metrolog metrolog > /tmp/metroLog_backup_$(date +%Y%m%d_%H%M%S).sql
 
       - name: Build & deploy production
         run: |
           cd ~/apps/metroLog
           docker compose up -d --build
 
-      - name: Health check
+      - name: Production health check
         run: |
           for _ in {1..30}; do
             if curl -fsS http://127.0.0.1:8000/api/v1/health/ready >/dev/null 2>&1; then
-              echo "Backend is ready"
+              echo "Production backend is ready"
               exit 0
             fi
             sleep 1
           done
-          echo "Backend failed to become ready within 30s"
+          echo "Production backend failed to become ready within 30s"
           exit 1
 
-      - name: Show status
+      - name: Show production status
         if: always()
         run: |
           cd ~/apps/metroLog

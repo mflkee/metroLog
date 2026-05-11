@@ -1,32 +1,35 @@
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: metroLog_postgres_stg
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-metrolog}
+      POSTGRES_DB: ${POSTGRES_DB:-metrolog_stg}
       POSTGRES_USER: ${POSTGRES_USER:-metrolog}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-metrolog}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "${POSTGRES_STG_PORT:-5436}:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data_stg:/var/lib/postgresql/data
 
   redis:
     image: redis:7-alpine
+    container_name: metroLog_redis_stg
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "${REDIS_STG_PORT:-6380}:6379"
     volumes:
-      - redis_data:/data
+      - redis_data_stg:/data
 
   backend:
     build:
       context: ./backend
+    container_name: metroLog_backend_stg
     restart: unless-stopped
     env_file:
       - ./.env
     environment:
-      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://metrolog:metrolog@postgres:5432/metrolog}
+      DATABASE_URL: ${DATABASE_URL:-postgresql+psycopg://metrolog:metrolog@postgres:5432/metrolog_stg}
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
       BACKEND_CORS_ORIGINS: ${BACKEND_CORS_ORIGINS:-http://localhost:5173}
       NOTIFICATION_QUEUE_ENABLED: ${NOTIFICATION_QUEUE_ENABLED:-true}
@@ -34,16 +37,25 @@ services:
       - postgres
       - redis
     ports:
-      - "${BACKEND_PORT:-8000}:8000"
+      - "${BACKEND_STG_PORT:-9000}:8000"
     volumes:
-      - backend_storage:/app/storage
+      - backend_storage_stg:/app/storage
     command: >
       sh -c "alembic upgrade head &&
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${BACKEND_WORKERS:-2}"
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
   backend-worker:
     build:
       context: ./backend
+    container_name: metroLog_backend_worker_stg
     restart: unless-stopped
     env_file:
       - ./.env
@@ -56,11 +68,11 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '1.0'
-          memory: 512M
+          cpus: '0.5'
+          memory: 256M
         reservations:
           cpus: '0.1'
-          memory: 128M
+          memory: 64M
 
   frontend:
     build:
@@ -68,13 +80,14 @@ services:
       dockerfile: frontend/Dockerfile
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api/v1}
+    container_name: metroLog_frontend_stg
     restart: unless-stopped
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_PORT:-5173}:80"
+      - "${FRONTEND_STG_PORT:-9173}:80"
 
 volumes:
-  postgres_data:
-  redis_data:
-  backend_storage:
+  postgres_data_stg:
+  redis_data_stg:
+  backend_storage_stg:

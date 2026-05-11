@@ -19,7 +19,7 @@ from app.services.notification_service import (
     NotificationDeliveryError,
     NotificationService,
 )
-from app.services.user_service import is_folder_access_allowed
+from app.services.user_service import _filter_dashboard_folder_ids_for_scope, is_folder_access_allowed
 from app.utils.password_policy import validate_password_policy
 from app.utils.security import (
     create_access_token,
@@ -131,9 +131,20 @@ class AuthService:
             user.enabled_theme_options = _normalize_enabled_theme_options(
                 payload.enabled_theme_options
             )
+        self._sync_dashboard_folder_scope(user)
         self.session.commit()
         self.session.refresh(user)
         return user
+
+    def _sync_dashboard_folder_scope(self, user: User) -> None:
+        filtered = _filter_dashboard_folder_ids_for_scope(
+            role=user.role,
+            allowed_folder_ids=user.allowed_folder_ids,
+            folder_ids=user.dashboard_folder_ids,
+        )
+        if filtered != user.dashboard_folder_ids:
+            user.dashboard_folder_ids = filtered
+            user.dashboard_folder_id = filtered[0] if filtered else None
 
     def send_test_mention_email(self, *, user: User) -> None:
         try:
@@ -262,15 +273,9 @@ def _normalize_dashboard_folder_ids(
 
         folder = folders.get_by_id(folder_id)
         if folder is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Папка {folder_id} для информационной панели не найдена.",
-            )
+            continue
         if not is_folder_access_allowed(user, folder_id):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Одна из выбранных папок недоступна для этого пользователя.",
-            )
+            continue
 
         seen.add(folder_id)
         normalized.append(folder_id)

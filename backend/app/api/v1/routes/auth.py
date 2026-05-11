@@ -16,11 +16,13 @@ router = APIRouter(prefix="/auth")
 @router.post("/login", response_model=AuthResponse)
 async def login(payload: LoginRequest, db: DbSession) -> AuthResponse:
     user, token = AuthService(db).login(payload)
+    AuthService(db)._sync_dashboard_folder_scope(user)
     return AuthResponse(access_token=token, user=UserRead.model_validate(user))
 
 
 @router.get("/me", response_model=UserRead)
-async def me(current_user: CurrentUser) -> UserRead:
+async def me(current_user: CurrentUser, db: DbSession) -> UserRead:
+    AuthService(db)._sync_dashboard_folder_scope(current_user)
     return UserRead.model_validate(current_user)
 
 

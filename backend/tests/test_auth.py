@@ -483,7 +483,7 @@ async def test_restricted_user_can_choose_multiple_allowed_dashboard_folders(
     ]
     assert allowed_response.json()["dashboard_folder_id"] == first_folder_response.json()["id"]
 
-    forbidden_response = await client.patch(
+    mixed_response = await client.patch(
         "/api/v1/auth/me",
         headers=user_headers,
         json={
@@ -493,11 +493,121 @@ async def test_restricted_user_can_choose_multiple_allowed_dashboard_folders(
             ]
         },
     )
-    assert forbidden_response.status_code == 403
+    assert mixed_response.status_code == 200
+    assert mixed_response.json()["dashboard_folder_ids"] == [
+        first_folder_response.json()["id"],
+    ]
     assert (
-        forbidden_response.json()["detail"]
-        == "Одна из выбранных папок недоступна для этого пользователя."
+        mixed_response.json()["dashboard_folder_id"]
+        == first_folder_response.json()["id"]
     )
+
+
+@pytest.mark.anyio
+async def test_dashboard_folder_ids_filters_out_deleted_folders(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=admin_headers,
+        json={"name": "Живая папка"},
+    )
+    assert folder_response.status_code == 201
+    folder_id = folder_response.json()["id"]
+
+    create_response = await client.post(
+        "/api/v1/users",
+        headers=admin_headers,
+        json={
+            "first_name": "Stale",
+            "last_name": "User",
+            "email": "stale-user@example.com",
+            "role": "CUSTOMER",
+            "is_active": True,
+            "allowed_folder_ids": [folder_id],
+        },
+    )
+    assert create_response.status_code == 201
+    user_password = create_response.json()["temporary_password"]
+    user = await login_user(client, email="stale-user@example.com", password=user_password)
+    user_headers = {"Authorization": f"Bearer {user['access_token']}"}
+
+    # Пытаемся сохранить dashboard_folder_ids с несуществующим ID (имитация удалённой папки)
+    response = await client.patch(
+        "/api/v1/auth/me",
+        headers=user_headers,
+        json={
+            "dashboard_folder_ids": [folder_id, 999999],
+        },
+    )
+    assert response.status_code == 200
+    assert response.json()["dashboard_folder_ids"] == [folder_id]
+    assert response.json()["dashboard_folder_id"] == folder_id
+
+
+@pytest.mark.anyio
+async def test_me_filters_out_inaccessible_dashboard_folders(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    from sqlalchemy.orm import Session
+    from app.models.user import User
+
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    allowed_folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=admin_headers,
+        json={"name": "Доступная папка"},
+    )
+    forbidden_folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=admin_headers,
+        json={"name": "Недоступная папка"},
+    )
+    assert allowed_folder_response.status_code == 201
+    assert forbidden_folder_response.status_code == 201
+    allowed_folder_id = allowed_folder_response.json()["id"]
+    forbidden_folder_id = forbidden_folder_response.json()["id"]
+
+    create_response = await client.post(
+        "/api/v1/users",
+        headers=admin_headers,
+        json={
+            "first_name": "Scoped",
+            "last_name": "Dash",
+            "email": "scoped-dash@example.com",
+            "role": "CUSTOMER",
+            "is_active": True,
+            "allowed_folder_ids": [allowed_folder_id],
+        },
+    )
+    assert create_response.status_code == 201
+    user_id = create_response.json()["user"]["id"]
+    user_password = create_response.json()["temporary_password"]
+
+    # Имитируем "рассинхронизацию" напрямую в БД (админ убрал доступ, но dashboard не почистил)
+    with Session(db_engine) as session:
+        user = session.get(User, user_id)
+        assert user is not None
+        user.dashboard_folder_ids = [allowed_folder_id, forbidden_folder_id]
+        user.dashboard_folder_id = forbidden_folder_id
+        session.commit()
+
+    user = await login_user(client, email="scoped-dash@example.com", password=user_password)
+    user_headers = {"Authorization": f"Bearer {user['access_token']}"}
+
+    me_response = await client.get("/api/v1/auth/me", headers=user_headers)
+    assert me_response.status_code == 200
+    assert me_response.json()["dashboard_folder_ids"] == [allowed_folder_id]
+    assert me_response.json()["dashboard_folder_id"] == allowed_folder_id
 
 
 @pytest.mark.anyio

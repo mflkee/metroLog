@@ -1,4 +1,5 @@
 # metroLog
+<img width="1864" height="1025" alt="изображение" src="https://github.com/user-attachments/assets/9b9571a9-f0f1-4691-820d-7303aa52fc28" />
 
 <p align="center">
   <strong>Система учёта средств измерений и эталонов</strong>

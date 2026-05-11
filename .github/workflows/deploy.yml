@@ -27,8 +27,15 @@ jobs:
 
       - name: Health check
         run: |
-          sleep 5
-          curl -fsS http://127.0.0.1:8000/api/v1/health
+          for _ in {1..30}; do
+            if curl -fsS http://127.0.0.1:8000/api/v1/health/ready >/dev/null 2>&1; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Backend failed to become ready within 30s"
+          exit 1
 
       - name: Show status
         if: always()

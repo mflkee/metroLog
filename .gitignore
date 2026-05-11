@@ -20,3 +20,8 @@ dist/
 .DS_Store
 storage/
 backups/
+codex/
+docs/
+.codex
+codex.md
+SETUP_NEW_SERVER.md

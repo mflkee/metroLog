@@ -13,8 +13,25 @@ jobs:
       - name: Checkout staging code
         run: |
           cd ~/apps/metroLog
+          # Сохраняем .env перед git reset --hard
+          if [ -f .env ]; then
+            cp .env /tmp/metrolog_env_backup
+            echo 'Backed up .env'
+          fi
           git fetch origin
           git reset --hard origin/main
+          # Восстанавливаем .env
+          if [ -f /tmp/metrolog_env_backup ]; then
+            cp /tmp/metrolog_env_backup .env
+            echo 'Restored .env from backup'
+          else
+            echo 'WARNING: no .env found'
+          fi
+          # Защита от accidental commit
+          if ! grep -q '^\.env$' .gitignore 2>/dev/null; then
+            echo '.env' >> .gitignore
+          fi
+          git update-index --assume-unchanged .env
 
       - name: Build & deploy staging
         run: |
@@ -25,12 +42,12 @@ jobs:
         run: |
           for _ in {1..30}; do
             if curl -fsS http://127.0.0.1:9000/api/v1/health/ready >/dev/null 2>&1; then
-              echo "Staging backend is ready"
+              echo 'Staging backend is ready'
               exit 0
             fi
             sleep 1
           done
-          echo "Staging backend failed to become ready within 30s"
+          echo 'Staging backend failed to become ready within 30s'
           exit 1
 
       - name: Show staging status

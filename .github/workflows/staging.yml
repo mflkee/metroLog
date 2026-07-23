@@ -31,7 +31,7 @@ jobs:
           if ! grep -q '^\.env$' .gitignore 2>/dev/null; then
             echo '.env' >> .gitignore
           fi
-          git update-index --assume-unchanged .env
+          
 
       - name: Build & deploy staging
         run: |

@@ -342,6 +342,44 @@ docker compose ps
 
 **Data safety**: ordinary `docker compose up -d --build` preserves named volumes. Dangerous: `docker compose down -v`.
 
+### Stage-окружение и алгоритмы деплоя
+
+**Два compose-проекта на сервере (одинаковая папка `~/apps/metroLog`!):**
+| Проект | Файл | Контейнеры | Порты |
+|--------|------|-----------|-------|
+| `metrolog` (прод, дефолтный) | `docker-compose.yml` | `metrolog-*` | backend 8000, frontend 5173, postgres 5432, redis 6379 |
+| `metrolog-stg` (Stage) | `docker-compose.staging.yml` | `metroLog_*_stg` | backend 9000, frontend 9173, postgres 5439, redis 6380 |
+
+Project name по умолчанию = basename папки (`metroLog` → `metrolog`) — **совпадает с продом**. Поэтому Stage **обязательно** деплоить с явным `-p metrolog-stg`.
+
+**⚠️ КРИТИЧНЫЕ ГРАБЛИ (инцидент 2026-09-24):**
+- `docker compose -f docker-compose.staging.yml up -d --build` **без `-p metrolog-stg`** → compose считает прод-контейнеры `metrolog-*` своими и пересоздаёт их по стейджинг-конфигу → прод-postgres/redis уходят в Created/Dead, прод падает. Данные НЕ теряются (volumes прод-проекта `metrolog_postgres_data` и т.д не трогаются).
+- **`.github/workflows/staging.yml` имеет тот же баг** (нет `-p metrolog-stg`) — первый прогон через runner обрушил прод. Перед использованием workflow — починить (добавить `-p metrolog-stg`), иначе деплой в Stage руками, см. ниже.
+- Восстановление прода после такого: `cd ~/apps/metroLog && docker compose up -d postgres redis` (прод compose, без `-p`) — контейнеры поднимутся из volumes, данные целы.
+
+**Деплой в Stage (вручную, безопасно):**
+```bash
+ssh mkair-server-tmn
+cd ~/apps/metroLog
+git fetch origin && git checkout <branch>
+POSTGRES_STG_PORT=5439 docker compose -p metrolog-stg -f docker-compose.staging.yml up -d --build
+curl http://127.0.0.1:9000/api/v1/health/ready   # Stage фронт: http://100.89.18.223:9173
+```
+Примечания: `POSTGRES_STG_PORT=5439` обязателен (дефолт 5436 занят `metroCheck_postgres_stg`); Stage БД изолирована (отдельный контейнер `metroLog_postgres_stg` с volume `metrolog-stg_postgres_data_stg`); `alembic upgrade head` выполняется при старте backend.
+
+**Деплой в прод:**
+- Авто (через CI): push ветки `release/*` → `deploy.yml`: `git reset --hard origin/release/*` → `./scripts/docker/backup.sh` → `docker compose up -d --build` → health 8000.
+- Создать release из main: `git push origin main:release/<name>`.
+- Из `main` прод НЕ деплоится (push в `main` → только Stage через `staging.yml`).
+- Вручную (fallback): `cd ~/apps/metroLog && git pull && ./scripts/docker/backup.sh && docker compose up -d --build`.
+
+**Алгоритм выкатки фичи:**
+1. `feature/*`-ветка → локальные проверки (`npm run check`)
+2. Деплой в Stage (команда с `-p metrolog-stg`) → тест
+3. Merge в `main` (CI обновит Stage; на прод не влияет)
+4. `git push origin main:release/<name>` → авто-деплой прода
+5. Проверить: health 8000 + `docker compose ps`
+
 ---
 
 ## 12. Current Hotspots

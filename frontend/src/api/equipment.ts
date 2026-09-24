@@ -3,7 +3,7 @@ import type { ArshinSearchResult, ArshinVriDetail } from "@/api/arshin";
 import { ApiError, apiBaseUrl, apiRequest, getResponseErrorMessage } from "@/api/client";
 
 export type EquipmentType = "SI" | "ESI" | "IO" | "VO" | "OTHER";
-export type EquipmentStatus = "IN_WORK" | "IN_VERIFICATION" | "IN_REPAIR" | "ARCHIVED";
+export type EquipmentStatus = "IN_WORK" | "IN_VERIFICATION" | "IN_REPAIR" | "REPAIRED" | "NOT_REPAIRABLE" | "ARCHIVED";
 export type ESIModuleKind = "INTERNAL" | "EXTERNAL";
 export type VerificationFlowMode =
   | "OFFSITE_WITH_DEMOLITION"
@@ -3106,6 +3106,8 @@ export const equipmentStatusLabels: Record<EquipmentStatus, string> = {
   IN_WORK: "В работе",
   IN_VERIFICATION: "В поверке",
   IN_REPAIR: "В ремонте",
+  REPAIRED: "Отремонтировано",
+  NOT_REPAIRABLE: "Неремонтопригодно",
   ARCHIVED: "Архив",
 };
 
@@ -3120,6 +3122,29 @@ export function getEquipmentStatusLabel(item: Pick<EquipmentItem, "status" | "ac
     return equipmentStatusLabels.IN_VERIFICATION;
   }
   return equipmentStatusLabels[item.status];
+}
+
+export function getEquipmentStatusColor(item: Pick<EquipmentItem, "status" | "activeRepair" | "activeVerification">): string {
+  if (item.activeRepair) {
+    return "var(--status-repair)";
+  }
+  if (item.activeVerification) {
+    return "var(--status-verification)";
+  }
+  switch (item.status) {
+    case "IN_WORK":
+      return "var(--status-in-work)";
+    case "IN_VERIFICATION":
+      return "var(--status-verification)";
+    case "IN_REPAIR":
+      return "var(--status-repair)";
+    case "REPAIRED":
+      return "var(--status-repaired)";
+    case "NOT_REPAIRABLE":
+      return "var(--status-not-repairable)";
+    case "ARCHIVED":
+      return "var(--status-archived)";
+  }
 }
 
 export function getEquipmentNextDueDate(

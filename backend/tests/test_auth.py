@@ -497,10 +497,7 @@ async def test_restricted_user_can_choose_multiple_allowed_dashboard_folders(
     assert mixed_response.json()["dashboard_folder_ids"] == [
         first_folder_response.json()["id"],
     ]
-    assert (
-        mixed_response.json()["dashboard_folder_id"]
-        == first_folder_response.json()["id"]
-    )
+    assert mixed_response.json()["dashboard_folder_id"] == first_folder_response.json()["id"]
 
 
 @pytest.mark.anyio
@@ -556,6 +553,7 @@ async def test_me_filters_out_inaccessible_dashboard_folders(
     db_engine,
 ) -> None:
     from sqlalchemy.orm import Session
+
     from app.models.user import User
 
     admin_email, admin_password = bootstrap_admin(db_engine)

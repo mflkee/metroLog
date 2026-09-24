@@ -607,6 +607,8 @@ function buildStatusEntries(equipmentItems: EquipmentItem[]): DistributionEntry[
     { label: "В ремонте", value: map.get("IN_REPAIR") ?? 0, color: "var(--chart-repair)" },
     { label: "В поверке", value: map.get("IN_VERIFICATION") ?? 0, color: "var(--chart-verification)" },
     { label: "В ремонте/поверке", value: map.get("BOTH") ?? 0, color: "var(--chart-both)" },
+    { label: "Отремонтировано", value: map.get("REPAIRED") ?? 0, color: "var(--chart-repaired)" },
+    { label: "Неремонтопригодно", value: map.get("NOT_REPAIRABLE") ?? 0, color: "var(--chart-not-repairable)" },
     { label: "В архиве", value: map.get("ARCHIVED") ?? 0, color: "var(--chart-archived)" },
   ].filter((entry) => entry.value > 0);
 }

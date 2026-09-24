@@ -36,6 +36,7 @@ import {
   getArshinDocumentShortLabel,
   getEditableEquipmentTypeOptions,
   getEquipmentStatusLabel,
+  getEquipmentStatusColor,
   getEquipmentComplianceDateLabel,
   getEquipmentCompliancePeriodLabel,
   getEquipmentNextDueDate,
@@ -160,7 +161,7 @@ type ESICompositionFormState = {
   measurementLimit: string;
 };
 
-const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "ARCHIVED"];
+const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "REPAIRED", "NOT_REPAIRABLE", "ARCHIVED"];
 const complianceIntervalOptions = [
   { value: "12", label: "1 год" },
   { value: "24", label: "2 года" },
@@ -2117,7 +2118,13 @@ export function EquipmentDetailsPage() {
                     <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-steel">
                       {label}
                     </dt>
-                    <dd className="min-w-0 break-words font-medium text-ink">{value}</dd>
+                    <dd className="min-w-0 break-words font-medium text-ink">
+                      {label === "Статус" ? (
+                        <span style={{ color: getEquipmentStatusColor(equipment) }}>{value}</span>
+                      ) : (
+                        value
+                      )}
+                    </dd>
                   </div>
                 ))}
               </dl>

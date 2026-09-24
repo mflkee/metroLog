@@ -19,7 +19,10 @@ from app.services.notification_service import (
     NotificationDeliveryError,
     NotificationService,
 )
-from app.services.user_service import _filter_dashboard_folder_ids_for_scope, is_folder_access_allowed
+from app.services.user_service import (
+    _filter_dashboard_folder_ids_for_scope,
+    is_folder_access_allowed,
+)
 from app.utils.password_policy import validate_password_policy
 from app.utils.security import (
     create_access_token,

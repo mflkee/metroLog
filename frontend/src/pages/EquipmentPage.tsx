@@ -36,6 +36,7 @@ import {
   fetchEquipmentFolderSuggestions,
   getEditableEquipmentTypeOptions,
   getEquipmentStatusLabel,
+  getEquipmentStatusColor,
   getEquipmentComplianceDateLabel,
   getEquipmentCompliancePeriodLabel,
   getEquipmentNextDueDate,
@@ -93,7 +94,7 @@ import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/
 import { useAuthStore } from "@/store/auth";
 
 const equipmentTypeOptions: EquipmentType[] = ["SI", "ESI", "IO", "VO", "OTHER"];
-const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "ARCHIVED"];
+const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "REPAIRED", "NOT_REPAIRABLE", "ARCHIVED"];
 const subtleButtonClass = "btn-secondary";
 const subtleButtonWithIconClass = "btn-secondary inline-flex items-center gap-2";
 const equipmentPageSize = 100;
@@ -4289,7 +4290,9 @@ function EquipmentRow({
           {equipmentTypeLabels[item.equipmentType]}
         </span>
       </td>
-      <td className="px-3 py-3 align-top">{getEquipmentStatusLabel(item)}</td>
+      <td className="px-3 py-3 align-top">
+        <span style={{ color: getEquipmentStatusColor(item) }}>{getEquipmentStatusLabel(item)}</span>
+      </td>
       <td className="px-3 py-3 align-top">{item.serialNumber || "—"}</td>
       <td className="px-3 py-3 align-top">{item.manufactureYear || "—"}</td>
       <td className="px-3 py-3 align-top">{item.objectName}</td>

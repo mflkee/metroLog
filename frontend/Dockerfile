@@ -6,12 +6,12 @@ ARG VITE_API_BASE_URL=/api/v1
 ENV VITE_API_BASE_URL=${VITE_API_BASE_URL}
 
 COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
 COPY frontend/tsconfig.json frontend/vite.config.ts frontend/vitest.config.ts frontend/eslint.config.js frontend/tailwind.config.ts ./
 COPY frontend/postcss.config.cjs frontend/components.json frontend/index.html ./
 COPY frontend/public ./public
 COPY frontend/src ./src
 
-RUN npm ci
 RUN npm run build
 
 FROM nginx:1.27-alpine

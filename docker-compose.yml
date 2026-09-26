@@ -20,6 +20,7 @@ services:
       - redis_data:/data
 
   backend:
+    image: ghcr.io/mflkee/metrolog-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
     restart: unless-stopped
@@ -42,6 +43,7 @@ services:
              uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${BACKEND_WORKERS:-2}"
 
   backend-worker:
+    image: ghcr.io/mflkee/metrolog-backend:${IMAGE_TAG:-latest}
     build:
       context: ./backend
     restart: unless-stopped
@@ -63,6 +65,7 @@ services:
           memory: 128M
 
   frontend:
+    image: ghcr.io/mflkee/metrolog-frontend:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: frontend/Dockerfile

@@ -1,49 +1,49 @@
-name: Promote to Production
-
+name: Promote metroLog (staging -> prod)
 on:
   workflow_dispatch:
     inputs:
-      confirm:
-        description: 'Type "deploy" to promote staging to production'
-        required: true
-        default: ''
+      tag:
+        description: 'Образ для прода (staging = текущий стейдж, sha-<hash> = откат)'
+        required: false
+        default: 'staging'
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
   promote:
     runs-on: [self-hosted, mkair]
     environment: production
-    if: github.event.inputs.confirm == 'deploy'
     steps:
-      - name: Pull latest code
+      - name: Pull repo code
+        run: |
+          mkdir -p ~/apps ~/.backups
+          cd ~/apps/metroLog || git clone git@github.com:mflkee/metroLog.git ~/apps/metroLog
+          cd ~/apps/metroLog
+          if [ -f .env ]; then cp .env ~/.backups/metrolog_env_prod_$(date +%Y%m%d_%H%M%S).bak; fi
+          git fetch origin && git reset --hard origin/main
+          if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
+      - name: Login GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Backup DB
+        run: |
+          mkdir -p ~/.backups
+          cd ~/apps/metroLog
+          docker compose exec -T postgres pg_dump -U metrolog metrolog > ~/.backups/metroLog_db_promote_$(date +%Y%m%d_%H%M%S).sql
+      - name: Promote (same image, tag=${{ inputs.tag }})
         run: |
           cd ~/apps/metroLog
-          git fetch origin
-          git reset --hard origin/main
-
-      - name: Backup production database
+          IMAGE_TAG=${{ inputs.tag }} docker compose pull
+          IMAGE_TAG=${{ inputs.tag }} docker compose up -d
+      - name: Prod health
         run: |
-          cd ~/apps/metroLog
-          docker compose exec -T postgres pg_dump -U metrolog metrolog > /tmp/metroLog_backup_$(date +%Y%m%d_%H%M%S).sql
-
-      - name: Build & deploy production
-        run: |
-          cd ~/apps/metroLog
-          docker compose up -d --build
-
-      - name: Production health check
-        run: |
-          for _ in {1..30}; do
-            if curl -fsS http://127.0.0.1:8000/api/v1/health/ready >/dev/null 2>&1; then
-              echo "Production backend is ready"
-              exit 0
-            fi
-            sleep 1
+          for _ in {1..60}; do
+            curl -fsS http://127.0.0.1:8000/api/v1/health/ready >/dev/null 2>&1 && { echo PROD_OK; exit 0; }
+            sleep 2
           done
-          echo "Production backend failed to become ready within 30s"
-          exit 1
-
-      - name: Show production status
-        if: always()
-        run: |
-          cd ~/apps/metroLog
-          docker compose ps
+          echo PROD_FAIL; exit 1

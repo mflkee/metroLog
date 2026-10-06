@@ -259,6 +259,12 @@ class FolderRefreshMatcher:
         has_modification = bool(mi_modification)
         has_notation = bool(mit_notation)
 
+        current_reference_date = (
+            _coerce_datetime(current_verification_date)
+            or _coerce_datetime(current_valid_date)
+            or _extract_record_date(selected_stage1_record)
+        )
+
         chosen_record = selected_stage1_record
         stage2_successful = False
         include_modification_flag = True
@@ -279,21 +285,32 @@ class FolderRefreshMatcher:
                 continue
 
             stage2_successful = True
-            updated_candidates = [
-                record
-                for record in attempt_records
-                if _normalize_certificate_number(_normalize_value(record.get("result_docnum")))
-                != selected_stage1_docnum
-            ]
-            prioritized_pool = updated_candidates or attempt_records
-            selected_candidate = _select_most_recent_record(prioritized_pool)
+            updated_candidates: list[dict[str, Any]] = []
+            for record in attempt_records:
+                record_docnum = _normalize_certificate_number(
+                    _normalize_value(record.get("result_docnum"))
+                )
+                if record_docnum == selected_stage1_docnum:
+                    continue
+                record_date = _extract_record_date(record)
+                if (
+                    current_reference_date is not None
+                    and record_date is not None
+                    and record_date < current_reference_date
+                ):
+                    continue
+                updated_candidates.append(record)
+
+            if not updated_candidates:
+                continue
+
+            selected_candidate = _select_most_recent_record(updated_candidates)
             if selected_candidate is None:
                 continue
             chosen_record = selected_candidate
             include_modification_flag = include_modification
             include_notation_flag = include_notation
-            if updated_candidates:
-                break
+            break
 
         modification_relaxed = bool(has_modification and not include_modification_flag)
         notation_relaxed = bool(has_notation and not include_notation_flag)
@@ -486,9 +503,24 @@ def _determine_stage2_year(
 def _build_stage2_attempts(
     target_year: int | None,
 ) -> list[tuple[int | None, bool, bool]]:
-    if target_year is None:
-        return [(None, True, True), (None, False, False)]
-    return [(target_year, True, True), (target_year, False, False)]
+    # A yearless search makes Arshin return the latest applicable verification
+    # record for the instrument, so it still finds a new certificate when the
+    # instrument was re-verified well before the previous certificate expired
+    # (досрочная поверка). Searching only the year taken from the current
+    # certificate's validity date misses such early re-verifications.
+    # Year-scoped attempts are kept as a fallback.
+    attempts: list[tuple[int | None, bool, bool]] = [
+        (None, True, True),
+        (None, False, False),
+    ]
+    if target_year is not None:
+        attempts.extend(
+            [
+                (target_year, True, True),
+                (target_year, False, False),
+            ]
+        )
+    return attempts
 
 
 def _select_most_recent_record(records: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -496,19 +528,22 @@ def _select_most_recent_record(records: list[dict[str, Any]]) -> dict[str, Any] 
         return None
 
     def sort_key(record: dict[str, Any]) -> tuple[datetime, str]:
-        record_date = (
-            _coerce_datetime(record.get("verification_date"))
-            or _coerce_datetime(record.get("valid_date"))
-            or _coerce_datetime(record.get("validity_date"))
-            or _extract_date_from_docnum(_normalize_value(record.get("result_docnum")))
-            or datetime.min.replace(tzinfo=UTC)
-        )
+        record_date = _extract_record_date(record) or datetime.min.replace(tzinfo=UTC)
         return (
             record_date,
             _normalize_certificate_number(_normalize_value(record.get("result_docnum"))),
         )
 
     return max(records, key=sort_key)
+
+
+def _extract_record_date(record: dict[str, Any]) -> datetime | None:
+    return (
+        _coerce_datetime(record.get("verification_date"))
+        or _coerce_datetime(record.get("valid_date"))
+        or _coerce_datetime(record.get("validity_date"))
+        or _extract_date_from_docnum(_normalize_value(record.get("result_docnum")))
+    )
 
 
 def _extract_date_from_docnum(value: str | None) -> datetime | None:

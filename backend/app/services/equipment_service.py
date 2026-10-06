@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import asyncio
 import csv
 import json
+import random
 import re
 import shutil
 import unicodedata
@@ -15,12 +17,14 @@ from tempfile import NamedTemporaryFile
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
 
+import httpx
 from fastapi import HTTPException, status
 from openpyxl import Workbook, load_workbook
 from PIL import Image, ImageOps, UnidentifiedImageError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.integrations.arshin_client import RETRYABLE_STATUS_CODES
 from app.models.equipment import (
     DeadlinePreset,
     Equipment,
@@ -2450,7 +2454,7 @@ class EquipmentService:
             return row
 
         try:
-            match = await self._match_folder_refresh_target(target=target)
+            match = await self._match_folder_refresh_target_with_retry(target=target)
         except HTTPException as exc:
             row.notes = str(exc.detail)
             return row
@@ -2513,6 +2517,25 @@ class EquipmentService:
             current_verification_date=target.current_verification_date,
             current_valid_date=target.current_valid_date,
         )
+
+    async def _match_folder_refresh_target_with_retry(
+        self,
+        *,
+        target: FolderRefreshTarget,
+    ) -> FolderRefreshMatchResult:
+        attempts = max(1, settings.folder_refresh_max_attempts)
+        last_exception: Exception | None = None
+
+        for attempt in range(attempts):
+            try:
+                return await self._match_folder_refresh_target(target=target)
+            except Exception as exc:
+                if attempt == attempts - 1 or not _is_retryable_arshin_exception(exc):
+                    raise
+                last_exception = exc
+                await asyncio.sleep(_folder_refresh_retry_delay(attempt))
+
+        raise last_exception or RuntimeError("Folder refresh matching failed.")
 
     def _apply_folder_refresh_row(
         self,
@@ -9567,6 +9590,25 @@ def _resolve_si_result_docnum(
 
 def _build_manual_vri_id(equipment_type: EquipmentType) -> str:
     return f"manual:{equipment_type.value.lower()}:{uuid4().hex}"
+
+
+def _is_retryable_arshin_exception(exc: BaseException) -> bool:
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code in RETRYABLE_STATUS_CODES
+    if isinstance(exc, httpx.TransportError):
+        return True
+    if isinstance(exc, HTTPException):
+        return exc.status_code in {502, 503, 504}
+    return False
+
+
+def _folder_refresh_retry_delay(attempt: int) -> float:
+    base = max(0.0, settings.folder_refresh_retry_base_seconds)
+    max_delay = max(base, settings.folder_refresh_retry_max_seconds)
+    delay = min(base * (2**attempt), max_delay)
+    if delay <= 0:
+        return 0.0
+    return delay + random.uniform(0, delay * 0.25)
 
 
 def _map_folder_refresh_row_status(

@@ -67,6 +67,31 @@ async def test_search_records_retries_on_429(monkeypatch: pytest.MonkeyPatch) ->
 
 
 @pytest.mark.anyio
+async def test_search_records_retries_on_408(monkeypatch: pytest.MonkeyPatch) -> None:
+    responses = [
+        _FakeResponse(408),
+        _FakeResponse(
+            200,
+            {"result": {"count": 1, "items": [{"vri_id": "1-1", "result_docnum": "CERT"}]}},
+        ),
+    ]
+    calls = {"count": 0}
+
+    async def fake_get(self, url, params=None):
+        index = min(calls["count"], len(responses) - 1)
+        calls["count"] += 1
+        return responses[index]
+
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    _disable_delay(monkeypatch)
+
+    items = await ArshinClient().search_records(params={"result_docnum": "CERT"})
+
+    assert calls["count"] == 2
+    assert [item["vri_id"] for item in items] == ["1-1"]
+
+
+@pytest.mark.anyio
 async def test_search_records_raises_after_exhausting_retries(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -15,10 +15,10 @@ DEFAULT_ARSHIN_ROWS = 100
 DEFAULT_ARSHIN_MAX_RESULTS = 200
 
 # Arshin throttles aggressive clients (HTTP 429) and occasionally returns
-# transient 5xx responses, so those (plus transport errors) are retried with an
-# exponential backoff. This keeps long-running folder refresh tasks going
+# transient 408/5xx responses, so those (plus transport errors) are retried with
+# an exponential backoff. This keeps long-running folder refresh tasks going
 # instead of marking individual instruments as errored.
-RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+RETRYABLE_STATUS_CODES = frozenset({408, 429, 500, 502, 503, 504})
 
 
 def _parse_retry_after(value: str | None) -> float | None:

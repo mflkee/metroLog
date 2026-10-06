@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     arshin_public_results_base_url: str = "https://fgis.gost.ru/fundmetrology/cm/results/"
     arshin_public_etalons_base_url: str = "https://fgis.gost.ru/fundmetrology/cm/etalons/"
     arshin_api_timeout_seconds: float = 30.0
+    arshin_api_max_retries: int = 5
+    arshin_api_retry_base_seconds: float = 2.0
+    arshin_api_retry_max_seconds: float = 45.0
+    folder_refresh_max_attempts: int = 4
+    folder_refresh_retry_base_seconds: float = 5.0
+    folder_refresh_retry_max_seconds: float = 60.0
     attachment_storage_dir: str = "storage/equipment-attachments"
     mention_notifications_enabled: bool = False
     smtp_host: str | None = None

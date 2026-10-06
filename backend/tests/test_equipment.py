@@ -5,6 +5,7 @@ from io import BytesIO
 from urllib.parse import quote
 from zipfile import ZipFile
 
+import httpx
 import pytest
 from httpx import AsyncClient
 from openpyxl import Workbook, load_workbook
@@ -7934,6 +7935,120 @@ async def test_folder_refresh_marks_manual_si_as_updated_and_clears_flags_after_
     assert refreshed_equipment["si_verification"]["vri_id"] == "ARSHIN-VRI-777"
     assert refreshed_equipment["si_verification"]["certificate_number"] == "ARSHIN-CERT-777"
     assert refreshed_equipment["si_verification"]["result_docnum"] == "ARSHIN-CERT-777"
+
+
+@pytest.mark.anyio
+async def test_folder_refresh_retries_target_on_transient_arshin_error(
+    client: AsyncClient,
+    db_engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(settings, "folder_refresh_retry_base_seconds", 0.0)
+    monkeypatch.setattr(settings, "folder_refresh_max_attempts", 3)
+
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Папка retry refresh"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    create_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Узел учета",
+            "equipment_type": "SI",
+            "name": "Манометр",
+            "modification": "МП-03",
+            "serial_number": "RETRY-001",
+            "status": "IN_WORK",
+            "created_manually": True,
+            "si_verification": {
+                "vri_id": "vri-old-retry",
+                "arshin_url": "https://fgis.gost.ru/fundmetrology/cm/results/vri-old-retry",
+                "mit_number": "14061-15",
+                "mit_title": "Манометр",
+                "mit_notation": "МП-03",
+                "mi_number": "RETRY-001",
+                "certificate_number": "RETRY-OLD-CERT",
+                "result_docnum": "RETRY-OLD-CERT",
+                "verification_date": "2025-06-18T00:00:00",
+                "valid_date": "2030-06-17T00:00:00",
+            },
+        },
+    )
+    assert create_response.status_code == 201, create_response.text
+
+    calls = {"count": 0}
+
+    async def flaky_match_si(
+        self: FolderRefreshMatcher,
+        *,
+        current_certificate_number: str,
+        current_verification_date,
+        current_valid_date,
+    ) -> FolderRefreshMatchResult:
+        calls["count"] += 1
+        if calls["count"] == 1:
+            raise httpx.ConnectError("Arshin temporarily unavailable")
+        return FolderRefreshMatchResult(
+            found=True,
+            certificate_updated=True,
+            uncertain_update=False,
+            stage2_successful=True,
+            modification_relaxed=False,
+            notation_relaxed=False,
+            current_certificate_number=current_certificate_number,
+            matched_certificate_number="RETRY-NEW-CERT",
+            matched_registry_number=None,
+            matched_vri_id="vri-new-retry",
+            matched_arshin_url="https://fgis.gost.ru/fundmetrology/cm/results/vri-new-retry",
+            matched_verification_date=datetime.fromisoformat("2026-06-09T00:00:00"),
+            matched_valid_date=datetime.fromisoformat("2031-06-08T00:00:00"),
+            payload=SIVerificationCreateRequest(
+                vri_id="vri-new-retry",
+                arshin_url="https://fgis.gost.ru/fundmetrology/cm/results/vri-new-retry",
+                org_title='ФБУ "Тест"',
+                mit_number="14061-15",
+                mit_title="Манометр",
+                mit_notation="МП-03",
+                mi_number="RETRY-001",
+                certificate_number="RETRY-NEW-CERT",
+                result_docnum="RETRY-NEW-CERT",
+                verification_date=datetime.fromisoformat("2026-06-09T00:00:00"),
+                valid_date=datetime.fromisoformat("2031-06-08T00:00:00"),
+            ),
+            notes="Найдено новое свидетельство о поверке.",
+        )
+
+    monkeypatch.setattr(FolderRefreshMatcher, "match_si", flaky_match_si)
+
+    task_id = create_folder_refresh_task(
+        db_engine,
+        folder_id=folder["id"],
+        user_email=admin_email,
+    )
+    await process_folder_refresh_task(db_engine, task_id=task_id)
+
+    details_response = await client.get(
+        f"/api/v1/equipment/folders/{folder['id']}/refresh-tasks/{task_id}",
+        headers=headers,
+    )
+    assert details_response.status_code == 200
+    details = details_response.json()
+    assert details["task"]["status"] == "COMPLETED"
+
+    row = details["rows"][0]
+    assert calls["count"] == 2
+    assert row["status"] == "UPDATED"
+    assert row["matched_certificate_number"] == "RETRY-NEW-CERT"
 
 
 @pytest.mark.anyio

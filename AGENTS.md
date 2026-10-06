@@ -133,7 +133,8 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `scripts/local/frontend.sh` | Local Vite dev server with proxy. |
 | `scripts/local/devbox-shared-db.sh` | Tmux devbox: 3 panes (backend, frontend, worker). |
 | `scripts/server/setup-runner.sh` | GitHub Actions self-hosted runner installer. |
-| `.github/workflows/deploy.yml` | Deploy on push to `main` via self-hosted runner. |
+| `.github/workflows/ci.yml` | GHCR build (backend/frontend) + deploy: `main` → Stage, `release/*` → Prod. |
+| `.github/workflows/promote.yml` | Manual promote Stage image → Prod / rollback by `sha-<hash>`. |
 
 ---
 
@@ -181,18 +182,32 @@ npm run check              # full check suite
 
 ## 5. CI/CD
 
-**Self-hosted GitHub Actions runner** on `mkair-server` (production host).
+**Self-hosted GitHub Actions runner**: host `mkair-server-tmn` (Netbird `100.89.18.223`),
+systemd service `actions.runner.mflkee-metroLog.mkair-runner.service`, labels `[self-hosted, mkair]`,
+runner dir `~/actions-runner-metrolog`. Прод и Stage живут на этом же хосте в `~/apps/metroLog`.
 
-- **Runner**: `actions-runner` systemd service (`actions.runner.mflkee-metroLog.mkair-server.service`).
-- **Trigger**: push to `main` or manual `workflow_dispatch`.
-- **Steps**:
-  1. `git fetch origin && git reset --hard origin/main` in `~/apps/metroLog`
-  2. `./scripts/docker/backup.sh`
-  3. `docker compose up -d --build`
-  4. Health check `curl http://127.0.0.1:8000/api/v1/health`
-  5. `docker compose ps`
+**Пайплайн = GHCR (build once → registry → pull-based deploy).** Workflows:
 
-**Monitoring infrastructure** (on `mkair-server`, separate compose project `~/apps/monitoring`):
+| Workflow | Trigger | Назначение |
+|----------|---------|-----------|
+| `.github/workflows/ci.yml` | push `main` / `release/*`, manual | собрать образы → запушить в GHCR → задеплоить |
+| `.github/workflows/promote.yml` | manual `workflow_dispatch` | promote протестированного образа в прод (`tag=staging`) или откат (`tag=sha-<hash>`) |
+
+Образы: `ghcr.io/mflkee/metrolog-backend` и `ghcr.io/mflkee/metrolog-frontend`.
+Теги: `main` → `:staging` + `:sha-<sha>`; `release/*` → `:latest` + `:sha-<sha>`.
+
+`ci.yml` jobs:
+1. `build-images` — `actions/checkout`, login GHCR, buildx, build & push backend + frontend (cache `type=gha`).
+2. `deploy-staging` (только `main`) — `git reset --hard origin/main` в `~/apps/metroLog`,
+   `POSTGRES_STG_PORT=5439 IMAGE_TAG=staging docker compose -p metrolog-stg -f docker-compose.staging.yml pull && up -d`,
+   health-check `:9000`.
+3. `deploy-prod` (только `release/*`) — `git reset --hard origin/<release>`, `pg_dump` в `~/.backups/`,
+   `IMAGE_TAG=latest docker compose pull && up -d`, health-check `:8000`.
+
+В `docker-compose*.yml` образы параметризованы: `image: ghcr.io/mflkee/metrolog-backend:${IMAGE_TAG:-latest}`
+(аналогично frontend); `build:` остаётся как fallback для локальной сборки.
+
+**Monitoring infrastructure** (отдельный compose-проект `~/apps/monitoring`):
 - Prometheus (`127.0.0.1:9091`)
 - Grafana (`192.168.1.84:8090`)
 - Node Exporter, cAdvisor, Alertmanager, Blackbox Exporter
@@ -322,63 +337,49 @@ npm run build:frontend
 
 ## 11. Deployment & Backup
 
-**Production host**: `mkair-server` (`~/apps/metroLog`), deployed via GitHub Actions self-hosted runner.
+**Prod host**: `mkair-server-tmn` (Netbird `100.89.18.223`), `~/apps/metroLog`. Деплой — через GHCR-пайплайн (см. раздел 5):
+`main` → Stage, `release/*` → Prod, `promote.yml` → promote/rollback.
 
-**Manual deploy (fallback):**
+**Backups** (GHCR-пайплайн, `~/.backups/`):
+- `metroLog_db_<ts>.sql` — `pg_dump` прод-БД (при deploy-prod и promote)
+- `metrolog_env_prod_<ts>.bak`, `metrolog_env_stg_<ts>.bak` — `.env` перед `git reset --hard`
+- Старый скрипт `scripts/docker/backup.sh` (`backups/YYYYMMDD-HHMMSS/`: `postgres.sql.gz`, `backend-storage.tar.gz`, `redis-dump.rdb`, `compose-ps.txt`, `manifest.txt`) — для ручных бэкапов.
+
+**Manual fallback (pull-based):**
 ```bash
-ssh mflkee@mkair-server
+ssh mkair-server-tmn
 cd ~/apps/metroLog
-git pull
-./scripts/docker/backup.sh
-docker compose up -d --build
-docker compose ps
+git fetch origin && git reset --hard origin/<branch>
+# Stage:
+POSTGRES_STG_PORT=5439 IMAGE_TAG=staging docker compose -p metrolog-stg -f docker-compose.staging.yml pull
+POSTGRES_STG_PORT=5439 IMAGE_TAG=staging docker compose -p metrolog-stg -f docker-compose.staging.yml up -d
+# Prod:
+IMAGE_TAG=latest docker compose pull && IMAGE_TAG=latest docker compose up -d
 ```
 
-**Backup artifacts** (`backups/YYYYMMDD-HHMMSS/`):
-- `postgres.sql.gz` — `pg_dump`
-- `backend-storage.tar.gz` — attachments volume
-- `redis-dump.rdb` — Redis snapshot
-- `compose-ps.txt` + `manifest.txt`
+**Data safety**: `pull && up -d` сохраняет named volumes. Опасно: `docker compose down -v`.
 
-**Data safety**: ordinary `docker compose up -d --build` preserves named volumes. Dangerous: `docker compose down -v`.
-
-### Stage-окружение и алгоритмы деплоя
-
-**Два compose-проекта на сервере (одинаковая папка `~/apps/metroLog`!):**
+### Два compose-проекта на сервере (одинаковая папка `~/apps/metroLog`!)
 | Проект | Файл | Контейнеры | Порты |
 |--------|------|-----------|-------|
 | `metrolog` (прод, дефолтный) | `docker-compose.yml` | `metrolog-*` | backend 8000, frontend 5173, postgres 5432, redis 6379 |
 | `metrolog-stg` (Stage) | `docker-compose.staging.yml` | `metroLog_*_stg` | backend 9000, frontend 9173, postgres 5439, redis 6380 |
 
-Project name по умолчанию = basename папки (`metroLog` → `metrolog`) — **совпадает с продом**. Поэтому Stage **обязательно** деплоить с явным `-p metrolog-stg`.
+Project name по умолчанию = basename папки (`metroLog` → `metrolog`) — **совпадает с продом**. Поэтому Stage **обязательно** деплоить с явным `-p metrolog-stg` (так делает и `ci.yml`).
 
 **⚠️ КРИТИЧНЫЕ ГРАБЛИ (инцидент 2026-09-24):**
-- `docker compose -f docker-compose.staging.yml up -d --build` **без `-p metrolog-stg`** → compose считает прод-контейнеры `metrolog-*` своими и пересоздаёт их по стейджинг-конфигу → прод-postgres/redis уходят в Created/Dead, прод падает. Данные НЕ теряются (volumes прод-проекта `metrolog_postgres_data` и т.д не трогаются).
-- **`.github/workflows/staging.yml` имеет тот же баг** (нет `-p metrolog-stg`) — первый прогон через runner обрушил прод. Перед использованием workflow — починить (добавить `-p metrolog-stg`), иначе деплой в Stage руками, см. ниже.
-- Восстановление прода после такого: `cd ~/apps/metroLog && docker compose up -d postgres redis` (прод compose, без `-p`) — контейнеры поднимутся из volumes, данные целы.
+- `docker compose -f docker-compose.staging.yml up -d` **без `-p metrolog-stg`** → compose считает прод-контейнеры `metrolog-*` своими и пересоздаёт их по стейджинг-конфигу → прод-postgres/redis уходят в Created/Dead, прод падает. Данные НЕ теряются (volumes прод-проекта `metrolog_postgres_data` и т.д. не трогаются).
+- Восстановление прода: `cd ~/apps/metroLog && docker compose up -d postgres redis` (прод compose, без `-p`).
 
-**Деплой в Stage (вручную, безопасно):**
-```bash
-ssh mkair-server-tmn
-cd ~/apps/metroLog
-git fetch origin && git checkout <branch>
-POSTGRES_STG_PORT=5439 docker compose -p metrolog-stg -f docker-compose.staging.yml up -d --build
-curl http://127.0.0.1:9000/api/v1/health/ready   # Stage фронт: http://100.89.18.223:9173
-```
-Примечания: `POSTGRES_STG_PORT=5439` обязателен (дефолт 5436 занят `metroCheck_postgres_stg`); Stage БД изолирована (отдельный контейнер `metroLog_postgres_stg` с volume `metrolog-stg_postgres_data_stg`); `alembic upgrade head` выполняется при старте backend.
+**Примечания**: `POSTGRES_STG_PORT=5439` обязателен (дефолт 5436 занят `metroCheck_postgres_stg`); Stage БД изолирована (контейнер `metroLog_postgres_stg`, volume `metrolog-stg_postgres_data_stg`); `alembic upgrade head` выполняется при старте backend. Stage фронт: `http://100.89.18.223:9173`.
 
-**Деплой в прод:**
-- Авто (через CI): push ветки `release/*` → `deploy.yml`: `git reset --hard origin/release/*` → `./scripts/docker/backup.sh` → `docker compose up -d --build` → health 8000.
-- Создать release из main: `git push origin main:release/<name>`.
-- Из `main` прод НЕ деплоится (push в `main` → только Stage через `staging.yml`).
-- Вручную (fallback): `cd ~/apps/metroLog && git pull && ./scripts/docker/backup.sh && docker compose up -d --build`.
+**Траблшутинг runner'а**: если `ci.yml` не забирает код — на `mkair-server-tmn` проверить `~/.ssh/config`: `Host github.com` должен указывать `IdentityFile` на существующий ключ (рабочий — `~/.ssh/id_ed25519`), иначе `git fetch` в job'ах падает с `no such identity`.
 
 **Алгоритм выкатки фичи:**
-1. `feature/*`-ветка → локальные проверки (`npm run check`)
-2. Деплой в Stage (команда с `-p metrolog-stg`) → тест
-3. Merge в `main` (CI обновит Stage; на прод не влияет)
-4. `git push origin main:release/<name>` → авто-деплой прода
-5. Проверить: health 8000 + `docker compose ps`
+1. `feature/*`-ветка → локальные проверки (`npm run check`).
+2. Merge в `main` (push) → CI соберёт `:staging` и обновит Stage (на прод не влияет). Тест на Stage.
+3. Прод: `git push origin main:release/<name>` (соберёт `:latest`) **или** `gh workflow run promote.yml -f tag=staging` (тот же образ, что тестировали на Stage).
+4. Проверить: health `:8000` + `docker compose ps`. Откат — `promote.yml` с `tag=sha-<hash>`.
 
 ---
 

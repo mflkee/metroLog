@@ -838,3 +838,17 @@ async def test_administrator_cannot_modify_existing_developer_account(
         update_response.json()["detail"]
         == "Пользователя с ролью «Разработчик» может изменять только разработчик."
     )
+
+
+def test_dashboard_widget_options_accept_my_tasks() -> None:
+    from fastapi import HTTPException
+
+    from app.services.auth_service import _normalize_dashboard_widget_options
+
+    assert _normalize_dashboard_widget_options(["my_tasks", "summary_cards"]) == [
+        "my_tasks",
+        "summary_cards",
+    ]
+
+    with pytest.raises(HTTPException):
+        _normalize_dashboard_widget_options(["unknown_widget"])

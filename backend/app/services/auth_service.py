@@ -299,6 +299,7 @@ def _normalize_dashboard_widget_options(values: list[str] | None) -> list[str] |
         "verification_expiry",
         "completed_processes",
         "average_durations",
+        "my_tasks",
         "recent_events",
     }
 

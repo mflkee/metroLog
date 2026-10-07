@@ -402,6 +402,12 @@ Project name по умолчанию = basename папки (`metroLog` → `metr
 
 **Траблшутинг runner'а**: если `ci.yml` не забирает код — на `mkair-server-tmn` проверить `~/.ssh/config`: `Host github.com` должен указывать `IdentityFile` на существующий ключ (рабочий — `~/.ssh/id_ed25519`), иначе `git fetch` в job'ах падает с `no such identity`.
 
+**Runner молча отваливается (silent disconnect)**: юнит `actions.runner.mflkee-metroLog.mkair-runner.service` может оставаться `active`, но потерять сессию с GitHub (в `_diag/Runner_*.log` видно `broker.actions.githubusercontent.com/message ... timed out`, дальше только auth-попытки и никакого `Listening for Jobs`). Тогда `deploy-staging`/`deploy-prod` не запускаются, а run падает с «крестиком» без причины. Лечится:
+- автоматически — **watchdog**: `runner-watchdog.timer` (каждые 5 мин) запускает `/usr/local/lib/metroLog/runner-watchdog.sh`, который по GitHub runners API определяет `offline`/`busy` и сам рестартит раннер (2 подтверждения + cooldown 10 мин). Конфиг — `/etc/metroLog/runner-watchdog.env` (`0600`): `GITHUB_TOKEN` (fine-grained PAT, **Administration: read**) + `REPO`/`RUNNER_NAME`/`RUNNER_SERVICE`;
+- вручную — `sudo systemctl restart actions.runner.mflkee-metroLog.mkair-runner.service` и убедиться, что в логе появилось `Listening for Jobs`;
+- установка на новом хосте — `sudo scripts/server/setup-runner-watchdog.sh` (ставит скрипт, юниты, `Restart=always` drop-in, включает таймер).
+- в `ci.yml` есть джоб `runner-preflight` (GitHub-hosted), ждёт online-раннер до ~10 мин и падает с явным сообщением; требует repo-secret `RUNNER_STATUS_TOKEN` (тот же scope), без него — только warning.
+
 **Алгоритм выкатки фичи:**
 1. `feature/*`-ветка → локальные проверки (`npm run check`).
 2. Merge в `main` (push) → CI соберёт `:staging` и обновит Stage (на прод не влияет). Тест на Stage.

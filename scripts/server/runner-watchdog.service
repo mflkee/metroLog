@@ -1,0 +1,10 @@
+[Unit]
+Description=metroLog self-hosted runner availability watchdog
+Documentation=https://github.com/mflkee/metroLog
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Restarting the runner system service requires root.
+ExecStart=/usr/local/lib/metroLog/runner-watchdog.sh

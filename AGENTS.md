@@ -1,5 +1,18 @@
 # metroLog Development Guide
 
+## ⚠️ Working rule: verify on the server, deploy via Actions
+
+> **All work is executed and verified on the server `mkair-server-tmn`** (Netbird `100.89.18.223`),
+> **not** on a local machine. Do not build, run or deploy locally.
+>
+> **Deploy only via GitHub Actions** (push):
+> - push to `main` → **Stage** (`.github/workflows/ci.yml`);
+> - push to `release/*`, or run `promote.yml` manually → **Prod**.
+>
+> Stage and Prod both live on that host in `~/apps/metroLog`; runner is
+> `[self-hosted, mkair-runner]` (`mkair-server-tmn`). Verify the result on the server
+> (`docker compose ps`, logs, smoke test).
+
 ## 1. Product Snapshot
 
 `metroLog` is an internal equipment-accounting system for managing measurement instruments (`СИ`) and etalons (`ЭСИ`).

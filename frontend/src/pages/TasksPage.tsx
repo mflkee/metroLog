@@ -327,6 +327,8 @@ function CreateTaskModal({
   const [responsibleUserId, setResponsibleUserId] = useState<string>("");
   const [priority, setPriority] = useState<TaskPriority>("NORMAL");
   const [dueDate, setDueDate] = useState("");
+  const [assigneeIds, setAssigneeIds] = useState<number[]>([]);
+  const [observerIds, setObserverIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   const mutation = useMutation({
@@ -338,11 +340,15 @@ function CreateTaskModal({
         priority,
         dueDate: dueDate || null,
         responsibleUserId: Number(responsibleUserId),
+        assigneeUserIds: assigneeIds,
+        observerUserIds: observerIds,
       }),
     onSuccess: () => {
       setTitle("");
       setDescription("");
       setDueDate("");
+      setAssigneeIds([]);
+      setObserverIds([]);
       onCreated();
     },
     onError: (mutationError: unknown) => {
@@ -425,6 +431,42 @@ function CreateTaskModal({
               value={dueDate}
               onChange={(event) => setDueDate(event.target.value)}
             />
+          </label>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="block space-y-1">
+            <span className="text-xs uppercase tracking-wide text-steel">Исполнители</span>
+            <select
+              className="form-input h-28"
+              multiple
+              value={assigneeIds.map(String)}
+              onChange={(event) =>
+                setAssigneeIds(Array.from(event.target.selectedOptions, (option) => Number(option.value)))
+              }
+            >
+              {(usersQuery.data ?? []).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.displayName || user.email}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block space-y-1">
+            <span className="text-xs uppercase tracking-wide text-steel">Наблюдатели</span>
+            <select
+              className="form-input h-28"
+              multiple
+              value={observerIds.map(String)}
+              onChange={(event) =>
+                setObserverIds(Array.from(event.target.selectedOptions, (option) => Number(option.value)))
+              }
+            >
+              {(usersQuery.data ?? []).map((user) => (
+                <option key={user.id} value={user.id}>
+                  {user.displayName || user.email}
+                </option>
+              ))}
+            </select>
           </label>
         </div>
         {error ? <p className="text-sm text-[color:var(--danger)]">{error}</p> : null}

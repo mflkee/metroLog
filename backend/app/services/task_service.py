@@ -1019,6 +1019,22 @@ class TaskService:
                 target_url=target_url,
             )
 
+    def get_message_attachment(
+        self, *, task_id: int, message_id: int, attachment_id: int
+    ) -> TaskMessageAttachment:
+        task = self._get_task_or_404(task_id)
+        message = self.messages.get_by_id(message_id)
+        if message is None or message.task_id != task.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Сообщение не найдено."
+            )
+        attachment = self.message_attachments.get_by_id(attachment_id)
+        if attachment is None or attachment.task_message_id != message.id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Вложение не найдено."
+            )
+        return attachment
+
 
 def send_task_deadline_reminders(
     session: Session, *, today: date | None = None, window_days: int = 3

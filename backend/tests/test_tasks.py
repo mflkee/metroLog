@@ -601,3 +601,40 @@ async def test_status_change_notifies_participants_and_subscriber(
     assert updated.status_code == 200, updated.text
     recipients = {call["recipient_email"] for call in calls}
     assert "follower@example.test" in recipients
+
+
+@pytest.mark.anyio
+async def test_task_message_attachment_download(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: вложения обсуждения")
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "title": "С файлом в обсуждении",
+            "responsible_user_id": admin_id,
+        },
+    )
+    task_id = created.json()["id"]
+
+    message = await client.post(
+        f"/api/v1/tasks/{task_id}/messages",
+        headers=headers,
+        data={"text": "во вложении"},
+        files={"files": ("note.txt", b"hello", "text/plain")},
+    )
+    assert message.status_code == 201, message.text
+    payload = message.json()
+    attachment_id = payload["attachments"][0]["id"]
+
+    download = await client.get(
+        f"/api/v1/tasks/{task_id}/messages/{payload['id']}/attachments/{attachment_id}",
+        headers=headers,
+    )
+    assert download.status_code == 200, download.text
+    assert download.content == b"hello"

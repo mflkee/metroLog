@@ -25,6 +25,10 @@ import {
   type TaskAttachment,
   type TaskStatus,
 } from "@/api/tasks";
+import { fetchMentionUsers } from "@/api/users";
+import { MentionTextarea } from "@/components/MentionTextarea";
+import { TaskEquipmentModal } from "@/components/TaskEquipmentModal";
+import { TaskParticipantsModal } from "@/components/TaskParticipantsModal";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useAuthStore } from "@/store/auth";
 
@@ -50,6 +54,31 @@ async function downloadAttachment(token: string, taskId: number, attachment: Tas
   URL.revokeObjectURL(url);
 }
 
+async function downloadMessageAttachment(
+  token: string,
+  taskId: number,
+  messageId: number,
+  attachmentId: number,
+  fileName: string,
+) {
+  const response = await fetch(
+    `${apiBaseUrl}/tasks/${taskId}/messages/${messageId}/attachments/${attachmentId}`,
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!response.ok) {
+    return;
+  }
+  const blob = await response.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = fileName;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
 export function TaskDetailsPage() {
   const { taskId: taskIdParam } = useParams();
   const taskId = Number(taskIdParam);
@@ -62,6 +91,8 @@ export function TaskDetailsPage() {
   const [messagePrivate, setMessagePrivate] = useState(false);
   const [messageFiles, setMessageFiles] = useState<File[]>([]);
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
+  const [participantsOpen, setParticipantsOpen] = useState(false);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
 
   const taskQuery = useQuery({
     queryKey: ["task", taskId],
@@ -82,6 +113,11 @@ export function TaskDetailsPage() {
     queryKey: ["task-subscription", taskId],
     queryFn: () => fetchTaskSubscription(token, taskId),
     enabled: Boolean(token) && Number.isFinite(taskId),
+  });
+  const usersQuery = useQuery({
+    queryKey: ["mention-users"],
+    queryFn: () => fetchMentionUsers(token),
+    enabled: Boolean(token),
   });
 
   const refreshTask = () => {
@@ -289,9 +325,27 @@ export function TaskDetailsPage() {
                   </div>
                   {message.text ? <p className="mt-1 whitespace-pre-wrap text-ink">{message.text}</p> : null}
                   {message.attachments.length > 0 ? (
-                    <p className="mt-1 text-xs text-steel">
-                      Вложения: {message.attachments.map((attachment) => attachment.fileName).join(", ")}
-                    </p>
+                    <ul className="mt-1 space-y-1 text-xs">
+                      {message.attachments.map((attachment) => (
+                        <li key={attachment.id}>
+                          <button
+                            className="text-left text-steel underline"
+                            onClick={() =>
+                              void downloadMessageAttachment(
+                                token,
+                                taskId,
+                                message.id,
+                                attachment.id,
+                                attachment.fileName,
+                              )
+                            }
+                            type="button"
+                          >
+                            {attachment.fileName}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
                   ) : null}
                 </li>
               ))}
@@ -305,12 +359,12 @@ export function TaskDetailsPage() {
                 }
               }}
             >
-              <textarea
-                className="form-input"
+              <MentionTextarea
+                users={usersQuery.data ?? []}
                 placeholder="Сообщение, @упоминание…"
                 rows={2}
                 value={messageText}
-                onChange={(event) => setMessageText(event.target.value)}
+                onChange={setMessageText}
               />
               <div className="flex flex-wrap items-center gap-3 text-xs text-steel">
                 <label className="flex items-center gap-1">
@@ -338,7 +392,16 @@ export function TaskDetailsPage() {
 
         <aside className="space-y-4">
           <article className="space-y-2 rounded-2xl border border-line p-4 text-sm">
-            <h3 className="text-sm font-semibold text-ink">Участники</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-ink">Участники</h3>
+              <button
+                className="text-xs text-steel underline"
+                onClick={() => setParticipantsOpen(true)}
+                type="button"
+              >
+                изменить
+              </button>
+            </div>
             <p className="text-steel">
               Ответственный: <span className="text-ink">{responsible[0]?.displayName ?? "—"}</span>
             </p>
@@ -357,7 +420,16 @@ export function TaskDetailsPage() {
           </article>
 
           <article className="space-y-2 rounded-2xl border border-line p-4 text-sm">
-            <h3 className="text-sm font-semibold text-ink">Оборудование</h3>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold text-ink">Оборудование</h3>
+              <button
+                className="text-xs text-steel underline"
+                onClick={() => setEquipmentOpen(true)}
+                type="button"
+              >
+                изменить
+              </button>
+            </div>
             {task.equipment.length === 0 ? (
               <p className="text-steel">Приборы не привязаны.</p>
             ) : (
@@ -417,6 +489,31 @@ export function TaskDetailsPage() {
           </article>
         </aside>
       </div>
+
+      {participantsOpen ? (
+        <TaskParticipantsModal
+          open={participantsOpen}
+          token={token}
+          task={task}
+          onClose={() => setParticipantsOpen(false)}
+          onSaved={() => {
+            setParticipantsOpen(false);
+            refreshTask();
+          }}
+        />
+      ) : null}
+      {equipmentOpen ? (
+        <TaskEquipmentModal
+          open={equipmentOpen}
+          token={token}
+          task={task}
+          onClose={() => setEquipmentOpen(false)}
+          onSaved={() => {
+            setEquipmentOpen(false);
+            refreshTask();
+          }}
+        />
+      ) : null}
     </section>
   );
 }

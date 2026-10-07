@@ -240,6 +240,30 @@ async def delete_task_message(
     )
 
 
+@router.get("/{task_id}/messages/{message_id}/attachments/{attachment_id}")
+async def download_task_message_attachment(
+    task_id: int,
+    message_id: int,
+    attachment_id: int,
+    db: DbSession,
+    current_user: CurrentUser,
+) -> FileResponse:
+    service = _service(db, current_user)
+    attachment = service.get_message_attachment(
+        task_id=task_id, message_id=message_id, attachment_id=attachment_id
+    )
+    file_path = settings.attachment_storage_path / attachment.storage_path
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Файл вложения не найден."
+        )
+    return FileResponse(
+        file_path,
+        media_type=attachment.file_mime_type or "application/octet-stream",
+        filename=attachment.file_name,
+    )
+
+
 @router.get("/{task_id}/attachments", response_model=list[TaskAttachmentRead])
 async def list_task_attachments(
     task_id: int, db: DbSession, current_user: CurrentUser

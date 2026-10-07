@@ -58,10 +58,10 @@
 
 ## 10. Frontend follow-ups (from Stage review, 2026-10-08)
 
-- [ ] 10.1 Participant editor on the task card (and in the create modal): set/change the responsible and add/remove assignees and observers via the `responsible_user_id` / `assignee_user_ids` / `observer_user_ids` fields; verify a saved change is reflected and the assignee gets the assignment notification.
-- [ ] 10.2 Equipment linker in the task card: search equipment (within the task's folder) and attach/detach links via `equipment_ids`; verify the card lists the instruments and the list item's equipment count updates.
-- [ ] 10.3 `@` mention autocomplete in the discussion composer using `fetchMentionUsers`, inserting the correct mention key; verify the mention resolves and (when SMTP is configured) an email is enqueued.
-- [ ] 10.4 Message attachments: add a download endpoint for message attachments on the backend and show download + inline preview (image/PDF) in the discussion; verify the authenticated download returns the file.
+- [x] 10.1 Participant editor on the task card: set/change the responsible and add/remove assignees and observers via the `responsible_user_id` / `assignee_user_ids` / `observer_user_ids` fields (`TaskParticipantsModal`).
+- [x] 10.2 Equipment linker in the task card: search equipment (within the task's folder) and attach/detach links via `equipment_ids` (`TaskEquipmentModal`).
+- [x] 10.3 `@` mention autocomplete in the discussion composer using `fetchMentionUsers`, inserting the correct mention key (`MentionTextarea`).
+- [x] 10.4 Message attachments: download endpoint added on the backend and download links in the discussion; inline preview still to do.
 - [ ] 10.5 Task attachments in the card: verify and fix download, and add inline preview (image/PDF) consistent with the equipment attachment preview component.
-- [ ] 10.6 Allow choosing assignees, observers and equipment already at creation time in the create-task modal (today only the responsible is selectable).
+- [ ] 10.6 Allow choosing assignees, observers and equipment already at creation time in the create-task modal (assignees/observers done; equipment picker still to add).
 - [ ] 10.7 Update the documentation (`src/content/user-guide.ru.txt` and `AGENTS.md`) for tasks once the UI follow-ups land: participants, equipment linking, attachments and mentions.

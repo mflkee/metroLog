@@ -225,6 +225,20 @@ runner dir `~/actions-runner-metrolog`. Прод и Stage живут на это
 - Grafana (`192.168.1.84:8090`)
 - Node Exporter, cAdvisor, Alertmanager, Blackbox Exporter
 
+### Версионирование
+
+SemVer `MAJOR.MINOR.PATCH`. Единый источник версии — `frontend/package.json`; она
+инжектится в бандл на сборке (`__APP_VERSION__`, см. `vite.config.ts`) и показана
+бейджем `vX.Y.Z · beta` в шапке (`AppVersionBadge`). Пока версия < `1.0.0`, сервис
+считается бетой — бейдж всегда несёт канал `beta`.
+
+Правила бампа (одна версия на релиз, не на каждый коммит; в git — тег `vX.Y.Z`):
+- `PATCH` (`0.1.1`) — багфиксы и внутренние изменения;
+- `MINOR` (`0.2.0`) — новые пользовательские возможности (а до `1.0.0` — и breaking-изменения);
+- `MAJOR` (`1.0.0`) — первый стабильный релиз.
+
+Бампить при promote Stage → Prod (`promote.yml` / `release/*`).
+
 ---
 
 ## 6. Database Schema (Key Entities)

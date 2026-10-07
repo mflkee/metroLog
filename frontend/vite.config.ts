@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,6 +7,13 @@ import { defineConfig, loadEnv } from "vite";
 
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
 const repoRootPath = fileURLToPath(new URL("..", import.meta.url));
+
+function readAppVersion(): string {
+  const manifest = JSON.parse(
+    readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf8"),
+  ) as { version?: string };
+  return manifest.version ?? "0.0.0";
+}
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
@@ -16,6 +24,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    define: {
+      __APP_VERSION__: JSON.stringify(readAppVersion()),
+    },
     build: {
       rollupOptions: {
         output: {

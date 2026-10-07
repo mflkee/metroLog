@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,8 +7,18 @@ import { defineConfig } from "vitest/config";
 
 const srcPath = fileURLToPath(new URL("./src", import.meta.url));
 
+function readAppVersion(): string {
+  const manifest = JSON.parse(
+    readFileSync(fileURLToPath(new URL("./package.json", import.meta.url)), "utf8"),
+  ) as { version?: string };
+  return manifest.version ?? "0.0.0";
+}
+
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(readAppVersion()),
+  },
   resolve: {
     alias: {
       "@": path.resolve(srcPath),

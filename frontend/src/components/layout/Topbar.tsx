@@ -5,6 +5,7 @@ import { Link, useLocation } from "react-router-dom";
 
 import { fetchArshinStatus } from "@/api/arshin";
 import { AccountMenu } from "@/components/layout/AccountMenu";
+import { AppVersionBadge } from "@/components/layout/AppVersionBadge";
 import { useAuthStore } from "@/store/auth";
 
 const routeLabels: Array<{ match: RegExp; label: string }> = [
@@ -109,6 +110,7 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
           <Link className="shrink-0 text-sm font-semibold text-ink sm:text-base" to="/dashboard">
             metroLog
           </Link>
+          <AppVersionBadge />
           <div
             aria-label={arshinStatusIndicator.title}
             className={[

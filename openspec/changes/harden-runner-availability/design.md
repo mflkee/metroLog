@@ -50,12 +50,14 @@ signal and distinguishes "idle but connected" from "stuck offline". *Alternative
 parse the local `_diag` logs — rejected because an idle, healthy runner is
 indistinguishable from a stuck one by log silence alone.
 
-### D3: A single scoped token, stored outside the repo
+### D3: One scoped token covering every target repo
 
-A fine-grained PAT with **Administration: read** for this repository, stored at
-`~/.config/metroLog/runner-watchdog.env` (`0600`). The install script never
-writes the token into any tracked file. *Alternative:* a classic token with the
-broad `repo` scope — rejected for being over-privileged.
+A PAT with **Administration: read** on each guarded repository (a single
+fine-grained token can select several repos), stored at
+`/etc/metroLog/runner-watchdog.env` (`0600`, root-owned because the watchdog runs
+as a system service). The install script never writes the token into any tracked
+file. *Alternative:* a classic token with the broad `repo` scope — rejected for
+being over-privileged.
 
 ### D4: Restart safety rules
 
@@ -80,8 +82,8 @@ run that starts during the offline window still fails with no explanation.
 
 ## Risks / Trade-offs
 
-- [Token is powerful and lives on the host] → minimum scope, `0600`, outside the
-  repo, and readable only by the deploying user; rotate on compromise.
+- [Token is powerful and lives on the host] → minimum scope, `0600` root-owned,
+  outside the repo, and only readable by root; rotate on compromise.
 - [Restart storm or restart during a job] → D4 safety rules (busy check, double
   confirmation, cooldown).
 - [GitHub API rate limits] → a 5-minute cadence is far below the limit.
@@ -104,7 +106,6 @@ run that starts during the offline window still fails with no explanation.
 
 ## Open Questions
 
-- Should the watchdog cover the `metroCheck` / `metroGen` runners too, or stay
-  per-repository? Deferrable; the script is parameterised so extension is cheap.
 - What grace period should the preflight wait before failing? Start at 10 minutes;
-  tune from observed recovery times.
+  tune from observed recovery times. (The watchdog now covers every runner on the
+  host — `metroLog`, `metroCheck`, `metroGen` — via the `TARGETS` list.)

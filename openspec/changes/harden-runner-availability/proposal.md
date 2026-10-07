@@ -11,9 +11,10 @@ hand.
 
 ## What Changes
 
-- Add a **connection watchdog** that periodically checks whether this
-  repository's `mkair-runner` is online and restarts the runner service when it
-  is not, without human intervention.
+- Add a **connection watchdog** that, for every configured self-hosted runner on
+  the host (fleet-wide, e.g. `metroLog`, `metroCheck`, `metroGen`), periodically
+  checks whether it is online and restarts its service when it is not, without
+  human intervention.
 - Harden the runner **systemd unit** with `Restart=always` so a crashed runner
   process also self-heals.
 - Store the watchdog's GitHub token **outside the repository** with minimum

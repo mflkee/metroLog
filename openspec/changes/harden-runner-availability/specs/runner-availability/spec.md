@@ -10,9 +10,9 @@ state is surfaced to operators instead of an unexplained red X.
 
 ### Requirement: Automatic recovery from a lost connection
 
-The system SHALL periodically determine whether this repository's self-hosted
-runner is online, and SHALL restart the runner service automatically when the
-runner is offline and is not executing a job.
+The system SHALL periodically determine, for every configured self-hosted runner
+on the host, whether it is online, and SHALL restart that runner's service
+automatically when it is offline and is not executing a job.
 
 #### Scenario: Runner reconnect is restored automatically
 - **WHEN** the runner's GitHub status is `offline` and it is not busy

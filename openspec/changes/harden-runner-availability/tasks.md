@@ -20,6 +20,6 @@
 
 ## 4. Integration checks
 
-- [x] 4.1 Install the watchdog on `mkair-server-tmn` and verify the timer is enabled and active and the runner is online.
-- [ ] 4.2 Simulate the failure by stopping the runner service; verify the watchdog restarts it within one timer period and the runner returns to `Listening for Jobs`.
+- [x] 4.1 Install the watchdog on `mkair-server-tmn` covering all host runners (`metroLog`, `metroCheck`, `metroGen`): verify the timer is enabled and active, `TARGETS` lists all three, and every runner is online.
+- [x] 4.2 Simulate the failure by stopping the `metroGen` runner service; verify the watchdog restarts it and the runner returns to `online` (observed: offline after ~20s, streak confirmed on the first run, restarted on the second, back online).
 - [ ] 4.3 Trigger a `main` push during normal operation and confirm `deploy-staging` runs without any preflight delay.

@@ -8389,14 +8389,55 @@ def _select_process_template_variant(
     return found if found is not None else (items[0] if items else None)
 
 
+def _resolve_standard_stage_key_count(variant: dict[str, object] | None) -> int | None:
+    """Number of standard milestone stages for a variant's process flow.
+
+    A variant's stages are positional: the first ``count`` of them map onto the
+    standard milestone keys of the flow (``_apply_standard_stage_keys``), and any
+    stages beyond that count have no standard form field. Returns ``None`` when
+    the flow cannot be resolved, in which case partitioning is skipped.
+    """
+    if not isinstance(variant, dict):
+        return None
+    # ``flow_mode`` is stored as the enum name (``OFFSITE_WITH_DEMOLITION``)
+    # while the key maps use the lower-case enum values, so normalize both.
+    flow_mode = str(variant.get("flow_mode") or "").strip().lower()
+    if flow_mode:
+        verification_keys = VERIFICATION_STANDARD_STAGE_KEYS_BY_FLOW_MODE.get(flow_mode)
+        return len(verification_keys) if verification_keys is not None else None
+    route_kind = str(variant.get("route_kind") or "").strip().lower()
+    repair_keys = REPAIR_STANDARD_STAGE_KEYS_BY_ROUTE_KIND.get(route_kind)
+    if repair_keys is not None:
+        return len(repair_keys)
+    return None
+
+
+def _partition_process_variant_stages(
+    variant: dict[str, object] | None,
+) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
+    """Split a variant's stages into (standard template stages, extra stages).
+
+    Extra stages have no standard milestone key and must be exposed as custom
+    stages so they render exactly once, after the standard template stages.
+    """
+    stages = variant.get("stages") if isinstance(variant, dict) else None
+    normalized = (
+        [stage for stage in stages if isinstance(stage, dict)] if isinstance(stages, list) else []
+    )
+    standard_count = _resolve_standard_stage_key_count(variant)
+    if standard_count is None:
+        return normalized, []
+    return normalized[:standard_count], normalized[standard_count:]
+
+
 def _build_stage_template_from_process_variant(
     variant: dict[str, object] | None,
     *,
     key: str,
     fallback_label: str,
 ) -> list[dict[str, object]]:
-    stages = variant.get("stages") if isinstance(variant, dict) else None
-    if isinstance(stages, list) and stages:
+    standard_stages, _ = _partition_process_variant_stages(variant)
+    if standard_stages:
         return [
             {
                 "key": str(stage.get("id") or stage.get("key") or key),
@@ -8404,8 +8445,7 @@ def _build_stage_template_from_process_variant(
                 "required": bool(stage.get("required", True)),
                 "enabled": bool(stage.get("enabled", True)),
             }
-            for stage in stages
-            if isinstance(stage, dict)
+            for stage in standard_stages
         ]
     return [
         {
@@ -8430,10 +8470,8 @@ def _build_process_custom_stages_from_variant(
             "template_variant_id": str(variant.get("id") or ""),
         }
     ]
-    stages = variant.get("stages")
-    if not isinstance(stages, list):
-        return result
-    for sort_order, stage in enumerate(stages[1:]):
+    _, extra_stages = _partition_process_variant_stages(variant)
+    for sort_order, stage in enumerate(extra_stages):
         if not isinstance(stage, dict):
             continue
         label = str(stage.get("label") or "").strip()

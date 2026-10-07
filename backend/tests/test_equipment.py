@@ -109,11 +109,30 @@ def build_large_test_jpeg() -> bytes:
 
 
 def with_last_process_stage_date(process: dict[str, object], value: str) -> list[dict[str, object]]:
+    """Return the process custom stages with an explicitly dated user stage.
+
+    Custom stages are no longer seeded from the preset variant, so the helper
+    appends a user stage anchored after the last template stage and dates it.
+    """
+    raw_template = process.get("stage_template")
+    stage_template = raw_template if isinstance(raw_template, list) else []
+    anchor_key = "sent_to_repair_at"
+    if stage_template and isinstance(stage_template[-1], dict):
+        anchor_key = str(stage_template[-1].get("key") or anchor_key)
     custom_stages = [
         dict(stage) for stage in process.get("custom_stages", []) if isinstance(stage, dict)
     ]
-    assert custom_stages
-    custom_stages[-1]["date"] = value
+    sort_order = len(custom_stages)
+    custom_stages.append(
+        {
+            "id": f"cs-test-{sort_order + 1}",
+            "after_key": anchor_key,
+            "label": f"Пользовательский этап {sort_order + 1}",
+            "date": value,
+            "deadline_days": None,
+            "sort_order": sort_order,
+        }
+    )
     return custom_stages
 
 
@@ -2610,6 +2629,81 @@ async def test_operator_can_create_verification_for_esi_and_see_it_in_queue(
     assert len(queue_payload) == 1
     assert queue_payload[0]["equipment_type"] == "ESI"
     assert queue_payload[0]["result_docnum"] == "10003.85.РЭ.00046"
+
+
+@pytest.mark.anyio
+async def test_created_verification_does_not_duplicate_preset_stages(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Поверка без дублей"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Лаборатория",
+            "equipment_type": "SI",
+            "name": "Манометр",
+            "modification": "МП-100",
+            "serial_number": "DUP-001",
+            "manufacture_year": 2021,
+            "status": "IN_WORK",
+            "si_verification": {
+                "vri_id": "vri-dup-1",
+                "arshin_url": "https://fgis.gost.ru/fundmetrology/cm/results/vri-dup-1",
+                "org_title": "Поверитель",
+                "mit_number": "10000-01",
+                "mit_title": "Манометры",
+                "mit_notation": "МП-100",
+                "mi_number": "DUP-001",
+                "result_docnum": "DUP-CERT-1",
+                "verification_date": "2025-03-01T00:00:00",
+                "valid_date": "2026-03-01T00:00:00",
+                "raw_payload_json": {"source": "dup"},
+                "detail_payload_json": {"miInfo": {"singleMI": {"manufactureYear": 2021}}},
+            },
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    create_verification_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/verification",
+        headers=headers,
+        data={
+            "route_city": "Иркутск",
+            "route_destination": "ЦСМ",
+            "sent_to_verification_at": "2026-03-15",
+        },
+    )
+    assert create_verification_response.status_code == 201
+
+    queue_response = await client.get(
+        f"/api/v1/equipment/verifications?lifecycle_status=active&folder_id={folder['id']}",
+        headers=headers,
+    )
+    assert queue_response.status_code == 200
+    queue_item = queue_response.json()[0]
+
+    template_labels = [stage["label"] for stage in queue_item["stage_template"]]
+    custom_labels = [stage["label"] for stage in queue_item["custom_stages"]]
+
+    assert len(template_labels) == 7
+    assert custom_labels == []
+    assert template_labels == list(dict.fromkeys(template_labels))
+    assert not (set(template_labels) & set(custom_labels))
 
 
 @pytest.mark.anyio

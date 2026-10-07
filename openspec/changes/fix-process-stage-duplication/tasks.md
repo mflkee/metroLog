@@ -21,6 +21,6 @@
 
 ## 4. Integration checks
 
-- [ ] 4.1 Run `npm run check` and fix any failures.
+- [x] 4.1 Run `npm run check` and fix any failures.
 - [ ] 4.2 On Stage, create a test SI, run a verification with the "С отправкой" and an on-site preset, and confirm each stage appears once with no deletable duplicate.
 - [ ] 4.3 Confirm an existing pre-fix verification (if present on Stage) shows a single clean stage list after the cleanup, with user-added custom stages and dates intact.

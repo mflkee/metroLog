@@ -16,3 +16,9 @@
 
 - [x] 3.1 Run `npm run check` (lint, tests, build) and fix failures.
 - [x] 3.2 On Stage, confirm the header shows `v0.1.0` and `beta`, and that changing `frontend/package.json` and rebuilding changes the shown value.
+
+## 4. "What's new" changelog view
+
+- [ ] 4.1 Add a "Что нового" view that renders a static changelog (e.g. `CHANGELOG.md` / `src/content/changelog.ru.txt`); verify it lists at least the current version's entries.
+- [ ] 4.2 Open the view by clicking the version badge in the topbar, and link it from the Help page; verify both entry points render the same content.
+- [ ] 4.3 Document the changelog convention (add an entry per release) in `AGENTS.md`.

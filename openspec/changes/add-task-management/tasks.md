@@ -64,3 +64,4 @@
 - [ ] 10.4 Message attachments: add a download endpoint for message attachments on the backend and show download + inline preview (image/PDF) in the discussion; verify the authenticated download returns the file.
 - [ ] 10.5 Task attachments in the card: verify and fix download, and add inline preview (image/PDF) consistent with the equipment attachment preview component.
 - [ ] 10.6 Allow choosing assignees, observers and equipment already at creation time in the create-task modal (today only the responsible is selectable).
+- [ ] 10.7 Update the documentation (`src/content/user-guide.ru.txt` and `AGENTS.md`) for tasks once the UI follow-ups land: participants, equipment linking, attachments and mentions.

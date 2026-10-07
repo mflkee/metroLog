@@ -19,6 +19,20 @@ from app.models.equipment import (
     VerificationMessageAttachment,
 )
 from app.models.event import EventCategory, EventLog
+from app.models.task import (
+    TERMINAL_TASK_STATUSES,
+    Task,
+    TaskAttachment,
+    TaskChecklistItem,
+    TaskEquipment,
+    TaskMessage,
+    TaskMessageAttachment,
+    TaskParticipant,
+    TaskParticipantRole,
+    TaskPriority,
+    TaskStatus,
+    TaskSubscription,
+)
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -36,6 +50,18 @@ __all__ = [
     "RepairMessage",
     "RepairMessageAttachment",
     "SIVerification",
+    "TERMINAL_TASK_STATUSES",
+    "Task",
+    "TaskAttachment",
+    "TaskChecklistItem",
+    "TaskEquipment",
+    "TaskMessage",
+    "TaskMessageAttachment",
+    "TaskParticipant",
+    "TaskParticipantRole",
+    "TaskPriority",
+    "TaskStatus",
+    "TaskSubscription",
     "Verification",
     "VerificationMessage",
     "VerificationMessageAttachment",

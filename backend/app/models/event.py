@@ -13,6 +13,7 @@ class EventCategory(StrEnum):
     EQUIPMENT = "EQUIPMENT"
     REPAIR = "REPAIR"
     VERIFICATION = "VERIFICATION"
+    TASK = "TASK"
 
 
 class EventLog(Base):

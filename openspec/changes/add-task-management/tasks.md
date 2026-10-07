@@ -2,28 +2,28 @@
 
 ## 1. Data model and migration
 
-- [ ] 1.1 Add `TaskStatus`, `TaskPriority`, `TaskParticipantRole` enums and the ORM models `Task`, `TaskParticipant`, `TaskEquipment`, `TaskMessage`, `TaskMessageAttachment`, `TaskAttachment`, `TaskChecklistItem`, `TaskSubscription` in `backend/app/models/task.py`; export them from `models/__init__.py`; verify `python -c "import app.models"` imports cleanly.
-- [ ] 1.2 Add an additive Alembic revision (next free number after the current head; `0050` is taken by `fix-process-stage-duplication`) creating the tables and indexes (`folder_id`, `status`, `due_date`, unique `(task_id, user_id)` on participants/subscriptions); verify `alembic upgrade head` then `alembic downgrade -1` succeeds on the dev database.
-- [ ] 1.3 Extend `EventCategory` with `TASK` and confirm no enum schema migration is required; verify `EventCategory.TASK` round-trips through `EventLog` in a unit test.
+- [x] 1.1 Add `TaskStatus`, `TaskPriority`, `TaskParticipantRole` enums and the ORM models `Task`, `TaskParticipant`, `TaskEquipment`, `TaskMessage`, `TaskMessageAttachment`, `TaskAttachment`, `TaskChecklistItem`, `TaskSubscription` in `backend/app/models/task.py`; export them from `models/__init__.py`; verify `python -c "import app.models"` imports cleanly.
+- [x] 1.2 Add an additive Alembic revision (`0051`, next after `0050`) creating the tables and indexes (`folder_id`, `status`, `due_date`, unique `(task_id, user_id)` on participants/subscriptions); verify `alembic upgrade head` then `alembic downgrade -1` succeeds on the dev database.
+- [x] 1.3 Extend `EventCategory` with `TASK` and confirm no enum schema migration is required; verify `EventCategory.TASK` round-trips through `EventLog` in a unit test.
 
 ## 2. Backend core: task CRUD and participants
 
-- [ ] 2.1 Add `backend/app/schemas/task.py` (create/update/read models for task, participant, equipment link, checklist item, message) and verify schema validation with focused unit tests for required `title` and default `priority=NORMAL`.
-- [ ] 2.2 Add `TaskRepository` and `TaskService` implementing create, get, list (folder-scoped, paginated), update, archive and close; verify with service-level tests covering create-by-each-role and folder denial returning 404.
-- [ ] 2.3 Implement participant management enforcing exactly one `RESPONSIBLE` with N assignees and N observers; verify a test that assigning a second responsible replaces the first and that an observer cannot mutate the task (403).
-- [ ] 2.4 Implement equipment linking (0..N) with link/unlink and cascade cleanup when equipment is deleted; verify tests for a task with no equipment, three linked items, and a deleted linked equipment.
-- [ ] 2.5 Add `backend/app/api/v1/routes/tasks.py` and register it in `api/v1/router.py`; verify `GET /api/v1/tasks`, `POST /api/v1/tasks`, `GET/PATCH /api/v1/tasks/{id}` respond per the `tasks` capability spec.
+- [x] 2.1 Add `backend/app/schemas/task.py` (create/update/read models for task, participant, equipment link, checklist item, message) and verify schema validation with focused unit tests for required `title` and default `priority=NORMAL`.
+- [x] 2.2 Add `TaskRepository` and `TaskService` implementing create, get, list (folder-scoped, paginated), update, archive and close; verify with service-level tests covering create-by-each-role and folder denial returning 404.
+- [x] 2.3 Implement participant management enforcing exactly one `RESPONSIBLE` with N assignees and N observers; verify a test that assigning a second responsible replaces the first and that an observer cannot mutate the task (403).
+- [x] 2.4 Implement equipment linking (0..N) with link/unlink and cascade cleanup when equipment is deleted; verify tests for a task with no equipment, three linked items, and a deleted linked equipment.
+- [x] 2.5 Add `backend/app/api/v1/routes/tasks.py` and register it in `api/v1/router.py`; verify `GET /api/v1/tasks`, `POST /api/v1/tasks`, `GET/PATCH /api/v1/tasks/{id}` respond per the `tasks` capability spec.
 
 ## 3. Backend: status lifecycle, attributes and journal
 
-- [ ] 3.1 Implement status transitions (`NEW`, `IN_PROGRESS`, `ON_HOLD`, `DONE`, `CANCELLED`, `ARCHIVED`) with a completion timestamp set on `DONE`/`CANCELLED` and cleared on reopen; verify tests for start→finish and reopen.
-- [ ] 3.2 Implement priority, kind/category, tags (JSON list) and due-date handling incl. the overdue filter; verify tests for the priority default and the overdue query excluding terminal statuses.
-- [ ] 3.3 Write `TASK` journal entries for create, update, assign, status change, comment, attachment and archive, reusing the event service; verify each mutation in 3.1–3.2 produces the expected journal entry.
+- [x] 3.1 Implement status transitions (`NEW`, `IN_PROGRESS`, `ON_HOLD`, `DONE`, `CANCELLED`, `ARCHIVED`) with a completion timestamp set on `DONE`/`CANCELLED` and cleared on reopen; verify tests for start→finish and reopen.
+- [x] 3.2 Implement priority, kind/category, tags (JSON list) and due-date handling incl. the overdue filter; verify tests for the priority default and the overdue query excluding terminal statuses.
+- [x] 3.3 Write `TASK` journal entries for create, update, assign, status change, comment, attachment and archive, reusing the event service; verify each mutation in 3.1–3.2 produces the expected journal entry.
 
 ## 4. Backend: checklists
 
-- [ ] 4.1 Implement checklist item add, rename, reorder, toggle and delete with preserved ordering; verify tests covering add/complete, reorder, and remove-then-order-stable.
-- [ ] 4.2 Expose checklist progress as completed/total on task read models; verify a test where 2 of 4 items are done reports `2 of 4`.
+- [x] 4.1 Implement checklist item add, rename, reorder, toggle and delete with preserved ordering; verify tests covering add/complete, reorder, and remove-then-order-stable.
+- [x] 4.2 Expose checklist progress as completed/total on task read models; verify a test where 2 of 4 items are done reports `2 of 4`.
 
 ## 5. Backend: collaboration
 

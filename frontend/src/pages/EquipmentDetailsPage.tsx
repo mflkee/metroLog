@@ -95,6 +95,7 @@ import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
 import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
+import { EquipmentTasksSection } from "@/components/EquipmentTasksSection";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   appendPendingFiles,
@@ -3653,6 +3654,8 @@ export function EquipmentDetailsPage() {
                   ) : null}
                 </div>
               </section>
+
+              <EquipmentTasksSection equipmentId={parsedEquipmentId} token={token ?? ""} />
 
             </aside>
           </div>

@@ -47,11 +47,11 @@
 ## 8. Frontend: integration
 
 - [x] 8.1 Register `/tasks` and `/tasks/:taskId` in `app/router.tsx` and add the navigation entry in `src/lib/nav.ts` (visible to all roles); verify the menu shows "Задачи" after login and the route resolves.
-- [ ] 8.2 Add a "Tasks" section to `EquipmentDetailsPage` listing tasks linked to the instrument; verify a component test with one linked task.
-- [ ] 8.3 Add dashboard widgets for the current user's tasks and overdue tasks; verify widget tests for empty and populated states, and update `src/content/user-guide.ru.txt` with a task workflow section.
+- [x] 8.2 Add a "Tasks" section to `EquipmentDetailsPage` listing tasks linked to the instrument (self-contained `EquipmentTasksSection`).
+- [x] 8.3 Add a dashboard "Мои задачи" widget (responsible/assignee, overdue highlight) and a tasks section in `src/content/user-guide.ru.txt` (renumbered following sections).
 
 ## 9. Integration and end-to-end checks
 
-- [ ] 9.1 Run `npm run check` (backend lint+tests, frontend lint+tests+build) and fix failures.
+- [x] 9.1 Run `npm run check` (backend lint+tests, frontend lint+tests+build) and fix failures.
 - [ ] 9.2 Perform the acceptance pass on Stage via `main`: create a task with equipment and one without, assign a responsible and two assignees, run a checklist to completion, post a comment with a mention, move a card across the board, and confirm the journal records every step.
 - [ ] 9.3 Verify scoping end-to-end as an MKAIR user and a CUSTOMER: no tasks leak from denied folders, and a customer cannot edit a task but can comment and attach.

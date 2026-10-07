@@ -25,6 +25,7 @@ import {
   normalizeDashboardWidgets,
 } from "@/lib/dashboard";
 import { hasOperatorAccess } from "@/lib/roles";
+import { MyTasksWidget } from "@/components/MyTasksWidget";
 import { useAuthStore } from "@/store/auth";
 
 type WidgetCardProps = {
@@ -290,6 +291,14 @@ export function DashboardPage() {
                   <p className="mt-2 text-xs text-steel">{item.hint}</p>
                 </article>
               ))}
+            </div>
+          ) : null}
+
+          {visibleWidgets.includes("my_tasks") && user ? (
+            <div className="xl:col-span-12">
+              <WidgetCard title="Мои задачи">
+                <MyTasksWidget token={token ?? ""} userId={user.id} />
+              </WidgetCard>
             </div>
           ) : null}
 

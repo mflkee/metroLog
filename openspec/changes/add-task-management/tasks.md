@@ -55,3 +55,12 @@
 - [x] 9.1 Run `npm run check` (backend lint+tests, frontend lint+tests+build) and fix failures.
 - [ ] 9.2 Perform the acceptance pass on Stage via `main`: create a task with equipment and one without, assign a responsible and two assignees, run a checklist to completion, post a comment with a mention, move a card across the board, and confirm the journal records every step.
 - [ ] 9.3 Verify scoping end-to-end as an MKAIR user and a CUSTOMER: no tasks leak from denied folders, and a customer cannot edit a task but can comment and attach.
+
+## 10. Frontend follow-ups (from Stage review, 2026-10-08)
+
+- [ ] 10.1 Participant editor on the task card (and in the create modal): set/change the responsible and add/remove assignees and observers via the `responsible_user_id` / `assignee_user_ids` / `observer_user_ids` fields; verify a saved change is reflected and the assignee gets the assignment notification.
+- [ ] 10.2 Equipment linker in the task card: search equipment (within the task's folder) and attach/detach links via `equipment_ids`; verify the card lists the instruments and the list item's equipment count updates.
+- [ ] 10.3 `@` mention autocomplete in the discussion composer using `fetchMentionUsers`, inserting the correct mention key; verify the mention resolves and (when SMTP is configured) an email is enqueued.
+- [ ] 10.4 Message attachments: add a download endpoint for message attachments on the backend and show download + inline preview (image/PDF) in the discussion; verify the authenticated download returns the file.
+- [ ] 10.5 Task attachments in the card: verify and fix download, and add inline preview (image/PDF) consistent with the equipment attachment preview component.
+- [ ] 10.6 Allow choosing assignees, observers and equipment already at creation time in the create-task modal (today only the responsible is selectable).

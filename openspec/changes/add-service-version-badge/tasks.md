@@ -15,4 +15,4 @@
 ## 3. Integration checks
 
 - [x] 3.1 Run `npm run check` (lint, tests, build) and fix failures.
-- [ ] 3.2 On Stage, confirm the header shows `v0.1.0` and `beta`, and that changing `frontend/package.json` and rebuilding changes the shown value.
+- [x] 3.2 On Stage, confirm the header shows `v0.1.0` and `beta`, and that changing `frontend/package.json` and rebuilding changes the shown value.

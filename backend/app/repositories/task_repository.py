@@ -8,12 +8,18 @@ from sqlalchemy.orm import Session, selectinload
 from app.models.task import (
     TERMINAL_TASK_STATUSES,
     Task,
+    TaskAttachment,
     TaskEquipment,
+    TaskMessage,
+    TaskMessageAttachment,
     TaskParticipant,
     TaskParticipantRole,
     TaskPriority,
+    TaskReminderLog,
     TaskStatus,
+    TaskSubscription,
 )
+from app.models.user import User
 
 _PRIORITY_ORDER = {
     TaskPriority.CRITICAL: 0,
@@ -213,3 +219,137 @@ class TaskRepository:
     def list_participant_user_ids(self, *, task_id: int) -> set[int]:
         statement = select(TaskParticipant.user_id).where(TaskParticipant.task_id == task_id)
         return {int(value) for value in self.session.scalars(statement)}
+
+
+class TaskMessageRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, message: TaskMessage) -> TaskMessage:
+        self.session.add(message)
+        self.session.flush()
+        return message
+
+    def get_by_id(self, message_id: int) -> TaskMessage | None:
+        statement = (
+            select(TaskMessage)
+            .options(selectinload(TaskMessage.attachments))
+            .where(TaskMessage.id == message_id)
+        )
+        return self.session.scalar(statement)
+
+    def list_by_task(self, *, task_id: int) -> list[TaskMessage]:
+        statement = (
+            select(TaskMessage)
+            .options(selectinload(TaskMessage.attachments))
+            .where(TaskMessage.task_id == task_id)
+            .order_by(TaskMessage.created_at.asc(), TaskMessage.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+    def delete(self, message: TaskMessage) -> None:
+        self.session.delete(message)
+
+
+class TaskMessageAttachmentRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, attachment: TaskMessageAttachment) -> TaskMessageAttachment:
+        self.session.add(attachment)
+        self.session.flush()
+        return attachment
+
+    def get_by_id(self, attachment_id: int) -> TaskMessageAttachment | None:
+        statement = select(TaskMessageAttachment).where(TaskMessageAttachment.id == attachment_id)
+        return self.session.scalar(statement)
+
+
+class TaskAttachmentRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def add(self, attachment: TaskAttachment) -> TaskAttachment:
+        self.session.add(attachment)
+        self.session.flush()
+        return attachment
+
+    def get_by_id(self, attachment_id: int) -> TaskAttachment | None:
+        statement = select(TaskAttachment).where(TaskAttachment.id == attachment_id)
+        return self.session.scalar(statement)
+
+    def list_by_task(self, *, task_id: int) -> list[TaskAttachment]:
+        statement = (
+            select(TaskAttachment)
+            .where(TaskAttachment.task_id == task_id)
+            .order_by(TaskAttachment.created_at.asc(), TaskAttachment.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+
+class TaskSubscriptionRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def get(self, *, task_id: int, user_id: int) -> TaskSubscription | None:
+        statement = select(TaskSubscription).where(
+            TaskSubscription.task_id == task_id,
+            TaskSubscription.user_id == user_id,
+        )
+        return self.session.scalar(statement)
+
+    def add(self, subscription: TaskSubscription) -> TaskSubscription:
+        self.session.add(subscription)
+        self.session.flush()
+        return subscription
+
+    def delete(self, subscription: TaskSubscription) -> None:
+        self.session.delete(subscription)
+
+    def list_active_users_by_task_id(self, *, task_id: int) -> list[User]:
+        subscribed_user_ids = select(TaskSubscription.user_id).where(
+            TaskSubscription.task_id == task_id
+        )
+        statement = (
+            select(User)
+            .where(User.is_active.is_(True), User.id.in_(subscribed_user_ids))
+            .order_by(User.last_name.asc(), User.first_name.asc(), User.id.asc())
+        )
+        return list(self.session.scalars(statement))
+
+
+class TaskReminderLogRepository:
+    def __init__(self, session: Session) -> None:
+        self.session = session
+
+    def exists(self, *, task_id: int, reminder_date: date) -> bool:
+        statement = (
+            select(TaskReminderLog.id)
+            .where(
+                TaskReminderLog.task_id == task_id,
+                TaskReminderLog.reminder_date == reminder_date,
+            )
+            .limit(1)
+        )
+        return self.session.scalar(statement) is not None
+
+    def add(self, log: TaskReminderLog) -> TaskReminderLog:
+        self.session.add(log)
+        self.session.flush()
+        return log
+
+
+def list_tasks_due_for_reminder(
+    session: Session, *, horizon: date, include_overdue: bool = True
+) -> list[Task]:
+    statement = (
+        select(Task)
+        .options(selectinload(Task.participants).selectinload(TaskParticipant.user))
+        .where(
+            Task.due_date.is_not(None),
+            Task.due_date <= horizon,
+            Task.status.not_in(list(TERMINAL_TASK_STATUSES)),
+        )
+        .order_by(Task.due_date.asc(), Task.id.asc())
+    )
+    return list(session.scalars(statement))

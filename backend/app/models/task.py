@@ -304,6 +304,30 @@ class TaskAttachment(Base):
     task: Mapped[Task] = relationship(back_populates="attachments")
 
 
+class TaskReminderLog(Base):
+    __tablename__ = "task_reminder_log"
+    __table_args__ = (
+        UniqueConstraint(
+            "task_id",
+            "reminder_date",
+            name="uq_task_reminder_log_task_id_reminder_date",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    task_id: Mapped[int] = mapped_column(
+        ForeignKey("tasks.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    reminder_date: Mapped[date] = mapped_column(Date, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        nullable=False,
+    )
+
+
 class TaskSubscription(Base):
     __tablename__ = "task_subscriptions"
     __table_args__ = (

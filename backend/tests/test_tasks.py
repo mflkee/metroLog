@@ -7,6 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
+from app.services.task_service import send_task_deadline_reminders
 from app.services.user_service import UserService
 
 
@@ -398,3 +399,205 @@ async def test_overdue_filter_excludes_terminal_tasks(client: AsyncClient, db_en
     after_close = await client.get("/api/v1/tasks?overdue_only=true", headers=headers)
     assert after_close.status_code == 200
     assert after_close.json()["total"] == 0
+
+
+@pytest.mark.anyio
+async def test_task_messages_private_visibility(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: обсуждение")
+    await create_user(
+        client,
+        admin_token=admin["access_token"],
+        email="talker@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[folder["id"]],
+    )
+    customer_login = await login_user(client, email="talker@example.test", password="TestPass123")
+    customer_headers = {"Authorization": f"Bearer {customer_login['access_token']}"}
+
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=admin_headers,
+        json={"folder_id": folder["id"], "title": "Обсуждаемая", "responsible_user_id": admin_id},
+    )
+    task_id = created.json()["id"]
+
+    public_message = await client.post(
+        f"/api/v1/tasks/{task_id}/messages",
+        headers=customer_headers,
+        data={"text": "Комментарий клиента"},
+    )
+    assert public_message.status_code == 201, public_message.text
+
+    private_denied = await client.post(
+        f"/api/v1/tasks/{task_id}/messages",
+        headers=customer_headers,
+        data={"text": "секрет", "is_private": "true"},
+    )
+    assert private_denied.status_code == 403
+
+    private_note = await client.post(
+        f"/api/v1/tasks/{task_id}/messages",
+        headers=admin_headers,
+        data={"text": "Внутренняя заметка", "is_private": "true"},
+    )
+    assert private_note.status_code == 201, private_note.text
+
+    customer_view = await client.get(f"/api/v1/tasks/{task_id}/messages", headers=customer_headers)
+    assert customer_view.status_code == 200
+    assert [m["text"] for m in customer_view.json()] == ["Комментарий клиента"]
+
+    admin_view = await client.get(f"/api/v1/tasks/{task_id}/messages", headers=admin_headers)
+    assert admin_view.status_code == 200
+    assert len(admin_view.json()) == 2
+
+
+@pytest.mark.anyio
+async def test_task_attachments_flow_and_size_limit(
+    client: AsyncClient, db_engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: вложения")
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={"folder_id": folder["id"], "title": "С файлом", "responsible_user_id": admin_id},
+    )
+    task_id = created.json()["id"]
+
+    upload = await client.post(
+        f"/api/v1/tasks/{task_id}/attachments",
+        headers=headers,
+        files={"files": ("план.txt", b"hello", "text/plain")},
+    )
+    assert upload.status_code == 201, upload.text
+    attachment = upload.json()[0]
+    assert attachment["file_name"] == "план.txt"
+
+    listing = await client.get(f"/api/v1/tasks/{task_id}/attachments", headers=headers)
+    assert listing.status_code == 200
+    assert len(listing.json()) == 1
+
+    download = await client.get(
+        f"/api/v1/tasks/{task_id}/attachments/{attachment['id']}", headers=headers
+    )
+    assert download.status_code == 200
+    assert download.content == b"hello"
+
+    removed = await client.delete(
+        f"/api/v1/tasks/{task_id}/attachments/{attachment['id']}", headers=headers
+    )
+    assert removed.status_code == 204
+    assert (await client.get(f"/api/v1/tasks/{task_id}/attachments", headers=headers)).json() == []
+
+    monkeypatch.setattr(settings, "upload_max_file_size_bytes", 3)
+    too_big = await client.post(
+        f"/api/v1/tasks/{task_id}/attachments",
+        headers=headers,
+        files={"files": ("big.bin", b"0123456789", "application/octet-stream")},
+    )
+    assert too_big.status_code == 413
+
+
+@pytest.mark.anyio
+async def test_task_subscription_toggle(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: подписка")
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={"folder_id": folder["id"], "title": "Подписка", "responsible_user_id": admin_id},
+    )
+    task_id = created.json()["id"]
+
+    status_before = await client.get(f"/api/v1/tasks/{task_id}/subscription", headers=headers)
+    assert status_before.json()["is_subscribed"] is False
+
+    subscribed = await client.post(f"/api/v1/tasks/{task_id}/subscription", headers=headers)
+    assert subscribed.status_code == 200
+    assert subscribed.json()["is_subscribed"] is True
+
+    unsubscribed = await client.delete(f"/api/v1/tasks/{task_id}/subscription", headers=headers)
+    assert unsubscribed.json()["is_subscribed"] is False
+
+
+@pytest.mark.anyio
+async def test_task_deadline_reminder_is_idempotent(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: напоминания")
+    due = (date.today() + timedelta(days=1)).isoformat()
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "title": "Скоро дедлайн",
+            "responsible_user_id": admin_id,
+            "due_date": due,
+        },
+    )
+    assert created.status_code == 201, created.text
+
+    session_factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    with session_factory() as session:
+        assert send_task_deadline_reminders(session, window_days=3) == 1
+    with session_factory() as session:
+        assert send_task_deadline_reminders(session, window_days=3) == 0
+
+
+@pytest.mark.anyio
+async def test_status_change_notifies_participants_and_subscriber(
+    client: AsyncClient, db_engine, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: уведомления")
+    await create_user(
+        client,
+        admin_token=admin["access_token"],
+        email="follower@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[folder["id"]],
+    )
+    follower_login = await login_user(client, email="follower@example.test", password="TestPass123")
+    follower_headers = {"Authorization": f"Bearer {follower_login['access_token']}"}
+
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={"folder_id": folder["id"], "title": "Уведомляемая", "responsible_user_id": admin_id},
+    )
+    task_id = created.json()["id"]
+
+    await client.post(f"/api/v1/tasks/{task_id}/subscription", headers=follower_headers)
+
+    calls: list[dict[str, object]] = []
+    monkeypatch.setattr(
+        "app.services.task_service.enqueue_process_update_email",
+        lambda **kwargs: calls.append(kwargs),
+    )
+    updated = await client.patch(
+        f"/api/v1/tasks/{task_id}", headers=headers, json={"status": "IN_PROGRESS"}
+    )
+    assert updated.status_code == 200, updated.text
+    recipients = {call["recipient_email"] for call in calls}
+    assert "follower@example.test" in recipients

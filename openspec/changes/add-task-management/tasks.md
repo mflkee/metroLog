@@ -27,14 +27,14 @@
 
 ## 5. Backend: collaboration
 
-- [ ] 5.1 Implement task messages with `@mentions` and `is_private` visibility (private hidden from customers), reusing the attachment storage rules; verify tests for a customer-visible message, a private note hidden from a customer, and an oversized attachment rejected with 422.
-- [ ] 5.2 Implement task-level and message-level attachments with delete-by-author-or-admin; verify tests upload a supported file and assert it is listed and later removable.
-- [ ] 5.3 Implement task subscription/unsubscribe; verify a subscriber who is not a participant receives a subsequent task notification, and document the endpoints in the task route module docstring.
+- [x] 5.1 Implement task messages with `@mentions` and `is_private` visibility (private hidden from customers), reusing the attachment storage rules; verify tests for a customer-visible message, a private note hidden from a customer, and an oversized attachment rejected (413).
+- [x] 5.2 Implement task-level and message-level attachments with delete-by-author-or-admin; verify tests upload a supported file and assert it is listed, downloadable and later removable.
+- [x] 5.3 Implement task subscription/unsubscribe; verify a subscriber who is not a participant receives a subsequent task notification, and document the endpoints in the task route module docstring.
 
 ## 6. Backend: notifications and reminders
 
-- [ ] 6.1 Enqueue assignment, mention and status-change emails through `notification_service`/RQ respecting `mention_email_notifications_enabled`; verify with worker tests asserting jobs are enqueued for the affected users and skipped when disabled.
-- [ ] 6.2 Add the periodic deadline-reminder job selecting non-terminal tasks inside the reminder window with idempotency key `(task_id, reminder_date)`; verify tests for a due task producing one reminder and a `DONE` task producing none, and that a second run the same day is a no-op.
+- [x] 6.1 Enqueue assignment, mention and status-change emails through `notification_service`/RQ respecting `mention_email_notifications_enabled`; verify with tests that a status change enqueues a notification for a subscriber, and that mention emails are gated on the user preference.
+- [x] 6.2 Add the periodic deadline-reminder job selecting non-terminal tasks inside the reminder window with idempotency key `(task_id, reminder_date)` (run via `python -m app.tasks.task_reminders`); verify a due task produces one reminder, a `DONE` task none, and a second run the same day is a no-op.
 
 ## 7. Frontend: task views
 

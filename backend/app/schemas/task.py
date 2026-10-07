@@ -216,3 +216,66 @@ class TaskPageRead(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class TaskMessageAttachmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    file_name: str
+    file_mime_type: str | None = None
+    file_size: int
+    uploaded_by_display_name: str
+    created_at: datetime
+
+
+class TaskMessageRead(BaseModel):
+    id: int
+    author_user_id: int | None
+    author_display_name: str
+    text: str | None
+    is_private: bool
+    created_at: datetime
+    updated_at: datetime
+    attachments: list[TaskMessageAttachmentRead] = Field(default_factory=list)
+
+
+class TaskMessageCreateRequest(BaseModel):
+    text: str | None = None
+    is_private: bool = False
+
+    @field_validator("text")
+    @classmethod
+    def _strip_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+
+class TaskMessageUpdateRequest(BaseModel):
+    text: str | None = None
+    is_private: bool | None = None
+
+    @field_validator("text")
+    @classmethod
+    def _strip_optional_text(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        stripped = value.strip()
+        return stripped or None
+
+
+class TaskAttachmentRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    file_name: str
+    file_mime_type: str | None = None
+    file_size: int
+    uploaded_by_display_name: str
+    created_at: datetime
+
+
+class TaskSubscriptionRead(BaseModel):
+    is_subscribed: bool

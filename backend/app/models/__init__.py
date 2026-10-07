@@ -30,6 +30,7 @@ from app.models.task import (
     TaskParticipant,
     TaskParticipantRole,
     TaskPriority,
+    TaskReminderLog,
     TaskStatus,
     TaskSubscription,
 )
@@ -60,6 +61,7 @@ __all__ = [
     "TaskParticipant",
     "TaskParticipantRole",
     "TaskPriority",
+    "TaskReminderLog",
     "TaskStatus",
     "TaskSubscription",
     "Verification",

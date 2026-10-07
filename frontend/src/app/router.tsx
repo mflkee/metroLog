@@ -53,6 +53,12 @@ const RepairsPage = lazy(() =>
 const SettingsPage = lazy(() =>
   import("@/pages/SettingsPage").then((module) => ({ default: module.SettingsPage })),
 );
+const TasksPage = lazy(() =>
+  import("@/pages/TasksPage").then((module) => ({ default: module.TasksPage })),
+);
+const TaskDetailsPage = lazy(() =>
+  import("@/pages/TaskDetailsPage").then((module) => ({ default: module.TaskDetailsPage })),
+);
 const UserDetailsPage = lazy(() =>
   import("@/pages/UserDetailsPage").then((module) => ({ default: module.UserDetailsPage })),
 );
@@ -87,6 +93,8 @@ export const router = createBrowserRouter([
           { path: "/arshin", element: <ArshinPage /> },
           { path: "/verification/si", element: <VerificationPage /> },
           { path: "/repairs", element: <RepairsPage /> },
+          { path: "/tasks", element: <TasksPage /> },
+          { path: "/tasks/:taskId", element: <TaskDetailsPage /> },
           { path: "/events", element: <EventsPage /> },
           { path: "/settings", element: <SettingsPage /> },
           { path: "/profile", element: <ProfilePage /> },

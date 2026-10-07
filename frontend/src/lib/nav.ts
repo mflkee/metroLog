@@ -19,8 +19,21 @@ const baseNavigationItems: NavigationItem[] = [
     to: "/verification/si",
   },
   { icon: "repairs", label: "Ремонты", description: "Очередь, этапы и архив", to: "/repairs" },
-  { icon: "settings", label: "Настройки", description: "Профиль, темы и параметры", to: "/settings" },
 ];
+
+const tasksNavigationItem: NavigationItem = {
+  icon: "today",
+  label: "Задачи",
+  description: "Постановка, доска и сроки",
+  to: "/tasks",
+};
+
+const settingsNavigationItem: NavigationItem = {
+  icon: "settings",
+  label: "Настройки",
+  description: "Профиль, темы и параметры",
+  to: "/settings",
+};
 
 const eventsNavigationItem: NavigationItem = {
   icon: "events",
@@ -44,11 +57,13 @@ const adminUsersNavigationItem: NavigationItem = {
 };
 
 export function getNavigationItems(role: UserRole | null | undefined): NavigationItem[] {
-  const items = [...baseNavigationItems];
+  const items = [...baseNavigationItems, tasksNavigationItem];
 
   if (role) {
-    items.splice(5, 0, eventsNavigationItem);
+    items.push(eventsNavigationItem);
   }
+
+  items.push(settingsNavigationItem);
 
   if (hasAdminAccess(role)) {
     items.push(developerNavigationItem, adminUsersNavigationItem);

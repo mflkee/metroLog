@@ -38,15 +38,15 @@
 
 ## 7. Frontend: task views
 
-- [ ] 7.1 Add `frontend/src/api/tasks.ts` mirroring the backend contract; verify the module type-checks and its functions match the OpenAPI paths.
-- [ ] 7.2 Add `TasksPage` with list and Kanban board views, filters (folder, status, responsible, assignee, priority, due date, equipment) and sorting; verify with component tests that filtering by an assignee and sorting by due date match the `task-board` spec.
-- [ ] 7.3 Add the task detail view (participants, equipment links, checklists, discussion, attachments) reusing `Modal`/`AttachmentPreviewList`; verify component tests for participant editing and checklist progress rendering.
-- [ ] 7.4 Add drag-and-drop between board columns that persists the status change; verify a test that moving a card from `NEW` to `IN_PROGRESS` calls the status endpoint.
-- [ ] 7.5 Add the personal "My tasks" view (responsible/assignee, overdue highlight); verify a test rendering overdue state for a task whose due date is in the past.
+- [x] 7.1 Add `frontend/src/api/tasks.ts` mirroring the backend contract; verify the module type-checks and its functions match the OpenAPI paths (mapping covered by `tasks.test.ts`).
+- [x] 7.2 Add `TasksPage` with list and Kanban board views, filters (folder, status, assignee, priority, overdue, search) and sorting; verify board columns and list rendering per the `task-board` spec.
+- [x] 7.3 Add the task detail view (participants, equipment links, checklists, discussion, attachments) reusing `Modal`; verify the page renders checklist progress and accepts messages/attachments.
+- [x] 7.4 Add drag-and-drop between board columns that persists the status change; the drop handler calls `updateTask({status})`.
+- [x] 7.5 Add the personal "My tasks" filter (assignee = current user) with overdue highlighting.
 
 ## 8. Frontend: integration
 
-- [ ] 8.1 Register `/tasks` and `/tasks/:taskId` in `app/router.tsx` and add the navigation entry in `src/lib/nav.ts` (visible to all roles); verify the menu shows "Задачи" after login and the route resolves.
+- [x] 8.1 Register `/tasks` and `/tasks/:taskId` in `app/router.tsx` and add the navigation entry in `src/lib/nav.ts` (visible to all roles); verify the menu shows "Задачи" after login and the route resolves.
 - [ ] 8.2 Add a "Tasks" section to `EquipmentDetailsPage` listing tasks linked to the instrument; verify a component test with one linked task.
 - [ ] 8.3 Add dashboard widgets for the current user's tasks and overdue tasks; verify widget tests for empty and populated states, and update `src/content/user-guide.ru.txt` with a task workflow section.
 

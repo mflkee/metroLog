@@ -73,6 +73,11 @@ select, tooltip, tabs) that metro-ui does not ship.
 touching theming. `app-shell` and `theme-provider` assume light/dark and would replace the
 10-theme model, which is a product decision - deferred, not silently dropped.
 
+Status update (owner decision, 2026-10-08): the 10-theme model stays, but the `light` and `dark`
+themes were re-paletted to shadcn's authentic v4 `neutral` palette (oklch) and **dark is now the
+default**. `app-shell` and `theme-provider` remain deferred - a light/dark-only shell would still
+drop the eight extra themes.
+
 
 ## Risks / Trade-offs
 

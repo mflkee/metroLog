@@ -1,6 +1,27 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../tailwind.config.ts";
+
+/*
+ * Tailwind v4 changed two preflight defaults that this UI relies on, so they are restored
+ * here from the shared tokens instead of a hardcoded palette:
+ *  - the default border colour (v4 uses `currentColor`);
+ *  - the pointer cursor on enabled buttons (v4 uses the browser default).
+ * `@layer base` keeps utilities and the bespoke component classes in charge, exactly as in v3.
+ */
+@layer base {
+  *,
+  ::before,
+  ::after,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: var(--border-color);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+}
 
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;

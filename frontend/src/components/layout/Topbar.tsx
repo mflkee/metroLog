@@ -68,7 +68,7 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
         };
 
   return (
-    <header className="shell-topbar z-20 border-b border-line px-3 py-2 backdrop-blur sm:px-4 sm:py-2.5 lg:sticky lg:top-0 lg:px-8 lg:py-3">
+    <header className="shell-topbar z-20 border-b border-line px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-2.5 lg:sticky lg:top-0 lg:px-8 lg:py-3">
       <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { defineConfig, loadEnv } from "vite";
 
@@ -23,7 +24,7 @@ export default defineConfig(({ mode }) => {
   const frontendPort = Number(process.env.FRONTEND_PORT ?? env.FRONTEND_PORT ?? "5173");
 
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
     define: {
       __APP_VERSION__: JSON.stringify(readAppVersion()),
     },

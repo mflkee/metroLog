@@ -3789,7 +3789,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                 </tbody>
               </table>
               </div>
-              <div className="sticky bottom-0 z-10 rounded-full border border-line bg-white/95 px-3 py-2 shadow-panel backdrop-blur">
+              <div className="sticky bottom-0 z-10 rounded-full border border-line bg-white/95 px-3 py-2 shadow-panel backdrop-blur-sm">
                 <div
                   ref={folderRefreshBottomScrollbarRef}
                   className="overflow-x-auto overflow-y-hidden"

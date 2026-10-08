@@ -419,7 +419,7 @@ export function HelpPage() {
                     key={chapter.id}
                     className={`block w-full rounded-2xl border px-3 py-3 text-left transition ${
                       isActive
-                        ? "border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-ink shadow-sm"
+                        ? "border-[color:var(--accent)] bg-[color:var(--accent-soft)] text-ink shadow-xs"
                         : "border-line bg-[color:var(--surface-2)] text-steel hover:bg-[color:var(--surface-3)] hover:text-ink"
                     }`}
                     type="button"

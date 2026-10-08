@@ -10,7 +10,7 @@ RUN npm ci --no-audit --no-fund --fetch-retries=5 --fetch-retry-mintimeout=2000 
     || npm ci --no-audit --no-fund --fetch-retries=5 --registry=https://registry.npmmirror.com \
     || npm ci --no-audit --no-fund --fetch-retries=5
 COPY frontend/tsconfig.json frontend/vite.config.ts frontend/vitest.config.ts frontend/eslint.config.js frontend/tailwind.config.ts ./
-COPY frontend/postcss.config.cjs frontend/components.json frontend/index.html ./
+COPY frontend/components.json frontend/index.html ./
 COPY frontend/public ./public
 COPY frontend/src ./src
 # CHANGELOG.md lives at the repo root and is imported by the "What's new" view.

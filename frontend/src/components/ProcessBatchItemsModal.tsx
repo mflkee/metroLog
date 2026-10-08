@@ -67,7 +67,7 @@ export function ProcessBatchItemsModal({
             />
           </svg>
           <AutocompleteInput
-            className="w-full bg-transparent text-ink outline-none placeholder:text-steel"
+            className="w-full bg-transparent text-ink outline-hidden placeholder:text-steel"
             placeholder="Поиск по прибору, объекту, серийному номеру"
             suggestions={searchSuggestions}
             value={searchValue}

@@ -24,7 +24,7 @@ export function Sidebar({
     <>
       <aside
         className={[
-          "sidebar-shell hidden lg:sticky lg:top-0 lg:block lg:self-start lg:h-screen lg:overflow-y-auto lg:py-5 lg:backdrop-blur lg:transition-[padding] lg:duration-300",
+          "sidebar-shell hidden lg:sticky lg:top-0 lg:block lg:self-start lg:h-screen lg:overflow-y-auto lg:py-5 lg:backdrop-blur-sm lg:transition-[padding] lg:duration-300",
           collapsed ? "lg:px-2" : "lg:px-4",
         ].join(" ")}
       >

@@ -99,7 +99,7 @@ function PendingAttachmentCard({
   return (
     <article className="tone-child relative aspect-square overflow-hidden rounded-2xl border border-line">
       {statusLabel && !isBusy ? (
-        <div className="absolute left-2 top-2 z-20 rounded-full bg-[rgba(11,20,27,0.74)] px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">
+        <div className="absolute left-2 top-2 z-20 rounded-full bg-[rgba(11,20,27,0.74)] px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
           {statusLabel}
         </div>
       ) : null}
@@ -174,7 +174,7 @@ function PendingAttachmentCard({
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-gradient-to-t from-[rgba(11,20,27,0.92)] via-[rgba(11,20,27,0.76)] to-transparent px-3 pb-3 pt-10 text-white">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-[rgba(11,20,27,0.92)] via-[rgba(11,20,27,0.76)] to-transparent px-3 pb-3 pt-10 text-white">
         <div className="truncate text-xs font-semibold">{file.name}</div>
         <div className="truncate text-[11px] text-white/78">{formatFileSize(file.size)}</div>
       </div>

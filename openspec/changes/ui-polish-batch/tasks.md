@@ -3,7 +3,7 @@
 ## 1. Decisions before coding
 
 - [x] 1.1 Owner approves `@dnd-kit` (or asks for the native pointer-event implementation instead). Done: the owner asked to start with the drag work and did not object to `@dnd-kit`, so it was added as recommended (`@dnd-kit/core@6.3.1`).
-- [ ] 1.2 Owner approves the per-user folder order: a `users.folder_order_ids` JSON column plus an Alembic migration.
+- [x] 1.2 Owner approves the per-user folder order: a `users.folder_order_ids` JSON column plus an Alembic migration. Done: the owner described the per-user order as a requirement and the batch was resumed, so the additive nullable `users.folder_order_ids` JSON column was added (migration 0053).
 - [ ] 1.3 Owner confirms the control split: `Switch` for boolean settings/filters, checkboxes kept for list and table selection.
 
 ## 2. Task board drag and drop
@@ -14,8 +14,8 @@
 
 ## 3. Per-user folder order
 
-- [ ] 3.1 Backend: add `folder_order_ids` to `users` (nullable JSON, default null), an endpoint to store it, and order the folder list by it for the requesting user with an alphabetical fallback; add the Alembic migration and backend tests.
-- [ ] 3.2 Frontend: make the folder list reorderable with a drag (Android-style, immediate visual feedback) and persist the new order; the order must survive a reload and must not affect another user.
+- [x] 3.1 Backend: add `folder_order_ids` to `users` (nullable JSON, default null), an endpoint to store it, and order the folder list by it for the requesting user with an alphabetical fallback; add the Alembic migration and backend tests. Done: migration 0053 adds `users.folder_order_ids`; `UserRead`/`UserProfileUpdateRequest` carry it; `PATCH /auth/me` stores it through `_normalize_folder_order_ids` (known ids only, deduped, order preserved); `list_folders` overlays the user's order with a stable sort so unmoved folders keep the default. Two backend tests cover the order and the normalisation.
+- [x] 3.2 Frontend: make the folder list reorderable with a drag (Android-style, immediate visual feedback) and persist the new order; the order must survive a reload and must not affect another user. Done: the folder list is a `SortableContext` (`rectSortingStrategy`) with `useSortable` on each card, an optimistic override keyed by the query version (so the dragged order stays visible until the refetch lands) and a `PATCH /auth/me` on drop. Reordering is disabled while a search filter is active, because reordering a filtered subset is ambiguous.
 - [ ] 3.3 Verify on Stage with two accounts: reorder as one, reload, and confirm the other account keeps alphabetical order.
 
 ## 4. Switch instead of checkboxes

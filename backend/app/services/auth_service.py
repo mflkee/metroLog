@@ -134,6 +134,11 @@ class AuthService:
             user.enabled_theme_options = _normalize_enabled_theme_options(
                 payload.enabled_theme_options
             )
+        if "folder_order_ids" in payload.model_fields_set:
+            user.folder_order_ids = _normalize_folder_order_ids(
+                payload.folder_order_ids,
+                folders=self.folders,
+            )
         self._sync_dashboard_folder_scope(user)
         self.session.commit()
         self.session.refresh(user)
@@ -366,6 +371,31 @@ def _normalize_hidden_equipment_folder_ids(
         seen.add(folder_id)
         normalized.append(folder_id)
 
+    return normalized
+
+
+def _normalize_folder_order_ids(
+    values: list[int] | None,
+    *,
+    folders: EquipmentFolderRepository,
+) -> list[int]:
+    """The user's own folder order: known folder ids only, in order, without duplicates."""
+
+    if not values:
+        return []
+
+    known_folder_ids = {folder.id for folder in folders.list_all()}
+    normalized: list[int] = []
+    seen: set[int] = set()
+    for raw_value in values:
+        try:
+            folder_id = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if folder_id in seen or folder_id not in known_folder_ids:
+            continue
+        seen.add(folder_id)
+        normalized.append(folder_id)
     return normalized
 
 

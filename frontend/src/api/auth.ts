@@ -22,6 +22,7 @@ type RawUser = {
   dashboard_folder_ids: number[] | null;
   allowed_folder_ids: number[] | null;
   hidden_equipment_folder_ids: number[] | null;
+  folder_order_ids: number[] | null;
   dashboard_widget_options: DashboardWidgetKey[] | null;
   mention_email_notifications_enabled: boolean;
   theme_preference: ThemeName | null;
@@ -57,6 +58,7 @@ export type AuthUser = {
   dashboardFolderIds: number[] | null;
   allowedFolderIds: number[] | null;
   hiddenEquipmentFolderIds: number[] | null;
+  folderOrderIds: number[] | null;
   dashboardWidgets: DashboardWidgetKey[] | null;
   mentionEmailNotificationsEnabled: boolean;
   themePreference: ThemeName | null;
@@ -97,6 +99,7 @@ export type UpdateProfilePayload = {
   dashboardFolderId?: number | null;
   dashboardFolderIds?: number[] | null;
   hiddenEquipmentFolderIds?: number[] | null;
+  folderOrderIds?: number[] | null;
   dashboardWidgets?: DashboardWidgetKey[] | null;
   mentionEmailNotificationsEnabled?: boolean;
   themePreference?: ThemeName | null;
@@ -148,6 +151,7 @@ export async function updateProfile(
     position: payload.position,
     facility: payload.facility,
     hidden_equipment_folder_ids: payload.hiddenEquipmentFolderIds,
+    folder_order_ids: payload.folderOrderIds,
     dashboard_widget_options: payload.dashboardWidgets,
     mention_email_notifications_enabled: payload.mentionEmailNotificationsEnabled,
     theme_preference: payload.themePreference,
@@ -214,6 +218,7 @@ export function mapUser(user: RawUser): AuthUser {
     dashboardFolderIds,
     allowedFolderIds: user.allowed_folder_ids,
     hiddenEquipmentFolderIds: user.hidden_equipment_folder_ids,
+    folderOrderIds: user.folder_order_ids,
     dashboardWidgets: user.dashboard_widget_options,
     mentionEmailNotificationsEnabled: user.mention_email_notifications_enabled,
     themePreference: user.theme_preference,

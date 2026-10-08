@@ -852,3 +852,26 @@ def test_dashboard_widget_options_accept_my_tasks() -> None:
 
     with pytest.raises(HTTPException):
         _normalize_dashboard_widget_options(["unknown_widget"])
+
+
+@pytest.mark.anyio
+async def test_folder_order_keeps_only_known_unique_ids(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder = (
+        await client.post("/api/v1/equipment/folders", headers=headers, json={"name": "Порядок"})
+    ).json()
+
+    response = await client.patch(
+        "/api/v1/auth/me",
+        headers=headers,
+        json={"folder_order_ids": [folder["id"], 999_999, folder["id"]]},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["folder_order_ids"] == [folder["id"]]

@@ -28,6 +28,7 @@ class UserRead(BaseModel):
     dashboard_folder_ids: list[int] | None
     allowed_folder_ids: list[int] | None
     hidden_equipment_folder_ids: list[int] | None
+    folder_order_ids: list[int] | None
     dashboard_widget_options: list[str] | None
     mention_email_notifications_enabled: bool
     theme_preference: UserThemePreference | None
@@ -77,6 +78,7 @@ class UserProfileUpdateRequest(BaseModel):
     dashboard_folder_id: int | None = None
     dashboard_folder_ids: list[int] | None = None
     hidden_equipment_folder_ids: list[int] | None = None
+    folder_order_ids: list[int] | None = None
     dashboard_widget_options: list[str] | None = None
     mention_email_notifications_enabled: bool | None = None
     theme_preference: UserThemePreference | None = None

@@ -108,9 +108,19 @@ class EquipmentFoldersMixin:
         self._ensure_default_deadline_preset()
         folders = self.folders.list_all()
         allowed_folder_ids = self._get_accessible_folder_ids()
-        if allowed_folder_ids is None:
+        if allowed_folder_ids is not None:
+            folders = [folder for folder in folders if folder.id in allowed_folder_ids]
+        return self._apply_folder_order(folders)
+
+    def _apply_folder_order(self, folders: list[EquipmentFolder]) -> list[EquipmentFolder]:
+        """Overlay the user's own order; folders they have not moved keep the default order."""
+
+        order = getattr(self.access_user, "folder_order_ids", None) or []
+        if not order:
             return folders
-        return [folder for folder in folders if folder.id in allowed_folder_ids]
+        rank = {folder_id: index for index, folder_id in enumerate(order)}
+        # A stable sort puts the listed folders first, by their rank, and leaves the rest alone.
+        return sorted(folders, key=lambda folder: rank.get(folder.id, len(rank)))
 
     def create_folder(
         self,

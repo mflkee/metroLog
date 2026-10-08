@@ -8334,3 +8334,41 @@ async def test_folder_refresh_skips_manual_entries_excluded_from_arshin_refresh(
     assert details["task"]["status"] == "COMPLETED"
     assert details["task"]["total_rows"] == 0
     assert details["rows"] == []
+
+
+@pytest.mark.anyio
+async def test_folder_order_is_stored_per_user(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    first = (
+        await client.post("/api/v1/equipment/folders", headers=headers, json={"name": "Альфа"})
+    ).json()
+    second = (
+        await client.post("/api/v1/equipment/folders", headers=headers, json={"name": "Бета"})
+    ).json()
+
+    default_ids = [
+        folder["id"]
+        for folder in (await client.get("/api/v1/equipment/folders", headers=headers)).json()
+    ]
+    assert default_ids.index(first["id"]) < default_ids.index(second["id"])
+
+    reordered = [second["id"], first["id"]]
+    patch = await client.patch(
+        "/api/v1/auth/me",
+        headers=headers,
+        json={"folder_order_ids": reordered},
+    )
+    assert patch.status_code == 200, patch.text
+    assert patch.json()["folder_order_ids"] == reordered
+
+    ordered_ids = [
+        folder["id"]
+        for folder in (await client.get("/api/v1/equipment/folders", headers=headers)).json()
+    ]
+    assert ordered_ids.index(second["id"]) < ordered_ids.index(first["id"])

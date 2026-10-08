@@ -61,6 +61,7 @@ class User(Base):
     dashboard_folder_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     allowed_folder_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     hidden_equipment_folder_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
+    folder_order_ids: Mapped[list[int] | None] = mapped_column(JSON, nullable=True)
     dashboard_widget_options: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
     mention_email_notifications_enabled: Mapped[bool] = mapped_column(
         nullable=False,

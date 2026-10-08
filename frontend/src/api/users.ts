@@ -21,6 +21,7 @@ type RawUser = {
   dashboard_folder_ids: number[] | null;
   allowed_folder_ids: number[] | null;
   hidden_equipment_folder_ids: number[] | null;
+  folder_order_ids: number[] | null;
   dashboard_widget_options: DashboardWidgetKey[] | null;
   mention_email_notifications_enabled: boolean;
   theme_preference: ThemeName | null;

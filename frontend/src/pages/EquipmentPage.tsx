@@ -10,6 +10,17 @@ import { EquipmentRow, SortableTableHeader } from "@/components/equipment-regist
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -39,6 +50,7 @@ import {
   type EquipmentStatus,
   type EquipmentType,
 } from "@/api/equipment";
+import { updateProfile } from "@/api/auth";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
@@ -66,6 +78,76 @@ import { useSearchHistory } from "@/lib/searchHistory";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { insertEmojiAtCursor } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
+
+function SortableFolderCard({
+  canManage,
+  disabled,
+  folder,
+  onDelete,
+  onEdit,
+  onSelect,
+}: {
+  canManage: boolean;
+  disabled: boolean;
+  folder: EquipmentFolder;
+  onDelete: (folder: EquipmentFolder) => void;
+  onEdit: (folder: EquipmentFolder) => void;
+  onSelect: (folderId: number) => void;
+}) {
+  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
+    id: folder.id,
+    disabled,
+  });
+
+  return (
+    <button
+      ref={setNodeRef}
+      className={["folder-list__item", isDragging ? "z-10 opacity-70" : ""].filter(Boolean).join(" ")}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      type="button"
+      {...attributes}
+      {...listeners}
+      onClick={() => onSelect(folder.id)}
+    >
+      <div className="folder-list__content">
+        <div className="folder-list__title">{folder.name}</div>
+        <p className="folder-list__description">
+          {folder.description || "Рабочая папка без дополнительного описания."}
+        </p>
+      </div>
+      {canManage ? (
+        <div className="folder-list__actions">
+          <IconActionButton
+            icon={
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
+              </svg>
+            }
+            label={`Редактировать папку ${folder.name}`}
+            size="tiny"
+            onClick={(event) => {
+              event.stopPropagation();
+              onEdit(folder);
+            }}
+          />
+          <IconActionButton
+            icon={
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+              </svg>
+            }
+            label={`Удалить папку ${folder.name}`}
+            size="tiny"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDelete(folder);
+            }}
+          />
+        </div>
+      ) : null}
+    </button>
+  );
+}
 
 export function EquipmentPage() {
   const token = useAuthStore((state) => state.token);
@@ -792,6 +874,58 @@ export function EquipmentPage() {
       [folder.name, folder.description ?? ""].some((value) => value.toLowerCase().includes(query)),
     );
   }, [deferredFolderSearchQuery, folders]);
+
+  // Folder order is per user: the server returns it already applied, and this override keeps the
+  // dragged order visible until the refreshed data arrives (keyed by the query version).
+  const [folderOrderOverride, setFolderOrderOverride] = useState<{
+    ids: number[];
+    stamp: number;
+  } | null>(null);
+  const folderReorderDisabled = deferredFolderSearchQuery.trim().length > 0;
+  const defaultFolderOrderIds = useMemo(() => folders.map((folder) => folder.id), [folders]);
+  const orderedFolderIds =
+    folderOrderOverride && folderOrderOverride.stamp === foldersQuery.dataUpdatedAt
+      ? folderOrderOverride.ids
+      : defaultFolderOrderIds;
+  const orderedFolders = useMemo(() => {
+    const byId = new Map(filteredFolders.map((folder) => [folder.id, folder]));
+    const ordered: EquipmentFolder[] = [];
+    for (const folderId of orderedFolderIds) {
+      const folder = byId.get(folderId);
+      if (folder) {
+        ordered.push(folder);
+      }
+    }
+    for (const folder of filteredFolders) {
+      if (!orderedFolderIds.includes(folder.id)) {
+        ordered.push(folder);
+      }
+    }
+    return ordered;
+  }, [filteredFolders, orderedFolderIds]);
+  const folderSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
+  const reorderFoldersMutation = useMutation({
+    mutationFn: (folderIds: number[]) => updateProfile(token ?? "", { folderOrderIds: folderIds }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["equipment-folders"] }),
+  });
+
+  function handleFolderDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id || folderReorderDisabled) {
+      return;
+    }
+    const from = orderedFolderIds.indexOf(Number(active.id));
+    const to = orderedFolderIds.indexOf(Number(over.id));
+    if (from < 0 || to < 0) {
+      return;
+    }
+    const next = arrayMove(orderedFolderIds, from, to);
+    setFolderOrderOverride({ ids: next, stamp: foldersQuery.dataUpdatedAt });
+    reorderFoldersMutation.mutate(next);
+  }
   const isSiCreateFlow =
     activeModal?.kind === "equipment" &&
     activeModal.mode === "create" &&
@@ -1477,58 +1611,34 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           ) : null}
 
           {filteredFolders.length > 0 ? (
-            <div className="folder-list">
-              {filteredFolders.map((folder) => (
-                <button
-                  key={folder.id}
-                  className="folder-list__item"
-                  type="button"
-                  onClick={() => setFolderSelection(folder.id)}
-                >
-                  <div className="folder-list__content">
-                    <div className="folder-list__title">{folder.name}</div>
-                    <p className="folder-list__description">
-                      {folder.description || "Рабочая папка без дополнительного описания."}
-                    </p>
-                  </div>
-                  {canManage ? (
-                    <div className="folder-list__actions">
-                      <IconActionButton
-                        icon={
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487zm0 0L19.5 7.125" />
-                          </svg>
-                        }
-                        label={`Редактировать папку ${folder.name}`}
-                        size="tiny"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          openEditFolderModal(folder);
-                        }}
-                      />
-                      <IconActionButton
-                        icon={
-                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-                          </svg>
-                        }
-                        label={`Удалить папку ${folder.name}`}
-                        size="tiny"
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setDeleteTarget({
-                            kind: "folder",
-                            id: folder.id,
-                            title: "Удалить папку",
-                            message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
-                          });
-                        }}
-                      />
-                    </div>
-                  ) : null}
-                </button>
-              ))}
-            </div>
+            <DndContext
+              collisionDetection={closestCenter}
+              onDragEnd={handleFolderDragEnd}
+              sensors={folderSensors}
+            >
+              <SortableContext items={orderedFolderIds} strategy={rectSortingStrategy}>
+                <div className="folder-list">
+                  {orderedFolders.map((folder) => (
+                    <SortableFolderCard
+                      key={folder.id}
+                      canManage={canManage}
+                      disabled={folderReorderDisabled}
+                      folder={folder}
+                      onDelete={(target) =>
+                        setDeleteTarget({
+                          kind: "folder",
+                          id: target.id,
+                          title: "Удалить папку",
+                          message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
+                        })
+                      }
+                      onEdit={openEditFolderModal}
+                      onSelect={setFolderSelection}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
           ) : null}
         </section>
       ) : null}

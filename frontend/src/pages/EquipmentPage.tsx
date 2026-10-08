@@ -1,4 +1,5 @@
 import { useEquipmentRegistryQueries } from "@/hooks/useEquipmentRegistryQueries";
+import { useFolderRefresh } from "@/hooks/useFolderRefresh";
 import { ActiveModal, DeleteTarget, ESIInternalModuleFormState, EquipmentFormState, EquipmentSortState, FolderFormState, RepairBatchFormState, SIImportFormState, SISearchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getArshinSearchResultManufactureYear, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
 import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
@@ -15,7 +16,6 @@ import {
   type ArshinVriDetail,
 } from "@/api/arshin";
 import {
-  applyFolderRefreshRows,
   canChangeEquipmentTypeAfterCreation,
   createEquipment,
   createEquipmentFolder,
@@ -34,14 +34,11 @@ import {
   getEquipmentCompliancePeriodLabel,
   isArshinEquipmentType,
   importSIEquipmentExcel,
-  startFolderRefreshTask,
   supportsVerification,
   updateEquipment,
-  updateEquipmentArshinRefreshExclusion,
   updateEquipmentFolder,
   updateFolderProcessSubscriptions,
   type EquipmentFolder,
-  type EquipmentFolderRefreshApplyResult,
   type EquipmentFolderRefreshRowStatus,
   type EquipmentPageResult,
   type EquipmentSIBulkImportResult,
@@ -123,15 +120,6 @@ export function EquipmentPage() {
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [folderSubscriptionModalOpen, setFolderSubscriptionModalOpen] = useState(false);
-  const [folderRefreshModalOpen, setFolderRefreshModalOpen] = useState(false);
-  const [folderRefreshTaskId, setFolderRefreshTaskId] = useState<number | null>(null);
-  const [folderRefreshMinimized, setFolderRefreshMinimized] = useState(false);
-  const [folderRefreshScopeEquipmentIds, setFolderRefreshScopeEquipmentIds] = useState<number[]>([]);
-  const [selectedFolderRefreshRowIds, setSelectedFolderRefreshRowIds] = useState<number[]>([]);
-  const [folderRefreshApplyResult, setFolderRefreshApplyResult] = useState<EquipmentFolderRefreshApplyResult | null>(null);
-  const [folderRefreshActionMessage, setFolderRefreshActionMessage] = useState<string | null>(null);
-  const [folderRefreshStatusFilter, setFolderRefreshStatusFilter] = useState<"ALL" | EquipmentFolderRefreshRowStatus>("ALL");
-  const [folderRefreshSearchQuery, setFolderRefreshSearchQuery] = useState("");
   const [selectedFolderSubscriptionUserIds, setSelectedFolderSubscriptionUserIds] = useState<number[]>([]);
   const [folderSubscriptionUserSearchQuery, setFolderSubscriptionUserSearchQuery] = useState("");
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
@@ -182,6 +170,33 @@ export function EquipmentPage() {
 
 
 
+
+  const {
+    folderRefreshModalOpen,
+    setFolderRefreshModalOpen,
+    folderRefreshTaskId,
+    setFolderRefreshTaskId,
+    folderRefreshMinimized,
+    setFolderRefreshMinimized,
+    folderRefreshScopeEquipmentIds,
+    setFolderRefreshScopeEquipmentIds,
+    selectedFolderRefreshRowIds,
+    setSelectedFolderRefreshRowIds,
+    folderRefreshApplyResult,
+    setFolderRefreshApplyResult,
+    folderRefreshActionMessage,
+    setFolderRefreshActionMessage,
+    folderRefreshStatusFilter,
+    setFolderRefreshStatusFilter,
+    folderRefreshSearchQuery,
+    setFolderRefreshSearchQuery,
+    startFolderRefreshMutation,
+    applyFolderRefreshMutation,
+    excludeFolderRefreshSelectionMutation,
+  } = useFolderRefresh({
+    folderId: selectedFolderId,
+    token,
+  });
 
   const {
     foldersQuery,
@@ -284,67 +299,7 @@ export function EquipmentPage() {
     },
   });
 
-  const startFolderRefreshMutation = useMutation({
-    mutationFn: (equipmentIds: number[]) =>
-      startFolderRefreshTask(token ?? "", selectedFolderId ?? 0, equipmentIds),
-    onSuccess: (task) => {
-      setFolderRefreshTaskId(task.id);
-      setSelectedFolderRefreshRowIds([]);
-      setFolderRefreshApplyResult(null);
-    },
-  });
 
-  const applyFolderRefreshMutation = useMutation({
-    mutationFn: (rowIds: number[]) =>
-      applyFolderRefreshRows(token ?? "", selectedFolderId ?? 0, folderRefreshTaskId ?? 0, rowIds),
-    onSuccess: async (result) => {
-      setFolderRefreshApplyResult(result);
-      setSelectedFolderRefreshRowIds([]);
-      setFolderRefreshActionMessage(null);
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: [
-            "equipment-folder-refresh-task",
-            selectedFolderId ?? "none",
-            folderRefreshTaskId ?? "none",
-          ],
-        }),
-        invalidateEquipmentRegistryQueries(),
-        queryClient.invalidateQueries({ queryKey: ["equipment-item"] }),
-        queryClient.invalidateQueries({ queryKey: ["equipment-esi-monitoring", selectedFolderId ?? "none"] }),
-      ]);
-    },
-  });
-  const excludeFolderRefreshSelectionMutation = useMutation({
-    mutationFn: async (equipmentIds: number[]) => {
-      const uniqueEquipmentIds = Array.from(new Set(equipmentIds));
-      const results = await Promise.allSettled(
-        uniqueEquipmentIds.map((equipmentId) =>
-          updateEquipmentArshinRefreshExclusion(token ?? "", equipmentId, true),
-        ),
-      );
-      const updatedCount = results.filter((result) => result.status === "fulfilled").length;
-      const failedCount = results.length - updatedCount;
-      if (updatedCount === 0) {
-        throw new Error("Не удалось исключить выбранные приборы из следующих проверок.");
-      }
-      return { updatedCount, failedCount };
-    },
-    onSuccess: async ({ updatedCount, failedCount }) => {
-      setFolderRefreshApplyResult(null);
-      setSelectedFolderRefreshRowIds([]);
-      setFolderRefreshActionMessage(
-        failedCount > 0
-          ? `Исключено из следующих проверок: ${updatedCount}. Ошибок: ${failedCount}.`
-          : `Исключено из следующих проверок: ${updatedCount}.`,
-      );
-      await Promise.all([
-        invalidateEquipmentRegistryQueries(),
-        queryClient.invalidateQueries({ queryKey: ["dashboard-equipment"] }),
-        queryClient.invalidateQueries({ queryKey: ["equipment-details"] }),
-      ]);
-    },
-  });
   const folderRefreshTask = folderRefreshTaskQuery.data?.task ?? startFolderRefreshMutation.data ?? null;
 
   const siSearchMutation = useMutation({

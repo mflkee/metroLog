@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -24,6 +24,7 @@ import {
   updateTask,
   uploadTaskAttachments,
   type TaskAttachment,
+  type TaskChecklistItem,
   type TaskMessageAttachment,
   type TaskPriority,
   type TaskStatus,
@@ -38,6 +39,7 @@ import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
 import { TaskEquipmentModal } from "@/components/TaskEquipmentModal";
 import { TaskParticipantsModal } from "@/components/TaskParticipantsModal";
+import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
@@ -157,6 +159,29 @@ export function TaskDetailsPage() {
     mutationFn: (itemId: number) => deleteChecklistItem(token, taskId, itemId),
     onSuccess: refreshTask,
   });
+  // The checklist reflects a tick immediately; the override is dropped once the server agrees.
+  const [checklistOverride, setChecklistOverride] = useState<Record<number, boolean>>({});
+  const checklistItems = useMemo(
+    () => taskQuery.data?.checklist ?? [],
+    [taskQuery.data?.checklist],
+  );
+
+  useEffect(() => {
+    setChecklistOverride((current) => {
+      const next: Record<number, boolean> = {};
+      let changed = false;
+      for (const [id, value] of Object.entries(current)) {
+        const item = checklistItems.find((entry) => entry.id === Number(id));
+        if (item && item.isDone !== value) {
+          next[Number(id)] = value;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [checklistItems]);
+
   const messageCreate = useMutation({
     mutationFn: () =>
       createTaskMessage(token, taskId, { text: messageText, isPrivate: messagePrivate }, messageFiles),
@@ -231,6 +256,13 @@ export function TaskDetailsPage() {
   }
 
   const task = taskQuery.data;
+
+  function checklistItemDone(item: TaskChecklistItem): boolean {
+    const override = checklistOverride[item.id];
+    return override !== undefined && override !== item.isDone ? override : item.isDone;
+  }
+
+  const checklistDoneCount = task.checklist.filter((item) => checklistItemDone(item)).length;
   const responsible = task.participants.filter((participant) => participant.role === "RESPONSIBLE");
   const assignees = task.participants.filter((participant) => participant.role === "ASSIGNEE");
   const observers = task.participants.filter((participant) => participant.role === "OBSERVER");
@@ -316,19 +348,25 @@ export function TaskDetailsPage() {
 
           <article className="tone-parent space-y-3 rounded-3xl border border-line p-4 shadow-panel">
             <h3 className="text-sm font-semibold text-ink">
-              Чек-лист {task.checklistTotal > 0 ? `(${task.checklistDone}/${task.checklistTotal})` : ""}
+              Чек-лист {task.checklistTotal > 0 ? `(${checklistDoneCount}/${task.checklistTotal})` : ""}
             </h3>
             <ul className="space-y-1.5">
               {task.checklist.map((item) => (
                 <li key={item.id} className="flex items-center gap-2 text-sm">
-                  <input
-                    checked={item.isDone}
-                    onChange={(event) =>
-                      checklistToggle.mutate({ itemId: item.id, isDone: event.target.checked })
-                    }
-                    type="checkbox"
+                  <Switch
+                    checked={checklistItemDone(item)}
+                    id={`checklist-item-${item.id}`}
+                    onCheckedChange={(checked) => {
+                      setChecklistOverride((current) => ({ ...current, [item.id]: checked }));
+                      checklistToggle.mutate({ itemId: item.id, isDone: checked });
+                    }}
                   />
-                  <span className={item.isDone ? "text-steel line-through" : "text-ink"}>{item.label}</span>
+                  <label
+                    className={checklistItemDone(item) ? "text-steel line-through" : "text-ink"}
+                    htmlFor={`checklist-item-${item.id}`}
+                  >
+                    {item.label}
+                  </label>
                   <button
                     className="ml-auto text-xs text-[color:var(--danger)]"
                     onClick={() => checklistDelete.mutate(item.id)}

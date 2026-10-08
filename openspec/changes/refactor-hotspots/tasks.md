@@ -1,17 +1,22 @@
 # Tasks
 
-## 1. Backend extraction behind the facade
+## 1. Backend extraction: process templates and deadline presets first
 
-- [ ] 1.1 Extract folders and registry code from `app/services/equipment_service.py` into a domain service and delegate from the existing methods; verify `npm run test:backend` passes and the original file is smaller.
-- [ ] 1.2 Extract the repair and verification process code (shared process core included) into a domain service and delegate; verify the process tests pass and no public signature changed.
-- [ ] 1.3 Extract comments and attachments code into a domain service and delegate; verify the comment and attachment tests pass.
-- [ ] 1.4 Extract exports/imports and folder refresh into domain services and delegate; verify the refresh and export tests pass.
-- [ ] 1.5 Update `AGENTS.md` so the repo map names the new modules and verify the paths listed exist.
+The order follows the measured module-level dependency closure (see design.md), not the
+original guess: process stage templates and deadline presets are the subsystem that every
+other group drags along, so they move out first.
 
-## 2. Backend cleanup
+- [x] 1.1 Move the process stage-template and deadline-preset module-level helpers out of `app/services/equipment_service.py` into `app/services/equipment_process_templates.py` and import them back; verify `npm run test:backend` passes and the original file shrinks by the moved block. Done: 62 blocks / 1161 lines moved, `equipment_service.py` 10389 -> 9264 lines, `equipment_process_templates.py` 1177 lines, backend suite 141 passed, mypy unchanged at 81 errors.
+- [ ] 1.2 Move the deadline-preset methods (`list/create/update/delete_deadline_preset`, `_get_deadline_preset`, `_resolve_deadline_preset_for_folder`, `_ensure_default_deadline_preset`) into an `EquipmentProcessTemplatesMixin` in the same module and inherit it from `EquipmentService`; verify the preset and process tests pass.
+- [ ] 1.3 Extract the folder and group methods plus their helpers into an `EquipmentFoldersMixin` and inherit it; verify the folder, group and suggestion tests pass and check `AGENTS.md` still names the right modules.
 
-- [ ] 2.1 Remove dead imports and leftover private helpers after the extraction; verify `npm run lint:backend` and `npm run test:backend` pass.
-- [ ] 2.2 Confirm no file created by this change exceeds ~2.5k lines and record the final line counts for each module.
+## 2. Backend extraction: folders, comments and processes
+
+- [ ] 2.1 Extract the comments and attachments methods into an `EquipmentCommentsMixin` and inherit it; verify the comment and attachment tests pass.
+- [ ] 2.2 Extract the repair and verification process methods (shared process core included) into an `EquipmentProcessesMixin` and inherit it; verify the process tests pass and no public signature changed.
+- [ ] 2.3 Extract exports/imports and folder refresh into their own mixins and inherit them; verify the refresh and export tests pass.
+- [ ] 2.4 Remove dead imports and leftover private helpers after the extraction, update `AGENTS.md` so the repo map names the new modules, and verify `npm run lint:backend` and `npm run test:backend` pass.
+- [ ] 2.5 Confirm no file created by this change exceeds ~2.5k lines and record the final line counts for each module.
 
 ## 3. Frontend shared process core
 

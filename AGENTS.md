@@ -86,7 +86,8 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/models/` | All ORM models: `user.py`, `equipment.py`, `event.py`. |
 | `app/schemas/` | Pydantic request/response schemas. |
 | `app/repositories/` | Thin SQLAlchemy query wrappers. |
-| `app/services/equipment_service.py` | Main domain service (~10k lines): registry, repairs, verifications, comments, attachments, exports, batch flows, folder refresh. |
+| `app/services/equipment_service.py` | Main domain service: registry, repairs, verifications, comments, attachments, exports, batch flows, folder refresh. Being split into mixins (see `refactor-hotspots`). |
+| `app/services/equipment_process_templates.py` | Process stage templates and repair-deadline presets, extracted from the main service (mixins/helpers). |
 | `app/services/user_service.py` | Auth, bootstrap admin, roles, folder access. |
 | `app/services/event_service.py` | Audit journal. |
 | `app/services/arshin_service.py` | Arshin search and detail fetch. |

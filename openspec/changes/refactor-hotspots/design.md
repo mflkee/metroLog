@@ -38,6 +38,28 @@ routes, tasks and the sibling task service stay untouched, so a mistake shows up
 failure rather than a broken contract. Alternative: change all call sites at once -
 rejected because it couples a large mechanical diff with real logic moves.
 
+**Use mixins, not delegating services, for the first extraction (decided during
+implementation).** Each extracted group becomes a mixin module (`EquipmentXxxMixin`) that
+`EquipmentService` inherits. Rationale: `EquipmentService` shares cross-cutting helpers
+(`_assert_folder_access`, `_get_folder`, `_record_equipment_event`,
+`_commit_and_flush_process_notifications`, `_enrich_equipment_processes`) across every domain,
+so delegating services would additionally require a shared repository/helpers base class and a
+much larger diff. With mixins, `self.*` calls keep resolving through the MRO, no signature or
+call site changes, and a single module move is verifiable by the existing 141 tests.
+Alternative: delegating domain services as originally planned - deferred until the boundaries
+are stable.
+
+**Extract process templates and deadline presets first, not folders (decided during
+implementation).** Measured with a dependency scan of the 180 methods: the folder/group methods
+reference eight module-level helpers, two of which (`_build_deadline_preset_snapshot`,
+`_get_latest_completed_stage_label`) drag in the whole stage-template subsystem - 43
+module-level names, roughly 900 lines, including the 165-line
+`_normalize_process_template_variants`. A mixin only needs the module-level helpers its own
+methods call (`self.*` calls resolve through the MRO), so the coherent first move is that
+subsystem itself into `equipment_process_templates.py`; folders and groups become a 8-name
+import afterwards. Rationale: with the subsystem in its own module, every later extraction
+(folders, comments, processes) stops dragging template code along.
+
 **One domain per pull request.** Each extraction moves a single cohesive group and leaves
 `npm run check` green. Rationale: a partial split is always shippable, and a regression is
 attributable to one move.

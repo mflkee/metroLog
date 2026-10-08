@@ -30,7 +30,6 @@ import {
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
-import { DateInput } from "@/components/DateInput";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { SearchableMultiSelect, SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
@@ -449,7 +448,6 @@ function CreateTaskModal({
   const [description, setDescription] = useState("");
   const [responsibleUserId, setResponsibleUserId] = useState<string>("");
   const [priority, setPriority] = useState<TaskPriority>("NORMAL");
-  const [dueDate, setDueDate] = useState("");
   const [assigneeIds, setAssigneeIds] = useState<number[]>([]);
   const [observerIds, setObserverIds] = useState<number[]>([]);
   const [equipmentIds, setEquipmentIds] = useState<number[]>([]);
@@ -485,7 +483,6 @@ function CreateTaskModal({
         title: title.trim(),
         description: description.trim() || null,
         priority,
-        dueDate: dueDate || null,
         responsibleUserId: Number(responsibleUserId),
         assigneeUserIds: assigneeIds,
         observerUserIds: observerIds,
@@ -494,7 +491,6 @@ function CreateTaskModal({
     onSuccess: () => {
       setTitle("");
       setDescription("");
-      setDueDate("");
       setAssigneeIds([]);
       setObserverIds([]);
       setEquipmentIds([]);
@@ -573,15 +569,6 @@ function CreateTaskModal({
               }))}
               placeholder="— выберите —"
               value={priority}
-            />
-          </label>
-          <label className="block space-y-1">
-            <span className="text-xs uppercase tracking-wide text-steel">Срок</span>
-            <DateInput
-              className="form-input"
-              placeholder="дд.мм.гггг"
-              value={dueDate}
-              onChange={setDueDate}
             />
           </label>
         </div>

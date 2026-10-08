@@ -25,7 +25,7 @@ export function AccountMenu() {
           <ThemeSwitcher />
         </div>
         {user ? (
-          <div className="hidden min-w-0 items-center gap-2 rounded-full border border-line px-3 py-1 text-xs lg:flex">
+          <div className="hidden min-w-0 items-center gap-2 text-xs lg:flex">
             <span className="max-w-[16rem] truncate font-semibold text-ink">{user.fullName}</span>
             <span className="text-steel">{roleLabels[user.role]}</span>
             {user.mustChangePassword ? (

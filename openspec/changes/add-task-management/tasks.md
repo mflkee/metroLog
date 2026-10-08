@@ -72,3 +72,6 @@
 - [x] 11.2 Reuse the equipment-card composer in the task card instead of bespoke code: `AutocompleteTextarea` with Enter-to-send (`Shift+Enter` newline), `PendingAttachmentList`, `AttachmentPreviewList`, `EmojiPickerButton` and `PrivateNoteToggleButton`; the ad-hoc `MentionTextarea` was deleted.
 - [x] 11.3 Extract the duplicated composer helpers (`handleTextareaSubmitShortcut`, `insertEmojiAtCursor`, textarea auto-grow) into `src/lib/textarea.ts` and reuse them across `EquipmentDetailsPage`, `EquipmentPage`, `RepairsPage`, `VerificationPage` and the task views.
 - [x] 11.4 Unify the top bar: version badge and the Arshin status as equal-height bordered chips on the left; theme, user name/role and account actions consistently visible on the right.
+- [x] 11.5 Top bar affordance: keep the border only on interactive controls (version badge, theme, account actions); render informational items (Arshin status, user name/role) without a border.
+- [x] 11.6 Rework the task filters into a single labeled row (`Поиск` / `Папка` / `Приоритет`, three columns on desktop) like the equipment page, instead of full-width stretched inputs.
+- [x] 11.7 Highlight the Kanban column headers with the same accent tone as the list table header.

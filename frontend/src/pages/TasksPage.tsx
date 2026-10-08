@@ -134,7 +134,7 @@ export function TasksPage() {
         description="Постановка задач, ответственные и исполнители, сроки, доска и чек-листы."
         action={
           <button
-            className="rounded-xl border border-[color:var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-ink"
+            className="btn-primary btn-sm"
             onClick={() => setCreateOpen(true)}
             type="button"
           >
@@ -143,70 +143,82 @@ export function TasksPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-line p-3">
-        <select
-          className="form-input form-input--compact"
-          value={folderId ?? ""}
-          onChange={(event) => setFolderId(event.target.value ? Number(event.target.value) : null)}
-        >
-          <option value="">Все папки</option>
-          {(foldersQuery.data ?? []).map((folder) => (
-            <option key={folder.id} value={folder.id}>
-              {folder.name}
-            </option>
-          ))}
-        </select>
-        <select
-          className="form-input form-input--compact"
-          value={priority}
-          onChange={(event) => setPriority(event.target.value as TaskPriority | "")}
-        >
-          <option value="">Любой приоритет</option>
-          {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-        <input
-          className="form-input form-input--compact"
-          placeholder="Поиск по названию"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-        <label className="flex items-center gap-2 text-sm text-steel">
-          <input type="checkbox" checked={overdueOnly} onChange={(event) => setOverdueOnly(event.target.checked)} />
-          Просроченные
-        </label>
-        <label className="flex items-center gap-2 text-sm text-steel">
-          <input type="checkbox" checked={mine} onChange={(event) => setMine(event.target.checked)} />
-          Где я исполнитель
-        </label>
-        <div className="ml-auto flex gap-1 rounded-xl border border-line p-1">
-          {(["board", "list"] as const).map((mode) => (
-            <button
-              key={mode}
-              className={`rounded-lg px-3 py-1 text-sm ${view === mode ? "bg-[var(--accent-soft)] text-ink" : "text-steel"}`}
-              onClick={() => setView(mode)}
-              type="button"
+      <div className="space-y-3 rounded-2xl border border-line p-3">
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="block text-sm text-steel">
+            Поиск
+            <input
+              className="form-input"
+              placeholder="Название задачи"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+            />
+          </label>
+          <label className="block text-sm text-steel">
+            Папка
+            <select
+              className="form-input"
+              value={folderId ?? ""}
+              onChange={(event) => setFolderId(event.target.value ? Number(event.target.value) : null)}
             >
-              {mode === "board" ? "Доска" : "Список"}
-            </button>
-          ))}
+              <option value="">Все папки</option>
+              {(foldersQuery.data ?? []).map((folder) => (
+                <option key={folder.id} value={folder.id}>
+                  {folder.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block text-sm text-steel">
+            Приоритет
+            <select
+              className="form-input"
+              value={priority}
+              onChange={(event) => setPriority(event.target.value as TaskPriority | "")}
+            >
+              <option value="">Любой приоритет</option>
+              {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {TASK_STATUSES.map((status) => (
-          <button
-            key={status}
-            className={`rounded-full border px-3 py-1 text-xs ${statuses.includes(status) ? "border-[color:var(--accent)] bg-[var(--accent-soft)] text-ink" : "border-line text-steel"}`}
-            onClick={() => toggleStatus(status)}
-            type="button"
-          >
-            {TASK_STATUS_LABELS[status]}
-          </button>
-        ))}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap gap-1.5">
+            {TASK_STATUSES.map((status) => (
+              <button
+                key={status}
+                className={`rounded-full border px-3 py-1 text-xs ${statuses.includes(status) ? "border-[color:var(--accent)] bg-[var(--accent-soft)] text-ink" : "border-line text-steel"}`}
+                onClick={() => toggleStatus(status)}
+                type="button"
+              >
+                {TASK_STATUS_LABELS[status]}
+              </button>
+            ))}
+          </div>
+          <label className="flex items-center gap-2 text-sm text-steel">
+            <input type="checkbox" checked={overdueOnly} onChange={(event) => setOverdueOnly(event.target.checked)} />
+            Просроченные
+          </label>
+          <label className="flex items-center gap-2 text-sm text-steel">
+            <input type="checkbox" checked={mine} onChange={(event) => setMine(event.target.checked)} />
+            Где я исполнитель
+          </label>
+          <div className="ml-auto flex gap-1 rounded-xl border border-line p-1">
+            {(["board", "list"] as const).map((mode) => (
+              <button
+                key={mode}
+                className={`rounded-lg px-3 py-1 text-sm ${view === mode ? "bg-[var(--accent-soft)] text-ink" : "text-steel"}`}
+                onClick={() => setView(mode)}
+                type="button"
+              >
+                {mode === "board" ? "Доска" : "Список"}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {tasksQuery.isLoading ? <p className="text-sm text-steel">Загрузка…</p> : null}
@@ -231,9 +243,9 @@ export function TasksPage() {
                 }
               }}
             >
-              <div className="px-1 text-xs font-semibold uppercase tracking-wide text-steel">
-                {TASK_STATUS_LABELS[status]}
-                <span className="ml-1 text-steel/60">
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-steel">
+                <span>{TASK_STATUS_LABELS[status]}</span>
+                <span className="text-steel/70">
                   {tasks.filter((task) => task.status === status).length}
                 </span>
               </div>

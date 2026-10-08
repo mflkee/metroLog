@@ -117,7 +117,7 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
             <div
               aria-label={arshinStatusIndicator.title}
               className={[
-                "hidden h-7 shrink-0 items-center gap-2 rounded-full border border-line px-3 text-xs font-medium sm:inline-flex",
+                "hidden shrink-0 items-center gap-2 text-xs font-medium sm:inline-flex",
                 arshinStatusIndicator.toneClassName,
               ].join(" ")}
               title={arshinStatusIndicator.title}

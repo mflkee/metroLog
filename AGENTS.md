@@ -135,6 +135,8 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/lib/useQueuedAutoSave.ts` | Debounced mutation queue for auto-save UX. |
 | `src/content/user-guide.ru.txt` | Raw help text for `HelpPage`. |
 
+> ⚠️ **Грабли сборки фронта**: файлы **вне** `frontend/` (например корневой `CHANGELOG.md`, который импортит «Что нового»), нужно явно копировать в `frontend/Dockerfile`. Иначе локальная `vite build` проходит (файл есть в дереве), а docker-сборка в CI падает на `Build & push frontend`.
+
 ### Scripts & Ops
 | File | Purpose |
 |------|---------|

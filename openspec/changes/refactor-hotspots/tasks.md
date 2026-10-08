@@ -12,7 +12,7 @@ other group drags along, so they move out first.
 
 ## 2. Backend extraction: folders, comments and processes
 
-- [ ] 2.1 Extract the comments and attachments methods into an `EquipmentCommentsMixin` and inherit it; verify the comment and attachment tests pass.
+- [x] 2.1 Extract the comments and attachments methods into an `EquipmentCommentsMixin` and inherit it; verify the comment and attachment tests pass. Done: 20 methods + 32 helpers (887 lines) moved into `equipment_comments.py` (attachment storage, image pipeline, comment-upload staging, comments CRUD); `equipment_service.py` 8543 -> 7584 lines, suite 141 passed, mypy at the 81-error baseline. Reusable extraction tool added as `scripts/dev/extract_mixin.py`.
 - [ ] 2.2 Extract the repair and verification process methods (shared process core included) into an `EquipmentProcessesMixin` and inherit it; verify the process tests pass and no public signature changed.
 - [ ] 2.3 Extract exports/imports and folder refresh into their own mixins and inherit them; verify the refresh and export tests pass.
 - [ ] 2.4 Remove dead imports and leftover private helpers after the extraction, update `AGENTS.md` so the repo map names the new modules, and verify `npm run lint:backend` and `npm run test:backend` pass.

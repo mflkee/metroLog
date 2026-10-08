@@ -20,8 +20,8 @@ other group drags along, so they move out first.
 
 ## 3. Frontend shared process core
 
-- [ ] 3.1 Extract the repair/verification common components and hooks used by both pages and verify `npm run build:frontend` passes.
-- [ ] 3.2 Switch `RepairsPage.tsx` and `VerificationPage.tsx` to the shared core and verify both pages still work on Stage (queue, batch, milestones, messages).
+- [x] 3.1 Extract the repair/verification common components and hooks used by both pages and verify `npm run build:frontend` passes. Done for the pure helpers: `src/lib/processStages.ts` (218 lines) now holds `normalizeProcessCustomStages`, `renumberProcessCustomStages`, `moveProcessCustomStage`, `canMoveProcessCustomStage`, `areProcessCustomStagesEqual`, `insertProcessCustomStage`, `createLocalProcessCustomStageId` and a parameterised `getStageRowsProgressLabel`; both pages import them and lost their verbatim copies (`RepairsPage` 4028 -> 3834, `VerificationPage` 3748 -> 3553). Component extraction continues in 3.2.
+- [ ] 3.2 Switch `RepairsPage.tsx` and `VerificationPage.tsx` to the shared core and verify both pages still work on Stage (queue, batch, milestones, messages). Measured duplication for the next step: `RepairQueueRow` (1040 lines) vs `VerificationQueueRow` (1092) at 0.98 similarity and `RepairBatchCard` (1333) vs `VerificationBatchCard` (1296) at 0.96 - together roughly 2.4k duplicated lines, the biggest single win in this change.
 
 ## 4. Frontend page splits
 

@@ -139,6 +139,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/components/ProcessStageInlineControls.tsx` | Milestone date editing + custom stages. |
 | `src/lib/milestoneValidation.ts` | Milestone order validation rules. |
 | `src/lib/processVariants.ts` | Repair/verification preset variant helpers. |
+| `src/lib/processStages.ts` | Shared process-stage helpers for the repair and verification queues (custom stages, ordering, progress label). |
 | `src/lib/esiModules.ts` | ESI module extraction helpers. |
 | `src/lib/useQueuedAutoSave.ts` | Debounced mutation queue for auto-save UX. |
 | `src/content/user-guide.ru.txt` | Raw help text for `HelpPage`. |

@@ -56,7 +56,6 @@ import {
   type VerificationMessageAttachment,
   type VerificationFlowMode,
   refreshEquipmentSi,
-  shareEquipment,
   supportsVerification,
   updateEquipmentArshinRefreshExclusion,
   updateEquipmentEsiCompositionEntry,
@@ -74,6 +73,7 @@ import { useEquipmentDetailsQueries } from "@/hooks/useEquipmentDetailsQueries";
 import { useEquipmentComments } from "@/hooks/useEquipmentComments";
 import { useEquipmentAttachments } from "@/hooks/useEquipmentAttachments";
 import { useProcessMessages } from "@/hooks/useProcessMessages";
+import { useEquipmentShare } from "@/hooks/useEquipmentShare";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -191,10 +191,6 @@ export function EquipmentDetailsPage() {
   const [downloadingCommentAttachmentId, setDownloadingCommentAttachmentId] = useState<number | null>(null);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [siExpanded, setSiExpanded] = useState(false);
-  const [shareModalOpen, setShareModalOpen] = useState(false);
-  const [selectedShareUserIds, setSelectedShareUserIds] = useState<number[]>([]);
-  const [shareUserSearchQuery, setShareUserSearchQuery] = useState("");
-  const [shareFeedbackMessage, setShareFeedbackMessage] = useState<string | null>(null);
   const [esiCompositionModalOpen, setEsiCompositionModalOpen] = useState(false);
   const [esiCompositionForm, setEsiCompositionForm] = useState<ESICompositionFormState>({
     certificateNumber: "",
@@ -285,6 +281,22 @@ export function EquipmentDetailsPage() {
     deleteVerificationMessageMutation,
     updateVerificationMessageMutation,
   } = useProcessMessages({ equipmentId: parsedEquipmentId, token });
+
+  const {
+    shareModalOpen,
+    setShareModalOpen,
+    selectedShareUserIds,
+    setSelectedShareUserIds,
+    shareUserSearchQuery,
+    setShareUserSearchQuery,
+    shareFeedbackMessage,
+    setShareFeedbackMessage,
+    shareEquipmentMutation,
+    closeShareModal,
+  } = useEquipmentShare({
+    token,
+    equipmentId: parsedEquipmentId,
+  });
 
   const {
     equipmentQuery,
@@ -736,18 +748,6 @@ export function EquipmentDetailsPage() {
     },
   });
 
-  const shareEquipmentMutation = useMutation({
-    mutationFn: async () => {
-      if (!token) {
-        throw new Error("Сессия неактивна. Войди заново.");
-      }
-      return shareEquipment(token, parsedEquipmentId, selectedShareUserIds);
-    },
-    onSuccess: (result) => {
-      setShareFeedbackMessage(result.message);
-      closeShareModal();
-    },
-  });
 
   function openShareModal(): void {
     setSelectedShareUserIds([]);
@@ -755,13 +755,6 @@ export function EquipmentDetailsPage() {
     setShareFeedbackMessage(null);
     shareEquipmentMutation.reset();
     setShareModalOpen(true);
-  }
-
-  function closeShareModal(): void {
-    setShareModalOpen(false);
-    setSelectedShareUserIds([]);
-    setShareUserSearchQuery("");
-    shareEquipmentMutation.reset();
   }
 
   function openEsiCompositionModal(): void {

@@ -6,7 +6,7 @@
 - [x] 1.2 Add coverage reporting to the backend test command and record the baseline total (currently 82%); verify `npm run test:backend` produces the report.
 - [x] 1.3 Run mypy over `backend/app` and record the number of findings as the baseline; verify the command completes and the count is recorded.
 - [x] 1.4 Add frontend coverage reporting to the vitest configuration and record the baseline; verify `npm run test:frontend -- --coverage` writes a report.
-- [ ] 1.5 Add a CI `checks` job (backend lint + tests, frontend lint + tests) and make both deploy jobs depend on it; verify a push shows `checks` green and the deploy waiting on it.
+- [x] 1.5 Add a CI `checks` job (backend lint + tests, frontend lint + tests) and make both deploy jobs depend on it; verify a push shows `checks` green and the deploy waiting on it. Done: ci.yml has a `checks` job (ruff, pytest with coverage, eslint, vitest) and both deploy-staging and deploy-prod depend on it (needs: [checks, build-images, runner-preflight]), so a red check blocks the deploy.
 
 ## 2. Backend access-control audit and fixes
 

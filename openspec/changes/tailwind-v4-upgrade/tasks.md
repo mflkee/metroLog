@@ -23,4 +23,4 @@
 
 ## 5. Docs
 
-- [ ] 5.1 Update `AGENTS.md` (frontend tooling notes: Tailwind v4 + Vite plugin, config kept via `@config`, the two restored preflight defaults) and record the prerequisite as done in the `shadcn-ui-pilot` design/tasks.
+- [x] 5.1 Update `AGENTS.md` (frontend tooling notes: Tailwind v4 + Vite plugin, config kept via `@config`, the two restored preflight defaults) and record the prerequisite as done in the `shadcn-ui-pilot` design/tasks. Done: AGENTS.md carries the v4 tooling note (vite plugin, config via @config, the unlayered-vs-utility caveat, the restored preflight defaults and the renames) and the frontend row says Tailwind v4.

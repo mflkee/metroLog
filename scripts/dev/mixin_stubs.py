@@ -96,7 +96,7 @@ def main() -> int:
         print(f"# UNKNOWN (declare by hand): {', '.join(unknown)}")
     print("    if TYPE_CHECKING:")
     for name, kind in attributes:
-        print(f"        {name}: {kind}")
+        print(f"            {name}: {kind}")
     for found in methods:
         body = "\n".join("        " + line for line in found.splitlines())
         print(body.rstrip() + " ...")

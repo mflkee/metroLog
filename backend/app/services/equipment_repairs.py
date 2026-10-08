@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from datetime import date, datetime, timedelta
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING
 from uuid import uuid4
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -41,6 +40,9 @@ from app.services.equipment_comments import (
     _normalize_attachment_file_name,
     _normalize_message_text,
     _store_attachment_file,
+)
+from app.services.equipment_exports import (
+    _create_temp_export_file_path,
 )
 from app.services.equipment_folders import _format_user_display_name
 from app.services.equipment_process_templates import (
@@ -231,12 +233,6 @@ def _collect_changed_repair_milestone_labels(
     return labels
 
 
-def _create_temp_export_file_path(*, suffix: str) -> Path:
-    temp_file = NamedTemporaryFile(delete=False, suffix=suffix)
-    temp_file.close()
-    return Path(temp_file.name)
-
-
 def _format_short_date(value) -> str:
     return value.strftime("%d.%m.%Y")
 
@@ -414,6 +410,14 @@ class EquipmentRepairsMixin:
         repair_message_attachments: RepairMessageAttachmentRepository
         _deadline_settings_by_folder_id: dict[int | None, RepairDeadlineSettings]
 
+        def _get_accessible_folder_ids(self) -> set[int] | None: ...
+
+        def _build_workbook_bytes(
+            self, *, sheet_title: str, headers: list[str], rows: list[list[object | None]]
+        ) -> Path: ...
+
+        def _format_sheet_date(self, value: date | datetime | None) -> str | None: ...
+
         def _assert_folder_access(self, folder_id: int | None, *, detail: str) -> None: ...
 
         def _assert_private_note_creation_allowed(
@@ -422,10 +426,6 @@ class EquipmentRepairsMixin:
 
         def _assert_private_note_visible(self, *, is_private: bool, detail: str) -> None: ...
 
-        def _build_workbook_bytes(
-            self, *, sheet_title: str, headers: list[str], rows: list[list[object | None]]
-        ) -> Path: ...
-
         def _can_view_private_notes(self) -> bool: ...
 
         def _commit_and_flush_process_notifications(self) -> None: ...
@@ -433,10 +433,6 @@ class EquipmentRepairsMixin:
         def _commit_comment_visibility_change(self, *, is_private: bool) -> None: ...
 
         def _filter_private_mention_recipients(self, users: list[User]) -> list[User]: ...
-
-        def _format_sheet_date(self, value: date | datetime | None) -> str | None: ...
-
-        def _get_accessible_folder_ids(self) -> set[int] | None: ...
 
         def _get_folder(self, folder_id: int) -> EquipmentFolder: ...
 

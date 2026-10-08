@@ -47,6 +47,9 @@ from app.services.equipment_comments import (
     _normalize_message_text,
     _store_attachment_file,
 )
+from app.services.equipment_exports import (
+    _create_temp_export_file_path,
+)
 from app.services.equipment_folders import _format_user_display_name
 from app.services.equipment_process_templates import (
     _build_default_verification_stage_template_variants,
@@ -69,7 +72,6 @@ from app.services.equipment_process_templates import (
 )
 from app.services.equipment_repairs import (
     _build_equipment_batch_member_label,
-    _create_temp_export_file_path,
     _format_short_date,
     _get_latest_completed_stage_label,
     _validate_milestone_order,
@@ -423,6 +425,14 @@ class EquipmentVerificationsMixin:
         verification_messages: VerificationMessageRepository
         verifications: VerificationRepository
 
+        def _build_workbook_bytes(
+            self, *, sheet_title: str, headers: list[str], rows: list[list[object | None]]
+        ) -> Path: ...
+
+        def _format_sheet_date(self, value: date | datetime | None) -> str | None: ...
+
+        def _get_accessible_folder_ids(self) -> set[int] | None: ...
+
         def _assert_folder_access(self, folder_id: int | None, *, detail: str) -> None: ...
 
         def _assert_private_note_creation_allowed(
@@ -441,14 +451,6 @@ class EquipmentVerificationsMixin:
             prefix: str,
         ) -> str: ...
 
-        def _build_workbook_bytes(
-            self,
-            *,
-            sheet_title: str,
-            headers: list[str],
-            rows: list[list[object | None]],
-        ) -> Path: ...
-
         def _can_view_private_notes(self) -> bool: ...
 
         def _commit_and_flush_process_notifications(self) -> None: ...
@@ -456,10 +458,6 @@ class EquipmentVerificationsMixin:
         def _commit_comment_visibility_change(self, *, is_private: bool) -> None: ...
 
         def _filter_private_mention_recipients(self, users: list[User]) -> list[User]: ...
-
-        def _format_sheet_date(self, value: date | datetime | None) -> str | None: ...
-
-        def _get_accessible_folder_ids(self) -> set[int] | None: ...
 
         def _get_folder(self, folder_id: int) -> EquipmentFolder: ...
 

@@ -18,9 +18,12 @@ from pathlib import Path
 
 
 def consume_semicolon(lines: list[str], start: int) -> int:
+    depth = 0
     index = start
     while index < len(lines):
-        if lines[index].rstrip().endswith(";"):
+        line = lines[index]
+        depth += sum(line.count(c) for c in "({[") - sum(line.count(c) for c in ")}]")
+        if depth <= 0 and line.rstrip().endswith(";"):
             return index + 1
         index += 1
     raise SystemExit(f"no statement end after line {start + 1}")

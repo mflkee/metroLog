@@ -6,18 +6,9 @@ import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom"
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
+import { getArshinErrorMessage } from "@/api/arshin";
 import {
-  fetchArshinEsiDetail,
-  fetchArshinVriDetail,
-  getArshinErrorMessage,
-  searchArshin,
-  type ArshinSearchResult,
-  type ArshinVriDetail } from "@/api/arshin";
-import {
-  buildSIVerificationPayloadFromArshin,
   canChangeEquipmentTypeAfterCreation,
-  createEquipmentEsiCompositionEntry,
-  deleteEquipmentEsiCompositionEntry,
   createEquipmentRepair,
   createEquipmentVerification,
   deleteEquipmentCommentDraftAttachment,
@@ -55,10 +46,8 @@ import {
   type VerificationMessage,
   type VerificationMessageAttachment,
   type VerificationFlowMode,
-  refreshEquipmentSi,
   supportsVerification,
   updateEquipmentArshinRefreshExclusion,
-  updateEquipmentEsiCompositionEntry,
   uploadEquipmentCommentDraftAttachment,
   updateEquipment } from "@/api/equipment";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
@@ -74,6 +63,8 @@ import { useEquipmentComments } from "@/hooks/useEquipmentComments";
 import { useEquipmentAttachments } from "@/hooks/useEquipmentAttachments";
 import { useProcessMessages } from "@/hooks/useProcessMessages";
 import { useEquipmentShare } from "@/hooks/useEquipmentShare";
+import { useEquipmentArshinEsi } from "@/hooks/useEquipmentArshinEsi";
+import { invalidateEquipmentRegistryQueries } from "@/lib/equipmentQueries";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -141,7 +132,7 @@ type VerificationFormState = {
   files: File[];
 };
 
-type ESICompositionFormState = {
+export type ESICompositionFormState = {
   certificateNumber: string;
   measurementLimit: string;
 };
@@ -191,25 +182,6 @@ export function EquipmentDetailsPage() {
   const [downloadingCommentAttachmentId, setDownloadingCommentAttachmentId] = useState<number | null>(null);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [siExpanded, setSiExpanded] = useState(false);
-  const [esiCompositionModalOpen, setEsiCompositionModalOpen] = useState(false);
-  const [esiCompositionForm, setEsiCompositionForm] = useState<ESICompositionFormState>({
-    certificateNumber: "",
-    measurementLimit: "",
-  });
-  const [esiCompositionSearchResults, setEsiCompositionSearchResults] = useState<ArshinSearchResult[]>([]);
-  const [selectedEsiCompositionResult, setSelectedEsiCompositionResult] = useState<ArshinSearchResult | null>(null);
-  const [selectedEsiCompositionDetail, setSelectedEsiCompositionDetail] = useState<ArshinVriDetail | null>(null);
-  const [siRefreshCertificate, setSiRefreshCertificate] = useState("");
-  const [siRefreshResults, setSiRefreshResults] = useState<ArshinSearchResult[]>([]);
-  const [selectedSiRefreshResult, setSelectedSiRefreshResult] = useState<ArshinSearchResult | null>(null);
-  const [selectedSiRefreshDetail, setSelectedSiRefreshDetail] = useState<ArshinVriDetail | null>(null);
-  const [esiCompositionPreview, setEsiCompositionPreview] = useState<{
-    row: ESIRelatedProfileRow;
-    detail: ArshinVriDetail;
-  } | null>(null);
-  const [editingEsiModule, setEditingEsiModule] = useState<ESIRelatedProfileRow | null>(null);
-  const [editingEsiMeasurementLimit, setEditingEsiMeasurementLimit] = useState("");
-  const [esiModuleToDelete, setEsiModuleToDelete] = useState<ESIRelatedProfileRow | null>(null);
   const repairInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const verificationInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -226,12 +198,6 @@ export function EquipmentDetailsPage() {
 
 
 
-
-  async function invalidateEquipmentRegistryQueries() {
-    await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
-    await queryClient.invalidateQueries({ queryKey: ["equipment-items-page"] });
-    await queryClient.invalidateQueries({ queryKey: ["equipment-selected-items"] });
-  }
 
 
 
@@ -369,6 +335,47 @@ export function EquipmentDetailsPage() {
   } = useEquipmentAttachments({ equipmentId: parsedEquipmentId, token });
 
   const equipment = equipmentQuery.data?.equipment ?? null;
+
+  const {
+    siRefreshCertificate,
+    setSiRefreshCertificate,
+    siRefreshResults,
+    setSiRefreshResults,
+    selectedSiRefreshResult,
+    setSelectedSiRefreshResult,
+    selectedSiRefreshDetail,
+    setSelectedSiRefreshDetail,
+    esiCompositionModalOpen,
+    esiCompositionForm,
+    setEsiCompositionForm,
+    esiCompositionSearchResults,
+    selectedEsiCompositionResult,
+    selectedEsiCompositionDetail,
+    esiCompositionPreview,
+    setEsiCompositionPreview,
+    editingEsiModule,
+    setEditingEsiModule,
+    editingEsiMeasurementLimit,
+    setEditingEsiMeasurementLimit,
+    esiModuleToDelete,
+    setEsiModuleToDelete,
+    searchSiRefreshMutation,
+    loadSiRefreshDetailMutation,
+    refreshSiMutation,
+    loadEsiCompositionPreviewMutation,
+    searchEsiCompositionMutation,
+    loadEsiCompositionDetailMutation,
+    createEsiCompositionEntryMutation,
+    updateEsiCompositionEntryMutation,
+    deleteEsiCompositionEntryMutation,
+    openEsiCompositionModal,
+    closeEsiCompositionModal,
+    openEditEsiModuleModal,
+  } = useEquipmentArshinEsi({
+    token,
+    equipmentId: parsedEquipmentId,
+    equipmentType: equipment?.equipmentType ?? null,
+  });
   const filteredShareRecipients = useMemo(
     () =>
       (shareRecipientsQuery.data?.users ?? []).filter((userItem) =>
@@ -414,7 +421,7 @@ export function EquipmentDetailsPage() {
       setIsEditing(false);
       await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
       await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries();
+      await invalidateEquipmentRegistryQueries(queryClient);
     },
   });
 
@@ -428,7 +435,7 @@ export function EquipmentDetailsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
       await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries();
+      await invalidateEquipmentRegistryQueries(queryClient);
     },
   });
 
@@ -461,7 +468,7 @@ export function EquipmentDetailsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
       await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries();
+      await invalidateEquipmentRegistryQueries(queryClient);
       await queryClient.invalidateQueries({ queryKey: ["equipment-repair-messages", parsedEquipmentId] });
       setRepairModalOpen(false);
       setRepairActionError(null);
@@ -513,7 +520,7 @@ export function EquipmentDetailsPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
       await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries();
+      await invalidateEquipmentRegistryQueries(queryClient);
       await queryClient.invalidateQueries({
         queryKey: ["equipment-verification-messages", parsedEquipmentId],
       });
@@ -548,7 +555,7 @@ export function EquipmentDetailsPage() {
       setConfirmDeleteOpen(false);
       navigate("/equipment");
       void Promise.all([
-        invalidateEquipmentRegistryQueries(),
+        invalidateEquipmentRegistryQueries(queryClient),
         queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] }),
         queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] }),
       ]);
@@ -562,191 +569,14 @@ export function EquipmentDetailsPage() {
 
 
 
-  const searchSiRefreshMutation = useMutation({
-    mutationFn: (documentNumber: string) =>
-      searchArshin(token ?? "", {
-        registryKind: equipment?.equipmentType === "ESI" ? "ESI" : "SI",
-        ...(equipment?.equipmentType === "ESI"
-          ? { certificateNumber: documentNumber }
-          : { resultDocnum: documentNumber }),
-      }),
-    onSuccess: (results) => {
-      setSiRefreshResults(results);
-      setSelectedSiRefreshResult(null);
-      setSelectedSiRefreshDetail(null);
-      if (results.length === 1) {
-        void loadSiRefreshDetailMutation.mutateAsync(results[0]);
-      }
-    },
-  });
 
-  const loadSiRefreshDetailMutation = useMutation({
-    mutationFn: async (result: ArshinSearchResult) => {
-      const detail =
-        equipment?.equipmentType === "ESI"
-          ? await fetchArshinEsiDetail(token ?? "", result)
-          : await fetchArshinVriDetail(token ?? "", result.vriId);
-      return {
-        detail,
-        result,
-      };
-    },
-    onSuccess: ({ detail, result }) => {
-      setSelectedSiRefreshResult(result);
-      setSelectedSiRefreshDetail(detail);
-    },
-  });
 
-  const refreshSiMutation = useMutation({
-    mutationFn: async () => {
-      if (
-        !selectedSiRefreshResult
-        || (equipment?.equipmentType === "SI" && !selectedSiRefreshDetail)
-      ) {
-        throw new Error("Сначала выбери новую запись Аршина.");
-      }
-      return refreshEquipmentSi(
-        token ?? "",
-        parsedEquipmentId,
-        buildSIVerificationPayloadFromArshin(selectedSiRefreshResult, selectedSiRefreshDetail),
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries();
-      setSiRefreshCertificate("");
-      setSiRefreshResults([]);
-      setSelectedSiRefreshResult(null);
-      setSelectedSiRefreshDetail(null);
-    },
-  });
 
-  const loadEsiCompositionPreviewMutation = useMutation({
-    mutationFn: async (row: ESIRelatedProfileRow) => {
-      if (row.vriId && !row.vriId.startsWith("esi-profile:")) {
-        const detail = await fetchArshinVriDetail(token ?? "", row.vriId);
-        return {
-          row,
-          detail: {
-            ...detail,
-            arshinUrl: row.arshinUrl ?? detail.arshinUrl,
-            certificateNumber: row.certificateNumber ?? detail.certificateNumber,
-            verificationDate: row.verificationDate ?? detail.verificationDate,
-            validUntil: row.validUntil ?? detail.validUntil,
-            rawPayloadJson: row.rawPayloadJson ?? detail.rawPayloadJson,
-          },
-        };
-      }
-      if (!row.certificateNumber) {
-        throw new Error("Для этой строки нет номера свидетельства.");
-      }
-      const results = await searchArshin(token ?? "", {
-        registryKind: "ESI",
-        certificateNumber: row.certificateNumber,
-      });
-      const matchedResult =
-        results.find((item) => item.resultDocnum === row.registryNumber)
-        ?? results[0];
-      if (!matchedResult) {
-        throw new Error("По этому свидетельству запись Аршина не найдена.");
-      }
-      const detail = await fetchArshinEsiDetail(token ?? "", matchedResult);
-      return { row, detail };
-    },
-    onSuccess: ({ row, detail }) => {
-      setEsiCompositionPreview({ row, detail });
-    },
-  });
 
-  const searchEsiCompositionMutation = useMutation({
-    mutationFn: (certificateNumber: string) =>
-      searchArshin(token ?? "", {
-        registryKind: "ESI",
-        certificateNumber,
-      }),
-    onSuccess: (results) => {
-      setEsiCompositionSearchResults(results);
-      setSelectedEsiCompositionResult(null);
-      setSelectedEsiCompositionDetail(null);
-      setEsiCompositionForm((current) => ({ ...current, measurementLimit: "" }));
-      if (results.length === 1) {
-        void loadEsiCompositionDetailMutation.mutateAsync(results[0]);
-      }
-    },
-  });
 
-  const loadEsiCompositionDetailMutation = useMutation({
-    mutationFn: async (result: ArshinSearchResult) => {
-      const detail = await fetchArshinEsiDetail(token ?? "", result);
-      return {
-        detail,
-        result,
-      };
-    },
-    onSuccess: ({ detail, result }) => {
-      setSelectedEsiCompositionResult(result);
-      setSelectedEsiCompositionDetail(detail);
-    },
-  });
 
-  const createEsiCompositionEntryMutation = useMutation({
-    mutationFn: async () => {
-      if (!selectedEsiCompositionResult || !selectedEsiCompositionDetail) {
-        throw new Error("Сначала выбери запись Аршина для состава ЭСИ.");
-      }
-      return createEquipmentEsiCompositionEntry(token ?? "", parsedEquipmentId, {
-        moduleKind: "EXTERNAL",
-        measurementLimit: esiCompositionForm.measurementLimit,
-        siVerification: buildSIVerificationPayloadFromArshin(
-          selectedEsiCompositionResult,
-          selectedEsiCompositionDetail,
-        ),
-      });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      closeEsiCompositionModal();
-    },
-  });
 
-  const updateEsiCompositionEntryMutation = useMutation({
-    mutationFn: async () => {
-      if (!editingEsiModule?.entryId) {
-        throw new Error("Модуль ЭСИ для редактирования не выбран.");
-      }
-      return updateEquipmentEsiCompositionEntry(
-        token ?? "",
-        parsedEquipmentId,
-        editingEsiModule.entryId,
-        {
-          measurementLimit: editingEsiMeasurementLimit,
-        },
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      setEditingEsiModule(null);
-      setEditingEsiMeasurementLimit("");
-    },
-  });
 
-  const deleteEsiCompositionEntryMutation = useMutation({
-    mutationFn: async () => {
-      if (!esiModuleToDelete?.entryId) {
-        throw new Error("Модуль ЭСИ для удаления не выбран.");
-      }
-      return deleteEquipmentEsiCompositionEntry(
-        token ?? "",
-        parsedEquipmentId,
-        esiModuleToDelete.entryId,
-      );
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      setEsiModuleToDelete(null);
-    },
-  });
 
 
   function openShareModal(): void {
@@ -755,27 +585,6 @@ export function EquipmentDetailsPage() {
     setShareFeedbackMessage(null);
     shareEquipmentMutation.reset();
     setShareModalOpen(true);
-  }
-
-  function openEsiCompositionModal(): void {
-    setEsiCompositionModalOpen(true);
-  }
-
-  function closeEsiCompositionModal(): void {
-    setEsiCompositionModalOpen(false);
-    setEsiCompositionForm({ certificateNumber: "", measurementLimit: "" });
-    setEsiCompositionSearchResults([]);
-    setSelectedEsiCompositionResult(null);
-    setSelectedEsiCompositionDetail(null);
-    searchEsiCompositionMutation.reset();
-    loadEsiCompositionDetailMutation.reset();
-    createEsiCompositionEntryMutation.reset();
-  }
-
-  function openEditEsiModuleModal(row: ESIRelatedProfileRow): void {
-    setEditingEsiModule(row);
-    setEditingEsiMeasurementLimit(row.measurementLimit ?? "");
-    updateEsiCompositionEntryMutation.reset();
   }
 
   const equipmentFormResetKey = equipment ? `${equipment.id}:${equipment.updatedAt}` : null;

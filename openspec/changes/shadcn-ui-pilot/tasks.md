@@ -4,7 +4,7 @@
 
 - [ ] 1.1 Register the `@shadcn` registry in `frontend/components.json` and verify the shadcn MCP lists items without passing the registry explicitly.
 - [ ] 1.2 Search and vet the candidate primitives (dialog, dropdown-menu, select, tooltip, tabs) with the MCP and record the final inventory and the add command; verify the command is reproducible.
-- [ ] 1.3 Confirm Tailwind v3 compatibility and record the dependency list the chosen items pull in.
+- [ ] 1.3 Confirm Tailwind v4 compatibility and record the dependency list the chosen items pull in. (Prerequisite done: `tailwind-v4-upgrade` landed - Tailwind v4 via `@tailwindcss/vite`, `tailwind.config.ts` kept through `@config`.)
 
 ## 2. Install and wire the primitives
 

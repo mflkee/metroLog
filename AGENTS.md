@@ -69,7 +69,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 ```
 
 - **Backend**: FastAPI + SQLAlchemy 2 + Alembic + RQ (Redis Queue) for email notifications.
-- **Frontend**: React + Vite + TanStack Query + Zustand (auth, theme) + Tailwind CSS with a bespoke design system (no shadcn/ui).
+- **Frontend**: React + Vite + TanStack Query + Zustand (auth, theme) + Tailwind CSS **v4** (plugin `@tailwindcss/vite`, JS config через `@config`) with a bespoke design system (shadcn/`metro-ui` pilot in progress).
 - **Infra**: Docker Compose (postgres, redis, backend, backend-worker, frontend). Persistent data in named volumes.
 
 ---
@@ -163,6 +163,8 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/content/user-guide.ru.txt` | Raw help text for `HelpPage`. |
 
 > ⚠️ **Грабли сборки фронта**: файлы **вне** `frontend/` (например корневой `CHANGELOG.md`, который импортит «Что нового»), нужно явно копировать в `frontend/Dockerfile`. Иначе локальная `vite build` проходит (файл есть в дереве), а docker-сборка в CI падает на `Build & push frontend`.
+
+> ⚠️ **Tailwind v4** (миграция 2026-10-08, change `tailwind-v4-upgrade`): фронт на **Tailwind v4** через плагин `@tailwindcss/vite`; `postcss`/`autoprefixer` убраны, `postcss.config.cjs` удалён (и вычищен из `frontend/Dockerfile`). Точка входа — `@import "tailwindcss"` + `@config "../../tailwind.config.ts"`, так что кастомные цвета (`ink`/`mist`/`steel`/`line`/`signal.*`), `shadow-panel` и шрифт по-прежнему живут в `tailwind.config.ts` (не переносить в CSS-first `@theme` без причины). Кастомные классы в `styles.css` **намеренно не обёрнуты в `@layer`**: в v4 unlayered CSS бьёт любые layered-утилиты — как в v3 «наши классы после `@tailwind utilities`». В `@layer base` восстановлены две v4-нормы, на которые опирается UI: дефолтный `border-color` из `--border-color` и `cursor: pointer` у активных кнопок. Переименования v4 к запоминанию: `bg-gradient-to-*`→`bg-linear-*`, `backdrop-blur`→`backdrop-blur-sm`, `backdrop-blur-sm`→`backdrop-blur-xs`, `outline-none`→`outline-hidden`, `shadow-sm`→`shadow-xs`; дефолт `border`/`ring` в v4 — `currentColor`. v4 требует современных браузеров (CSS cascade layers).
 
 ### Scripts & Ops
 | File | Purpose |

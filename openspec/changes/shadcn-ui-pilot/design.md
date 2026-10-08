@@ -66,11 +66,7 @@ keeps metroLog aligned with metroCheck instead of forking a second shadcn setup.
 raw `@shadcn` items - still needed for the interactive primitives (dialog, dropdown-menu,
 select, tooltip, tabs) that metro-ui does not ship.
 
-**Tailwind v4 is a prerequisite, and it lands first as its own change.** `metro-ui` requires
-`npx shadcn@latest init` on Tailwind v4, while metroLog is on v3.4 with `tailwind.config.ts`.
-Rationale: the v4 migration touches the config, the token layer and every utility class, so it
-must be verifiable on its own (build + all 10 themes) before any component swap. Alternative:
-adopt components on v3 - rejected because the registry's items assume v4 semantics.
+**Tailwind v4 is a prerequisite, and it landed first as its own change (`tailwind-v4-upgrade`).** `metro-ui` requires `npx shadcn@latest init` on Tailwind v4, while metroLog was on v3.4 with `tailwind.config.ts`. Rationale: the v4 migration touches the config, the token layer and every utility class, so it had to be verifiable on its own (build + all 10 themes) before any component swap. Status: done - metroLog now runs Tailwind v4 through `@tailwindcss/vite`, keeps `tailwind.config.ts` via `@config`, and all 341 tokens and 10 themes are unchanged. The remaining follow-up for the pilot is the v4 shape of `frontend/components.json` (drop the `tailwind.config` field that v3 used).
 
 **Keep metroLog's 10 themes; adopt presentational items only.** `status-badge`, `stat-card` and
 `page-header` are token-driven and can read metroLog's variables, so they can be adopted without

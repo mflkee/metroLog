@@ -83,9 +83,11 @@ class UserService:
     def list_users(self) -> list[User]:
         return self.users.list_all()
 
-    def list_mention_users(self) -> list[UserMentionRead]:
+    def list_mention_users(self, *, current_user: User) -> list[UserMentionRead]:
         users = self.users.list_active()
-        return build_user_mention_reads(users)
+        return build_user_mention_reads(
+            _filter_mention_candidates(users, current_user=current_user)
+        )
 
     def get_user(self, *, user_id: int) -> User:
         user = self.users.get_by_id(user_id)
@@ -510,6 +512,26 @@ def get_user_allowed_folder_ids(user: User | None) -> set[int] | None:
     if user is None or not _requires_folder_scope(user.role):
         return None
     return set(_coerce_allowed_folder_ids(user.allowed_folder_ids))
+
+
+def _filter_mention_candidates(users: list[User], *, current_user: User) -> list[User]:
+    """Keep mention candidates inside the caller's folder scope.
+
+    Users without a folder restriction (administrators and developers) stay visible to
+    everyone because they oversee every folder; everything else is limited to users who
+    share at least one accessible folder with the caller.
+    """
+
+    allowed_folder_ids = get_user_allowed_folder_ids(current_user)
+    if allowed_folder_ids is None:
+        return users
+
+    visible: list[User] = []
+    for user in users:
+        user_folder_ids = get_user_allowed_folder_ids(user)
+        if user_folder_ids is None or user_folder_ids & allowed_folder_ids:
+            visible.append(user)
+    return visible
 
 
 def is_folder_access_allowed(user: User | None, folder_id: int | None) -> bool:

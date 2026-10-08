@@ -638,3 +638,47 @@ async def test_task_message_attachment_download(client: AsyncClient, db_engine) 
     )
     assert download.status_code == 200, download.text
     assert download.content == b"hello"
+
+
+@pytest.mark.anyio
+async def test_mention_candidates_are_scoped_to_callers_folders(
+    client: AsyncClient, db_engine
+) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    admin_token = admin["access_token"]
+
+    folder_a = await create_folder(client, admin_token, "Упоминания: папка A")
+    folder_b = await create_folder(client, admin_token, "Упоминания: папка B")
+
+    await create_user(
+        client,
+        admin_token=admin_token,
+        email="mentions-a@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[folder_a["id"]],
+    )
+    await create_user(
+        client,
+        admin_token=admin_token,
+        email="mentions-b@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[folder_b["id"]],
+    )
+
+    colleague = await login_user(client, email="mentions-a@example.test", password="TestPass123")
+    colleague_headers = {"Authorization": f"Bearer {colleague['access_token']}"}
+
+    scoped = await client.get("/api/v1/users/mentions", headers=colleague_headers)
+    assert scoped.status_code == 200, scoped.text
+    scoped_emails = {item["email"] for item in scoped.json()}
+    assert "mentions-a@example.test" in scoped_emails
+    assert settings.bootstrap_admin_email in scoped_emails
+    assert "mentions-b@example.test" not in scoped_emails
+
+    everyone = await client.get(
+        "/api/v1/users/mentions", headers={"Authorization": f"Bearer {admin_token}"}
+    )
+    assert everyone.status_code == 200, everyone.text
+    admin_emails = {item["email"] for item in everyone.json()}
+    assert {"mentions-a@example.test", "mentions-b@example.test"} <= admin_emails

@@ -9,10 +9,10 @@
 
 ## 2. Backend access-control audit and fixes
 
-- [ ] 2.1 Build the route x authorization matrix for every endpoint in `backend/app/api/v1/routes/` and record each gap as a finding with severity; verify the matrix covers every route function.
-- [ ] 2.2 For every write endpoint offered by the UI without a role check, add or fix the check and verify with a test asserting `403` for the denied role.
-- [ ] 2.3 Verify folder-scoped reads and writes return `404` for denied folders by adding a test for each endpoint that lacks one.
-- [ ] 2.4 Confirm private notes remain operator-only end to end (`403` on create, absent from list responses for non-operators) and extend `backend/tests/test_tasks.py` where a path is uncovered.
+- [x] 2.1 Build the route x authorization matrix for every endpoint in `backend/app/api/v1/routes/` and record each gap as a finding with severity; verify the matrix covers every route function.
+- [x] 2.2 For every write endpoint offered by the UI without a role check, add or fix the check and verify with a test asserting `403` for the denied role.
+- [x] 2.3 Verify folder-scoped reads and writes return `404` for denied folders by adding a test for each endpoint that lacks one.
+- [x] 2.4 Confirm private notes remain operator-only end to end (`403` on create, absent from list responses for non-operators) and extend `backend/tests/test_tasks.py` where a path is uncovered.
 
 ## 3. Backend correctness and performance
 

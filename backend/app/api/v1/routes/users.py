@@ -16,10 +16,10 @@ router = APIRouter(prefix="/users")
 
 @router.get("/mentions", response_model=list[UserMentionRead])
 async def list_mention_users(
-    _: CurrentUser,
+    current_user: CurrentUser,
     db: DbSession,
 ) -> list[UserMentionRead]:
-    return UserService(db).list_mention_users()
+    return UserService(db).list_mention_users(current_user=current_user)
 
 
 @router.get("", response_model=list[UserRead])

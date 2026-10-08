@@ -44,3 +44,18 @@ SHALL NOT receive other users' private notes in list responses.
 #### Scenario: Customer does not see private notes
 - **WHEN** a user with role `CUSTOMER` lists comments or discussion messages
 - **THEN** the response contains none of another user's private notes
+
+### Requirement: Mention candidates are scoped to the caller
+The list of users offered as mention candidates SHALL be limited to the caller's scope.
+Administrators and developers SHALL see every active user; other roles SHALL see only users
+who share at least one accessible folder with them (administrators and developers remain
+visible because they oversee every folder). User email addresses SHALL NOT be disclosed
+outside that scope.
+
+#### Scenario: Customer sees only colleagues from their folders
+- **WHEN** a user with role `CUSTOMER` requests the mention-candidate list
+- **THEN** the response contains only users who share at least one of the caller's accessible folders, and no other users' email addresses
+
+#### Scenario: Administrator sees the whole directory
+- **WHEN** a user with role `ADMINISTRATOR` or `DEVELOPER` requests the mention-candidate list
+- **THEN** the response contains every active user

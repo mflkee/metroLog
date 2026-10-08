@@ -84,3 +84,25 @@ describe("SearchableSelect search", () => {
   });
 });
 
+describe("SearchableSelect inside a modal", () => {
+  it("renders the list inside the dialog, so the dialog's scroll lock lets the wheel through", () => {
+    render(
+      <div data-testid="dialog" role="dialog">
+        <SearchableSelect onChange={vi.fn()} options={OPTIONS} value={null} />
+      </div>,
+    );
+
+    fireEvent.focus(screen.getByRole("combobox"));
+
+    expect(screen.getByTestId("dialog")).toContainElement(screen.getByRole("listbox"));
+  });
+
+  it("keeps rendering into the body when there is no dialog", () => {
+    render(<SearchableSelect onChange={vi.fn()} options={OPTIONS} value={null} />);
+
+    fireEvent.focus(screen.getByRole("combobox"));
+
+    expect(screen.getByRole("listbox").parentElement).toBe(document.body);
+  });
+});
+

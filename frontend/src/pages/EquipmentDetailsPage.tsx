@@ -25,7 +25,6 @@ import {
   deleteEquipmentCommentDraftAttachment,
   deleteEquipmentRepairMessage,
   deleteEquipmentVerificationMessage,
-  deleteEquipmentAttachment,
   deleteEquipment,
   downloadEquipmentCommentAttachment,
   downloadRepairMessageAttachment,
@@ -50,7 +49,6 @@ import {
   type EquipmentComment,
   type EquipmentCommentAttachment,
   type EquipmentCommentDraftAttachment,
-  type EquipmentDetailsResult,
   type EquipmentESICompositionEntry,
   type EquipmentFolder,
   type EquipmentItem,
@@ -68,7 +66,6 @@ import {
   updateEquipmentEsiCompositionEntry,
   updateEquipmentRepairMessage,
   updateEquipmentVerificationMessage,
-  uploadEquipmentAttachment,
   uploadEquipmentCommentDraftAttachment,
   updateEquipment } from "@/api/equipment";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
@@ -81,6 +78,7 @@ import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { useEquipmentDetailsQueries } from "@/hooks/useEquipmentDetailsQueries";
 import { useEquipmentComments } from "@/hooks/useEquipmentComments";
+import { useEquipmentAttachments } from "@/hooks/useEquipmentAttachments";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -195,19 +193,11 @@ export function EquipmentDetailsPage() {
     initialMessageIsPrivate: false,
     files: [],
   });
-  const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingCommentAttachmentId, setDownloadingCommentAttachmentId] = useState<number | null>(null);
   const [downloadingRepairAttachmentId, setDownloadingRepairAttachmentId] = useState<number | null>(null);
   const [downloadingVerificationAttachmentId, setDownloadingVerificationAttachmentId] = useState<number | null>(null);
-  const [attachmentActionError, setAttachmentActionError] = useState<string | null>(null);
   const [repairActionError, setRepairActionError] = useState<string | null>(null);
   const [verificationActionError, setVerificationActionError] = useState<string | null>(null);
-  const [attachmentToDelete, setAttachmentToDelete] = useState<EquipmentAttachment | null>(null);
-  const [pendingAttachmentFiles, setPendingAttachmentFiles] = useState<File[]>([]);
-  const [uploadingAttachmentFileKeys, setUploadingAttachmentFileKeys] = useState<string[]>([]);
-  const [attachmentUploadErrorsByKey, setAttachmentUploadErrorsByKey] = useState<
-    Record<string, string>
-  >({});
   const [repairMessageDraft, setRepairMessageDraft] = useState("");
   const [repairMessageDraftIsPrivate, setRepairMessageDraftIsPrivate] = useState(false);
   const [verificationMessageDraft, setVerificationMessageDraft] = useState("");
@@ -247,7 +237,6 @@ export function EquipmentDetailsPage() {
   const [repairMessageEditDraft, setRepairMessageEditDraft] = useState("");
   const [editingVerificationMessageId, setEditingVerificationMessageId] = useState<number | null>(null);
   const [verificationMessageEditDraft, setVerificationMessageEditDraft] = useState("");
-  const attachmentInputRef = useRef<HTMLInputElement | null>(null);
   const repairInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const verificationInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const repairMessageFilesInputRef = useRef<HTMLInputElement | null>(null);
@@ -327,6 +316,23 @@ export function EquipmentDetailsPage() {
     updateCommentMutation,
     deleteCommentMutation,
   } = useEquipmentComments({ equipmentId: parsedEquipmentId, token });
+
+  const {
+    downloadingAttachmentId,
+    setDownloadingAttachmentId,
+    attachmentActionError,
+    setAttachmentActionError,
+    attachmentToDelete,
+    setAttachmentToDelete,
+    pendingAttachmentFiles,
+    setPendingAttachmentFiles,
+    uploadingAttachmentFileKeys,
+    attachmentUploadErrorsByKey,
+    setAttachmentUploadErrorsByKey,
+    attachmentInputRef,
+    uploadAttachmentMutation,
+    deleteAttachmentMutation,
+  } = useEquipmentAttachments({ equipmentId: parsedEquipmentId, token });
 
   const equipment = equipmentQuery.data?.equipment ?? null;
   const filteredShareRecipients = useMemo(
@@ -610,107 +616,9 @@ export function EquipmentDetailsPage() {
     },
   });
 
-  const uploadAttachmentMutation = useMutation({
-    mutationFn: async (files: File[]) => {
-      const uploadedKeys: string[] = [];
-      const uploadedAttachments: EquipmentAttachment[] = [];
-      const failedUploads: Array<{ fileKey: string; fileName: string; message: string }> = [];
-
-      for (const file of files) {
-        try {
-          const uploadedAttachment = await uploadEquipmentAttachment(token ?? "", parsedEquipmentId, file);
-          uploadedKeys.push(buildPendingFileKey(file));
-          uploadedAttachments.push(uploadedAttachment);
-        } catch (error) {
-          failedUploads.push({
-            fileKey: buildPendingFileKey(file),
-            fileName: file.name,
-            message:
-              error instanceof Error ? error.message : "Не удалось загрузить вложение.",
-          });
-        }
-      }
-
-      return { uploadedAttachments, uploadedKeys, failedUploads };
-    },
-    onMutate: (files) => {
-      setAttachmentActionError(null);
-      setUploadingAttachmentFileKeys(files.map((file) => buildPendingFileKey(file)));
-      setAttachmentUploadErrorsByKey((current) => {
-        const next = { ...current };
-        for (const file of files) {
-          delete next[buildPendingFileKey(file)];
-        }
-        return next;
-      });
-    },
-    onSuccess: async ({ failedUploads, uploadedAttachments, uploadedKeys }) => {
-      if (uploadedKeys.length) {
-        setPendingAttachmentFiles((current) =>
-          current.filter((file) => !uploadedKeys.includes(buildPendingFileKey(file))),
-        );
-        if (attachmentInputRef.current) {
-          attachmentInputRef.current.value = "";
-        }
-      }
-
-      if (uploadedAttachments.length) {
-        queryClient.setQueryData<EquipmentDetailsResult | undefined>(
-          ["equipment-details", parsedEquipmentId],
-          (current) =>
-            current
-              ? {
-                  ...current,
-                  attachments: mergeEquipmentAttachments(current.attachments, uploadedAttachments),
-                }
-              : current,
-        );
-        await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      }
-
-      if (!failedUploads.length) {
-        setAttachmentUploadErrorsByKey((current) => {
-          const next = { ...current };
-          for (const uploadedKey of uploadedKeys) {
-            delete next[uploadedKey];
-          }
-          return next;
-        });
-        setAttachmentActionError(null);
-        return;
-      }
-
-      setAttachmentUploadErrorsByKey((current) => {
-        const next = { ...current };
-        for (const uploadedKey of uploadedKeys) {
-          delete next[uploadedKey];
-        }
-        for (const failedUpload of failedUploads) {
-          next[failedUpload.fileKey] = failedUpload.message;
-        }
-        return next;
-      });
-      setAttachmentActionError(
-        failedUploads.length === 1
-          ? `Не удалось загрузить файл ${failedUploads[0].fileName}: ${failedUploads[0].message}`
-          : `Не удалось загрузить ${failedUploads.length} файлов. Проверь сообщения у проблемных вложений.`,
-      );
-    },
-    onSettled: () => {
-      setUploadingAttachmentFileKeys([]);
-    },
-  });
   const isAttachmentUploadPending = uploadAttachmentMutation.isPending;
   const triggerAttachmentUpload = uploadAttachmentMutation.mutateAsync;
 
-  const deleteAttachmentMutation = useMutation({
-    mutationFn: (attachmentId: number) =>
-      deleteEquipmentAttachment(token ?? "", parsedEquipmentId, attachmentId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      setAttachmentToDelete(null);
-    },
-  });
 
 
 
@@ -4770,29 +4678,6 @@ function formatAttachmentMeta(attachment: EquipmentAttachment): string {
   ]
     .filter(Boolean)
     .join(" · ");
-}
-
-function mergeEquipmentAttachments(
-  current: EquipmentAttachment[],
-  incoming: EquipmentAttachment[],
-): EquipmentAttachment[] {
-  const merged = [...current];
-  const seenIds = new Set(current.map((attachment) => attachment.id));
-
-  for (const attachment of incoming) {
-    if (seenIds.has(attachment.id)) {
-      continue;
-    }
-    seenIds.add(attachment.id);
-    merged.push(attachment);
-  }
-
-  return merged.sort((left, right) => {
-    if (left.createdAt === right.createdAt) {
-      return right.id - left.id;
-    }
-    return right.createdAt.localeCompare(left.createdAt);
-  });
 }
 
 function sortEsiCompositionRows(rows: ESIRelatedProfileRow[]): ESIRelatedProfileRow[] {

@@ -1,3 +1,5 @@
+import type { EquipmentAttachment } from "@/api/equipment";
+
 export type AttachmentPreviewKind = "image" | "pdf" | "other";
 
 export function buildPendingFileKey(file: Pick<File, "name" | "size" | "lastModified" | "type">): string {
@@ -87,4 +89,27 @@ export function downloadBlob(blob: Blob, fileName: string): void {
   link.click();
   link.remove();
   URL.revokeObjectURL(objectUrl);
+}
+
+export function mergeEquipmentAttachments(
+  current: EquipmentAttachment[],
+  incoming: EquipmentAttachment[],
+): EquipmentAttachment[] {
+  const merged = [...current];
+  const seenIds = new Set(current.map((attachment) => attachment.id));
+
+  for (const attachment of incoming) {
+    if (seenIds.has(attachment.id)) {
+      continue;
+    }
+    seenIds.add(attachment.id);
+    merged.push(attachment);
+  }
+
+  return merged.sort((left, right) => {
+    if (left.createdAt === right.createdAt) {
+      return right.id - left.id;
+    }
+    return right.createdAt.localeCompare(left.createdAt);
+  });
 }

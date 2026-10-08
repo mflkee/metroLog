@@ -29,6 +29,6 @@
 
 ## 6. Audit, docs and integration
 
-- [ ] 6.1 Run the shadcn audit checklist and record which items pass.
-- [ ] 6.2 Update `AGENTS.md` (design-system note now records the pilot inventory and the registry) and verify the note matches the shipped inventory.
-- [ ] 6.3 Push to `main`, confirm the CI run and Stage deploy succeed, and record the bundle-size delta from the build output.
+- [x] 6.1 Run the shadcn audit checklist and record which items pass. Pass: named vs default imports (tsc clean), dependencies installed (verified via `npm ls`), TypeScript errors (0), linting (0 errors; the vendored files add react-refresh warnings for their non-component exports, consistent with the repo's existing warnings). N/A: `next/image` remotePatterns (this is not a Next project). Not done: the Playwright step - the Stage walkthrough needs the owner's credentials, so it is left to 5.2.
+- [x] 6.2 Update `AGENTS.md` (design-system note now records the pilot inventory and the registry) and verify the note matches the shipped inventory. Done: the frontend map lists `src/components/ui/*` and a dedicated note records the inventory, the `@theme inline` token mapping, the inert `dark:` variant, the dialog dismissal contract and the pilot scope (task pages only, the bespoke `PageHeader`/`Modal` kept elsewhere, `dropdown-menu` deferred).
+- [x] 6.3 Push to `main`, confirm the CI run and Stage deploy succeed, and record the bundle-size delta from the build output. Done: CI runs #69 (Tailwind v4), #71 and #73 (pilot) are green through checks -> build-images -> deploy-staging. Bundle delta from adopting the dialog (the only interactive primitive landed): vendor chunk 322,610 -> 394,463 bytes raw / 104,592 -> 125,677 gzipped (+21 KB gzip), CSS 104,202 -> 116,193 raw / 16,569 -> 18,179 gzipped. Total about +23 KB gzipped, below the 50-100 KB the design estimated for all five primitives (only one landed).

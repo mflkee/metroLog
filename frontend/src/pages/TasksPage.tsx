@@ -232,7 +232,7 @@ export function TasksPage() {
           {BOARD_STATUSES.map((status) => (
             <div
               key={status}
-              className="min-h-[120px] space-y-2 rounded-2xl border border-line p-2"
+              className="min-h-[120px] space-y-2 rounded-2xl p-1"
               onDragOver={(event) => event.preventDefault()}
               onDrop={(event) => {
                 event.preventDefault();

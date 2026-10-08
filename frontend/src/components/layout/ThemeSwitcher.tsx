@@ -92,12 +92,12 @@ function Picker({ label, activeLabel, selectedValue, options, onSelect }: Picker
 
   return (
     <div ref={pickerRef} className="theme-picker">
-      <span className="theme-switcher__label">{label}</span>
       <div className="theme-menu">
         <button
           aria-expanded={isOpen}
           aria-haspopup="listbox"
-          className="theme-menu__trigger"
+          aria-label={`Выбор: ${label}`}
+          className="btn-secondary btn-sm"
           type="button"
           onClick={() => setIsOpen((open) => !open)}
         >

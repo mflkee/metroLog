@@ -75,3 +75,5 @@
 - [x] 11.5 Top bar affordance: keep the border only on interactive controls (version badge, theme, account actions); render informational items (Arshin status, user name/role) without a border.
 - [x] 11.6 Rework the task filters into a single labeled row (`Поиск` / `Папка` / `Приоритет`, three columns on desktop) like the equipment page, instead of full-width stretched inputs.
 - [x] 11.7 Highlight the Kanban column headers with the same accent tone as the list table header.
+- [x] 11.8 Top bar: drop the user name/role block; render the theme selector as a button styled like `Профиль`/`Выйти` (no `Тема` label), aligned with them.
+- [x] 11.9 Kanban: remove the outer column border (keep only the card borders) for a flatter, more minimal board.

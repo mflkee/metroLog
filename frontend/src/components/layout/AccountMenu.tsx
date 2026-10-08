@@ -24,15 +24,6 @@ export function AccountMenu() {
         <div className="hidden md:flex">
           <ThemeSwitcher />
         </div>
-        {user ? (
-          <div className="hidden min-w-0 items-center gap-2 text-xs lg:flex">
-            <span className="max-w-[16rem] truncate font-semibold text-ink">{user.fullName}</span>
-            <span className="text-steel">{roleLabels[user.role]}</span>
-            {user.mustChangePassword ? (
-              <span className="text-[10px] uppercase tracking-[0.14em] text-signal-info">смена пароля</span>
-            ) : null}
-          </div>
-        ) : null}
         <Link className="btn-secondary btn-sm hidden shrink-0 xl:inline-flex" to="/profile">
           Профиль
         </Link>
@@ -75,7 +66,7 @@ export function AccountMenu() {
         onClose={() => setMobileAccountOpen(false)}
       >
         <div className="space-y-3">
-          <div className="2xl:hidden">
+          <div className="md:hidden">
             <ThemeSwitcher />
           </div>
           <Link

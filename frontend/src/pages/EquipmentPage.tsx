@@ -1,9 +1,10 @@
+import { useEquipmentRegistryQueries } from "@/hooks/useEquipmentRegistryQueries";
 import { ActiveModal, DeleteTarget, ESIInternalModuleFormState, EquipmentFormState, EquipmentSortState, FolderFormState, RepairBatchFormState, SIImportFormState, SISearchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getArshinSearchResultManufactureYear, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
 import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   fetchArshinEsiDetail,
@@ -16,7 +17,6 @@ import {
 import {
   applyFolderRefreshRows,
   canChangeEquipmentTypeAfterCreation,
-  fetchDeadlinePresets,
   createEquipment,
   createEquipmentFolder,
   createEquipmentRepair,
@@ -29,16 +29,10 @@ import {
   exportEquipmentRegistryXlsx,
   equipmentStatusLabels,
   equipmentTypeSelectionLabels,
-  fetchFolderRefreshTaskDetails,
-  fetchFolderProcessSubscriptions,
-  fetchEquipment,
-  fetchEquipmentPage,
-  fetchEquipmentFolderSuggestions,
   getEditableEquipmentTypeOptions,
   getEquipmentComplianceDateLabel,
   getEquipmentCompliancePeriodLabel,
   isArshinEquipmentType,
-  fetchEquipmentFolders,
   importSIEquipmentExcel,
   startFolderRefreshTask,
   supportsVerification,
@@ -55,7 +49,6 @@ import {
   type EquipmentStatus,
   type EquipmentType,
 } from "@/api/equipment";
-import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
@@ -177,65 +170,8 @@ export function EquipmentPage() {
     });
   }, [equipmentForm.complianceIntervalMonths, equipmentForm.equipmentType]);
 
-  const foldersQuery = useQuery({
-    queryKey: ["equipment-folders"],
-    queryFn: () => fetchEquipmentFolders(token ?? ""),
-    enabled: Boolean(token),
-  });
-  const deadlinePresetsQuery = useQuery({
-    queryKey: ["deadline-presets", "folders"],
-    queryFn: () => fetchDeadlinePresets(token ?? "", { includeInactive: true }),
-    enabled: Boolean(token) && canManage,
-  });
 
-  const equipmentPageQuery = useQuery({
-    queryKey: [
-      "equipment-items-page",
-      selectedFolderId ?? "none",
-      deferredSearchQuery,
-      dashboardObjectNameFilter,
-      dashboardCurrentLocationFilter,
-      statusFilter,
-      typeFilter,
-      sortState?.key ?? "default-order",
-      sortState?.direction ?? "default-direction",
-      equipmentPage,
-      equipmentPageSize,
-    ],
-    queryFn: () =>
-      fetchEquipmentPage(token ?? "", {
-        folderId: selectedFolderId,
-        groupId: null,
-        query: deferredSearchQuery,
-        objectName: dashboardObjectNameFilter,
-        currentLocationManual: dashboardCurrentLocationFilter,
-        status: statusFilter === "ALL" ? null : statusFilter,
-        equipmentType: typeFilter === "ALL" ? null : typeFilter,
-        sortKey: sortState?.key ?? null,
-        sortDirection: sortState?.direction ?? null,
-        limit: equipmentPageSize,
-        offset: (equipmentPage - 1) * equipmentPageSize,
-      }),
-    enabled: Boolean(token) && selectedFolderId !== null,
-  });
 
-  const selectedEquipmentQuery = useQuery({
-    queryKey: [
-      "equipment-selected-items",
-      selectedFolderId ?? "none",
-      ...selectedEquipmentIds,
-    ],
-    queryFn: () =>
-      fetchEquipment(token ?? "", {
-        folderId: selectedFolderId,
-        groupId: null,
-        equipmentIds: selectedEquipmentIds,
-      }),
-    enabled:
-      Boolean(token)
-      && selectedFolderId !== null
-      && selectedEquipmentIds.length > 0,
-  });
 
   async function invalidateEquipmentRegistryQueries() {
     await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
@@ -243,40 +179,33 @@ export function EquipmentPage() {
     await queryClient.invalidateQueries({ queryKey: ["equipment-selected-items"] });
   }
 
-  const folderSuggestionsQuery = useQuery({
-    queryKey: ["equipment-folder-suggestions", selectedFolderId ?? "none"],
-    queryFn: () => fetchEquipmentFolderSuggestions(token ?? "", selectedFolderId ?? 0),
-    enabled: Boolean(token) && selectedFolderId !== null,
-  });
 
-  const folderProcessSubscriptionsQuery = useQuery({
-    queryKey: ["folder-process-subscriptions", selectedFolderId ?? "none"],
-    queryFn: () => fetchFolderProcessSubscriptions(token ?? "", selectedFolderId ?? 0),
-    enabled: Boolean(token) && canManage && selectedFolderId !== null && folderSubscriptionModalOpen,
-  });
 
-  const folderRefreshTaskQuery = useQuery({
-    queryKey: [
-      "equipment-folder-refresh-task",
-      selectedFolderId ?? "none",
-      folderRefreshTaskId ?? "none",
-    ],
-    queryFn: () => fetchFolderRefreshTaskDetails(token ?? "", selectedFolderId ?? 0, folderRefreshTaskId ?? 0),
-    enabled:
-      Boolean(token)
-      && canManage
-      && selectedFolderId !== null
-      && folderRefreshTaskId !== null,
-    refetchInterval: (query) => {
-      const taskStatus = query.state.data?.task.status;
-      return taskStatus === "PENDING" || taskStatus === "PROCESSING" ? 2_000 : false;
-    },
-  });
 
-  const mentionUsersQuery = useQuery({
-    queryKey: ["mention-users"],
-    queryFn: () => fetchMentionUsers(token ?? ""),
-    enabled: Boolean(token),
+
+  const {
+    foldersQuery,
+    deadlinePresetsQuery,
+    equipmentPageQuery,
+    selectedEquipmentQuery,
+    folderSuggestionsQuery,
+    folderProcessSubscriptionsQuery,
+    folderRefreshTaskQuery,
+    mentionUsersQuery,
+  } = useEquipmentRegistryQueries({
+    token,
+    canManage,
+    selectedFolderId,
+    searchQuery: deferredSearchQuery,
+    objectNameFilter: dashboardObjectNameFilter,
+    locationFilter: dashboardCurrentLocationFilter,
+    statusFilter,
+    typeFilter,
+    sortState,
+    page: equipmentPage,
+    selectedEquipmentIds,
+    folderSubscriptionModalOpen,
+    folderRefreshTaskId,
   });
 
   useEffect(() => {

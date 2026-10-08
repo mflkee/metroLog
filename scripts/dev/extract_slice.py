@@ -48,6 +48,7 @@ def main() -> int:
     parser.add_argument("--state", default="")
     parser.add_argument("--refs", default="")
     parser.add_argument("--mutations", default="")
+    parser.add_argument("--queries", default="")
     parser.add_argument("--params", required=True, help="comma separated `name: type` pairs")
     parser.add_argument("--anchor", required=True, help="text in the page the call is inserted before")
     parser.add_argument("--doc", default="Extracted slice of the page; members keep their names.")
@@ -57,6 +58,7 @@ def main() -> int:
     state = [n for n in args.state.split(",") if n]
     refs = [n for n in args.refs.split(",") if n]
     mutations = [n for n in args.mutations.split(",") if n]
+    queries = [n for n in args.queries.split(",") if n]
     params = [p.strip() for p in args.params.split(",") if p.strip()]
 
     page = Path(args.page)
@@ -86,6 +88,13 @@ def main() -> int:
         end = consume_braces(lines, start)
         removals.append((start, end))
         blocks["mutations"].append(take("mutations", start, end))
+    for name in queries:
+        start = next(
+            i for i, l in enumerate(lines) if l.strip().startswith(f"const {name} = useQuery({{")
+        )
+        end = consume_braces(lines, start)
+        removals.append((start, end))
+        blocks["mutations"].append(take("queries", start, end))
 
     keep: list[str] = []
     index = 0
@@ -106,6 +115,8 @@ def main() -> int:
         returned.append(f"    {name},")
     for name in mutations:
         returned.append(f"    {name},")
+    for name in queries:
+        returned.append(f"    {name},")
 
     signature = ",\n  ".join(params)
     call_args = ",\n    ".join(
@@ -115,7 +126,7 @@ def main() -> int:
     )
     hook = (
         'import { useRef, useState } from "react";\n\n'
-        'import { useMutation, useQueryClient } from "@tanstack/react-query";\n\n'
+        'import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";\n\n'
         f"type {args.hook_name[0].upper()}{args.hook_name[1:]}Params = {{\n  {signature},\n}};\n\n"
         f"/** {args.doc} */\n"
         f"export function {args.hook_name}({{\n  " + ",\n  ".join(p.split(":")[0].strip() for p in params) + f",\n}}: {args.hook_name[0].upper()}{args.hook_name[1:]}Params) {{\n"

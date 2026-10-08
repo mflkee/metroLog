@@ -120,7 +120,8 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/store/auth.ts` | Zustand auth store (token in localStorage). |
 | `src/store/theme.ts` | Zustand theme store (10 themes, `data-theme` attr). |
 | `src/api/client.ts` | Thin `fetch` wrapper, `ApiError`, bearer injection. |
-| `src/api/equipment.ts` | Domain API (~4.2k lines): CRUD, repairs, verifications, comments, attachments, ESI, folder refresh. |
+| `src/api/equipment.ts` | Barrel re-exporting the split domain API modules below, so existing imports keep working. |
+| `src/api/equipment/` | Domain API modules: `registry`, `folders`, `repairs`, `verifications`, `comments`, `esi`, `refresh`, `exports`. |
 | `src/api/arshin.ts` | Arshin search, detail, status probe. |
 | `src/pages/DashboardPage.tsx` | Folder-scoped dashboard widgets. |
 | `src/pages/EquipmentPage.tsx` | Registry: folders, groups, pagination, bulk actions, modals. |

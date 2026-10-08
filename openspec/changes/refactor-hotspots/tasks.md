@@ -24,7 +24,7 @@ other group drags along, so they move out first.
 - [ ] 3.2 Switch `RepairsPage.tsx` and `VerificationPage.tsx` to the shared core and verify both pages still work on Stage (queue, batch, milestones, messages). Revised after measuring (see design.md): the two big component pairs are **not** duplicates, so this is a sub-block extraction, not a wholesale merge.
       Measured: `RepairQueueRow` (1039 lines) vs `VerificationQueueRow` (1091) share only 40% of lines, `RepairBatchCard` (1332) vs `VerificationBatchCard` (1295) share 59% (the earlier 0.96 figure was character-level and misleading). The repairs side carries route/on-site flows, the verification side flow modes and Arshin links, and the message editors differ.
       Sub-blocks that are genuinely repeated (4 copies each) and worth extracting into `src/components/`:
-      - 3.2a the stage-row rendering block (`tone-grandchild` row with label/date/deadline/overdue and inline controls) - appears twice per page;
+      - 3.2a ✅ the stage-row cell logic: `applyStageDateChange` in `src/lib/processStages.ts` now owns the `formKey` vs `customStageId` branching that both pages repeated four times, with unit tests (`src/lib/processStages.test.ts`). The row *layout* stays per page (5 columns + conditional control in repairs, 4 columns + disabled control in verifications), because those are behavioural differences, not duplication. `RepairsPage` 3834 -> 3812, `VerificationPage` 3553 -> 3525, frontend suite 23 -> 27.
       - 3.2b the message thread block (list, edit-in-place, attachments, mention composer) - appears twice per page;
       - 3.2c the archive-delete confirmation dialog and the toolbar action cluster.
       Each sub-block is one PR-sized change with a Stage check of the affected flow; do not attempt to unify the whole row/card.
@@ -36,8 +36,9 @@ other group drags along, so they move out first.
 
 ## 5. Frontend API client split
 
-- [ ] 5.1 Split `frontend/src/api/equipment.ts` by domain (folders, CRUD, processes, comments/attachments, refresh, export) and verify `tsc` and `npm run build:frontend` pass with no import errors.
-- [ ] 5.2 Re-export the public API from a single entry point if callers relied on one module and verify no call site was changed beyond imports.
+- [x] 5.1 Split `frontend/src/api/equipment.ts` by domain (folders, CRUD, processes, comments/attachments, refresh, export) and verify `tsc` and `npm run build:frontend` pass with no import errors. Done: the former 4273-line module became `src/api/equipment/{registry,folders,repairs,verifications,comments,esi,refresh,exports}.ts` (largest 1295 lines) plus a 9-line barrel; the internal shared declarations were exported where a sibling module needs them. tsc, eslint, vitest (27) and the production build are clean.
+- [x] 5.2 Re-export the public API from a single entry point if callers relied on one module and verify no call site was changed beyond imports. Done: `src/api/equipment.ts` is a barrel (`export * from "./equipment/<domain>"`), so all 16 importing files are untouched.
+      Known follow-up (recorded, not blocking): the domain modules reference each other in cycles (e.g. `registry -> repairs -> comments -> registry`). They are runtime-safe because no module uses an imported value at module scope, and the production build passes; the clean fix is to move the shared plumbing (`RawEquipment`, `mapEquipment`, `EquipmentItem`, `EquipmentStatus`, `emptyToNull`, `parseContentDispositionFileName`, `buildEquipmentFilterSearch`, `FetchEquipmentFilters`) into a dependency-free `shared.ts` so the graph becomes `registry -> domains -> shared`.
 
 ## 6. Integration verification on Stage
 

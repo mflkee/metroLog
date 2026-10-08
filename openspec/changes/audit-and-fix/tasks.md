@@ -2,10 +2,10 @@
 
 ## 1. Baseline and tooling
 
-- [ ] 1.1 Run `npm run check` and record the current results (backend lint and tests, frontend lint, tests, build); verify the command exits 0 and store the output as the baseline.
-- [ ] 1.2 Add coverage reporting to the backend test command and record the baseline total (currently 82%); verify `npm run test:backend` produces the report.
-- [ ] 1.3 Run mypy over `backend/app` and record the number of findings as the baseline; verify the command completes and the count is recorded.
-- [ ] 1.4 Add frontend coverage reporting to the vitest configuration and record the baseline; verify `npm run test:frontend -- --coverage` writes a report.
+- [x] 1.1 Run `npm run check` and record the current results (backend lint and tests, frontend lint, tests, build); verify the command exits 0 and store the output as the baseline.
+- [x] 1.2 Add coverage reporting to the backend test command and record the baseline total (currently 82%); verify `npm run test:backend` produces the report.
+- [x] 1.3 Run mypy over `backend/app` and record the number of findings as the baseline; verify the command completes and the count is recorded.
+- [x] 1.4 Add frontend coverage reporting to the vitest configuration and record the baseline; verify `npm run test:frontend -- --coverage` writes a report.
 
 ## 2. Backend access-control audit and fixes
 

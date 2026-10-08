@@ -1,3 +1,5 @@
+import { ActiveModal, DeleteTarget, ESIInternalModuleFormState, EquipmentFormState, EquipmentSortState, FolderFormState, RepairBatchFormState, SIImportFormState, SISearchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getArshinSearchResultManufactureYear, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
+import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -13,7 +15,6 @@ import {
 } from "@/api/arshin";
 import {
   applyFolderRefreshRows,
-  buildSIVerificationPayloadFromArshin,
   canChangeEquipmentTypeAfterCreation,
   fetchDeadlinePresets,
   createEquipment,
@@ -28,19 +29,14 @@ import {
   exportEquipmentRegistryXlsx,
   equipmentStatusLabels,
   equipmentTypeSelectionLabels,
-  equipmentTypeLabels,
   fetchFolderRefreshTaskDetails,
   fetchFolderProcessSubscriptions,
   fetchEquipment,
   fetchEquipmentPage,
   fetchEquipmentFolderSuggestions,
   getEditableEquipmentTypeOptions,
-  getEquipmentStatusLabel,
-  getEquipmentStatusColor,
   getEquipmentComplianceDateLabel,
   getEquipmentCompliancePeriodLabel,
-  getEquipmentNextDueDate,
-  getEquipmentValidFromDate,
   isArshinEquipmentType,
   fetchEquipmentFolders,
   importSIEquipmentExcel,
@@ -50,20 +46,14 @@ import {
   updateEquipmentArshinRefreshExclusion,
   updateEquipmentFolder,
   updateFolderProcessSubscriptions,
-  type DeadlinePreset,
   type EquipmentFolder,
   type EquipmentFolderRefreshApplyResult,
-  type EquipmentFolderRefreshRow,
   type EquipmentFolderRefreshRowStatus,
-  type EquipmentItem,
   type EquipmentPageResult,
   type EquipmentSIBulkImportResult,
-  type EquipmentSortDirection,
   type EquipmentSortKey,
   type EquipmentStatus,
   type EquipmentType,
-  type UpdateEquipmentPayload,
-  type VerificationFlowMode,
 } from "@/api/equipment";
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
@@ -81,7 +71,7 @@ import { PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { appendPendingFiles, openFilePicker, removePendingFile } from "@/lib/attachments";
 import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
-import { extractEsiInternalModuleCandidates, type ESIInternalModuleCandidate } from "@/lib/esiModules";
+import { extractEsiInternalModuleCandidates } from "@/lib/esiModules";
 import {
   getProcessFormatButtonClass,
   getProcessVariantById,
@@ -93,173 +83,6 @@ import { hasOperatorAccess, roleLabels } from "@/lib/roles";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { insertEmojiAtCursor } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
-
-const equipmentTypeOptions: EquipmentType[] = ["SI", "ESI", "IO", "VO", "OTHER"];
-const equipmentStatusOptions: EquipmentStatus[] = ["IN_WORK", "IN_VERIFICATION", "IN_REPAIR", "REPAIRED", "NOT_REPAIRABLE", "ARCHIVED"];
-const subtleButtonClass = "btn-secondary";
-const subtleButtonWithIconClass = "btn-secondary inline-flex items-center gap-2";
-const equipmentPageSize = 100;
-const complianceIntervalOptions = [
-  { value: "12", label: "1 год" },
-  { value: "24", label: "2 года" },
-  { value: "36", label: "3 года" },
-  { value: "48", label: "4 года" },
-  { value: "60", label: "5 лет" },
-] as const;
-
-type FolderFormState = {
-  name: string;
-  description: string;
-  sortOrder: number;
-  deadlinePresetId: number | null;
-  initialDeadlinePresetId: number | null;
-};
-
-type EquipmentFormState = {
-  objectName: string;
-  equipmentType: EquipmentType;
-  createdManually: boolean;
-  excludeFromArshinRefresh: boolean;
-  name: string;
-  modification: string;
-  serialNumber: string;
-  manufactureYear: string;
-  measurementRangeStart: string;
-  measurementRangeEnd: string;
-  measurementUnit: string;
-  manualCertificateNumber: string;
-  manualRegistryNumber: string;
-  manualVerificationDate: string;
-  manualValidDate: string;
-  manualVerificationIntervalMonths: string;
-  status: EquipmentStatus;
-  currentLocationManual: string;
-  complianceDate: string;
-  complianceIntervalMonths: string;
-};
-
-type SISearchFormState = {
-  certificateNumber: string;
-};
-
-type ESIInternalModuleFormState = ESIInternalModuleCandidate & {
-  measurementLimit: string;
-};
-
-type VerificationBatchFormState = {
-  batchName: string;
-  flowMode: VerificationFlowMode;
-  stageTemplateVariantId: string;
-  routeCity: string;
-  routeDestination: string;
-  sentToVerificationAt: string;
-  initialMessageText: string;
-  initialMessageIsPrivate: boolean;
-  files: File[];
-};
-
-type RepairBatchFormState = {
-  batchName: string;
-  isOnSite: boolean;
-  stageTemplateVariantId: string;
-  routeCity: string;
-  routeDestination: string;
-  sentToRepairAt: string;
-  initialMessageText: string;
-  initialMessageIsPrivate: boolean;
-  files: File[];
-};
-
-type EquipmentSortState = {
-  key: EquipmentSortKey;
-  direction: EquipmentSortDirection;
-};
-
-type DeleteTarget =
-  | { kind: "folder"; id: number; title: string; message: string }
-  | { kind: "equipment"; id: number; title: string; message: string }
-  | { kind: "equipment-batch"; ids: number[]; title: string; message: string };
-
-type ActiveModal =
-  | null
-  | { kind: "folder"; mode: "create" | "edit"; folderId?: number }
-  | { kind: "equipment"; mode: "create" | "edit"; equipmentId?: number }
-  | { kind: "si-import" }
-  | { kind: "repair-batch" }
-  | { kind: "verification-batch" };
-
-const defaultFolderForm: FolderFormState = {
-  name: "",
-  description: "",
-  sortOrder: 0,
-  deadlinePresetId: null,
-  initialDeadlinePresetId: null,
-};
-
-const defaultEquipmentForm: EquipmentFormState = {
-  objectName: "",
-  equipmentType: "OTHER",
-  createdManually: false,
-  excludeFromArshinRefresh: false,
-  name: "",
-  modification: "",
-  serialNumber: "",
-  manufactureYear: "",
-  measurementRangeStart: "",
-  measurementRangeEnd: "",
-  measurementUnit: "",
-  manualCertificateNumber: "",
-  manualRegistryNumber: "",
-  manualVerificationDate: "",
-  manualValidDate: "",
-  manualVerificationIntervalMonths: "",
-  status: "IN_WORK",
-  currentLocationManual: "",
-  complianceDate: "",
-  complianceIntervalMonths: "",
-};
-
-const defaultSISearchForm: SISearchFormState = {
-  certificateNumber: "",
-};
-
-type SIImportFormState = {
-  objectName: string;
-  status: EquipmentStatus;
-  currentLocationManual: string;
-  file: File | null;
-};
-
-const defaultSIImportForm: SIImportFormState = {
-  objectName: "",
-  status: "IN_WORK",
-  currentLocationManual: "",
-  file: null,
-};
-
-const defaultVerificationBatchForm: VerificationBatchFormState = {
-  batchName: "",
-  flowMode: "OFFSITE_WITH_DEMOLITION",
-  stageTemplateVariantId: "",
-  routeCity: "",
-  routeDestination: "",
-  sentToVerificationAt: getTodayDateInputValue(),
-  initialMessageText: "",
-  initialMessageIsPrivate: false,
-  files: [],
-};
-
-const defaultRepairBatchForm: RepairBatchFormState = {
-  batchName: "",
-  isOnSite: false,
-  stageTemplateVariantId: "",
-  routeCity: "",
-  routeDestination: "",
-  sentToRepairAt: getTodayDateInputValue(),
-  initialMessageText: "",
-  initialMessageIsPrivate: false,
-  files: [],
-};
 
 export function EquipmentPage() {
   const token = useAuthStore((state) => state.token);
@@ -4252,316 +4075,3 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
   );
 }
 
-function EquipmentRow({
-  item,
-  canManage,
-  isSelected,
-  onToggleSelected,
-  rowIndex,
-}: {
-  item: EquipmentItem;
-  canManage: boolean;
-  isSelected: boolean;
-  onToggleSelected: () => void;
-  rowIndex: number;
-}) {
-  return (
-    <tr className={`${rowIndex % 2 === 0 ? "tone-parent" : "tone-child"} text-sm text-ink`}>
-      {canManage ? (
-        <td className="w-10 px-3 py-3 align-top">
-          <input
-            checked={isSelected}
-            className="mt-1 h-4 w-4 accent-[var(--accent)]"
-            onChange={onToggleSelected}
-            type="checkbox"
-          />
-        </td>
-      ) : null}
-      <td className="px-3 py-3 align-top">
-        <Link
-          className="block min-w-[280px] font-semibold text-ink transition hover:text-signal-info"
-          to={`/equipment/${item.id}`}
-        >
-          {item.name}
-        </Link>
-        <div className="mt-1 text-xs text-steel">{item.modification || "Без модификации"}</div>
-      </td>
-      <td className="px-3 py-3 align-top">
-        <span className="rounded-full bg-[#edf2f5] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
-          {equipmentTypeLabels[item.equipmentType]}
-        </span>
-      </td>
-      <td className="px-3 py-3 align-top">
-        <span style={{ color: getEquipmentStatusColor(item) }}>{getEquipmentStatusLabel(item)}</span>
-      </td>
-      <td className="px-3 py-3 align-top">{item.serialNumber || "—"}</td>
-      <td className="px-3 py-3 align-top">{item.manufactureYear || "—"}</td>
-      <td className="px-3 py-3 align-top">{item.objectName}</td>
-      <td className="px-3 py-3 align-top">{item.currentLocationManual || "Не указано"}</td>
-      <td className="px-3 py-3 align-top">{formatEquipmentValidityDate(getEquipmentValidFromDate(item))}</td>
-      <td className="px-3 py-3 align-top">{formatEquipmentValidityDate(getEquipmentNextDueDate(item))}</td>
-    </tr>
-  );
-}
-
-function SortableTableHeader({
-  label,
-  sortKey,
-  activeSort,
-  onSort,
-  className,
-}: {
-  label: string;
-  sortKey: EquipmentSortKey;
-  activeSort: EquipmentSortState | null;
-  onSort: (key: EquipmentSortKey) => void;
-  className?: string;
-}) {
-  const isActive = activeSort?.key === sortKey;
-  const arrow =
-    !isActive ? "↕" : activeSort.direction === "asc" ? "↑" : "↓";
-
-  return (
-    <th className={`px-3 py-2 ${className ?? ""}`}>
-      <button
-        className={`inline-flex items-center gap-2 transition ${
-          isActive ? "text-ink" : "text-steel hover:text-ink"
-        }`}
-        onClick={() => onSort(sortKey)}
-        type="button"
-      >
-        <span>{label}</span>
-        <span className={`text-[11px] ${isActive ? "text-ink" : "text-steel/80"}`}>{arrow}</span>
-      </button>
-    </th>
-  );
-}
-
-function mapEquipmentFormToPayload(
-  form: EquipmentFormState,
-  folderId: number,
-  selectedSiResult: ArshinSearchResult | null,
-  selectedSiDetail: ArshinVriDetail | null,
-  esiInternalModules: ESIInternalModuleFormState[],
-): UpdateEquipmentPayload {
-  return {
-    folderId,
-    objectName: form.objectName,
-    equipmentType: form.equipmentType,
-    name: form.name,
-    modification: form.modification,
-    serialNumber: form.serialNumber,
-    manufactureYear: form.manufactureYear ? Number(form.manufactureYear) : null,
-    measurementRangeStart: form.measurementRangeStart,
-    measurementRangeEnd: form.measurementRangeEnd,
-    measurementUnit: form.measurementUnit,
-    status: form.status,
-    createdManually: isArshinEquipmentType(form.equipmentType) ? form.createdManually : false,
-    excludeFromArshinRefresh:
-      isArshinEquipmentType(form.equipmentType) && form.createdManually
-        ? form.excludeFromArshinRefresh
-        : false,
-    currentLocationManual: form.currentLocationManual,
-    complianceDate: form.complianceDate || null,
-    complianceIntervalMonths: form.complianceIntervalMonths
-      ? Number(form.complianceIntervalMonths)
-      : null,
-    manualVerificationIntervalMonths:
-      form.equipmentType === "SI" && form.manualVerificationIntervalMonths
-        ? Number(form.manualVerificationIntervalMonths)
-        : null,
-    siVerification:
-      isArshinEquipmentType(form.equipmentType)
-        ? (
-            form.createdManually
-              ? {
-                  vriId: null,
-                  arshinUrl: null,
-                  orgTitle: null,
-                  mitNumber: null,
-                  mitTitle: form.name.trim() || null,
-                  mitNotation: form.modification.trim() || null,
-                  miNumber: form.serialNumber.trim() || null,
-                  certificateNumber: form.manualCertificateNumber.trim() || null,
-                  resultDocnum:
-                    form.equipmentType === "ESI"
-                      ? (form.manualRegistryNumber.trim() || null)
-                      : (form.manualCertificateNumber.trim() || null),
-                  verificationDate: form.manualVerificationDate || null,
-                  validDate:
-                    form.equipmentType === "SI" && form.manualVerificationIntervalMonths
-                      ? null
-                      : (form.manualValidDate || null),
-                  rawPayloadJson: null,
-                  detailPayloadJson: null,
-                }
-              : (
-                  selectedSiResult
-                    ? buildSIVerificationPayloadFromArshin(selectedSiResult, selectedSiDetail)
-                    : null
-                )
-          )
-        : null,
-    esiInternalModules:
-      form.equipmentType === "ESI"
-        ? esiInternalModules.map((item) => ({
-            registryNumber: item.registryNumber,
-            measurementLimit: item.measurementLimit,
-          }))
-        : [],
-  };
-}
-
-function getArshinSearchResultManufactureYear(result: ArshinSearchResult | null): string | null {
-  const year = result?.rawPayloadJson?.year;
-  return typeof year === "number" && Number.isFinite(year) ? String(year) : null;
-}
-
-function extractArshinResultCertificateNumber(result: ArshinSearchResult | null): string | null {
-  if (!result?.rawPayloadJson || typeof result.rawPayloadJson !== "object") {
-    return null;
-  }
-  const raw = result.rawPayloadJson as Record<string, unknown>;
-  const vriInfo =
-    raw.vriInfo && typeof raw.vriInfo === "object" && !Array.isArray(raw.vriInfo)
-      ? (raw.vriInfo as Record<string, unknown>)
-      : null;
-  const applicable =
-    vriInfo?.applicable && typeof vriInfo.applicable === "object" && !Array.isArray(vriInfo.applicable)
-      ? (vriInfo.applicable as Record<string, unknown>)
-      : null;
-  const certificate = applicable?.certNum ?? applicable?.certificateNumber;
-  return typeof certificate === "string" && certificate.trim() ? certificate.trim() : null;
-}
-
-function formatEquipmentValidityDate(value: string | null): string {
-  if (!value) {
-    return "-";
-  }
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(value));
-}
-
-function getInitialSortDirection(key: EquipmentSortKey): EquipmentSortDirection {
-  if (key === "manufactureYear" || key === "validFrom") {
-    return "desc";
-  }
-  return "asc";
-}
-
-function getMutationErrorMessage(error: unknown, fallback: string): string {
-  return error instanceof Error ? error.message : fallback;
-}
-
-function getFolderRefreshTaskStatusLabel(status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED"): string {
-  switch (status) {
-    case "PENDING":
-      return "Ожидает запуск";
-    case "PROCESSING":
-      return "Идет поиск";
-    case "COMPLETED":
-      return "Готово";
-    case "FAILED":
-      return "Ошибка";
-    default:
-      return status;
-  }
-}
-
-function getFolderRefreshRowStatusLabel(status: EquipmentFolderRefreshRow["status"]): string {
-  switch (status) {
-    case "UPDATED":
-      return "Обновить";
-    case "UPDATED_UNCERTAIN":
-      return "Обновить?";
-    case "UNCHANGED":
-      return "Без изменений";
-    case "NOT_FOUND":
-      return "Не найдено";
-    case "ERROR":
-      return "Ошибка";
-    default:
-      return status;
-  }
-}
-
-function getFolderRefreshStatusBadgeClass(status: EquipmentFolderRefreshRow["status"]): string {
-  switch (status) {
-    case "UPDATED":
-      return "rounded-full bg-[#e7f3eb] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2f7a4f]";
-    case "UPDATED_UNCERTAIN":
-      return "rounded-full bg-[#f3efe5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8c6a2b]";
-    case "UNCHANGED":
-      return "rounded-full bg-[#edf2f5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel";
-    case "NOT_FOUND":
-      return "rounded-full bg-[#f3efe5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8c6a2b]";
-    case "ERROR":
-      return "rounded-full bg-[#f8e8e6] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b04c43]";
-    default:
-      return "rounded-full bg-[#edf2f5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel";
-  }
-}
-
-function getFolderRefreshRowTargetLabel(row: EquipmentFolderRefreshRow): string {
-  const prefix =
-    row.targetKind === "SI"
-      ? "СИ"
-      : row.targetKind === "ESI"
-        ? "ЭСИ"
-        : row.targetKind === "ESI_INTERNAL"
-          ? "Внутренний модуль ЭСИ"
-          : "Внешний модуль ЭСИ";
-  const suffix = [row.targetTitle, row.targetSerialNumber, row.measurementLimit]
-    .filter(Boolean)
-    .join(" · ");
-  return suffix ? `${prefix} · ${suffix}` : prefix;
-}
-
-function formatRefreshWindow(
-  verificationDate: string | null,
-  validDate: string | null,
-): string {
-  if (verificationDate && validDate) {
-    return `${formatEquipmentValidityDate(verificationDate)} до ${formatEquipmentValidityDate(validDate)}`;
-  }
-  if (verificationDate) {
-    return formatEquipmentValidityDate(verificationDate);
-  }
-  if (validDate) {
-    return formatEquipmentValidityDate(validDate);
-  }
-  return "—";
-}
-
-function getPreferredDeadlinePresetId(presets: DeadlinePreset[]): number | null {
-  if (!presets.length) {
-    return null;
-  }
-  return presets.find((preset) => preset.code === "tyungd")?.id ?? presets[0]?.id ?? null;
-}
-
-function getTodayDateInputValue(): string {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function getOnSiteProcessRouteValue(): string {
-  return "На месте";
-}
-
-function isVerificationFlowOnSite(flowMode: VerificationFlowMode): boolean {
-  return flowMode !== "OFFSITE_WITH_DEMOLITION";
-}
-
-function getVerificationStartDateLabel(flowMode: VerificationFlowMode): string {
-  if (flowMode === "ONSITE_WITHOUT_DEMOLITION") {
-    return "Подготовка к поверке";
-  }
-  return "Демонтаж / подготовка к поверке";
-}

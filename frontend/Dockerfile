@@ -13,6 +13,8 @@ COPY frontend/tsconfig.json frontend/vite.config.ts frontend/vitest.config.ts fr
 COPY frontend/postcss.config.cjs frontend/components.json frontend/index.html ./
 COPY frontend/public ./public
 COPY frontend/src ./src
+# CHANGELOG.md lives at the repo root and is imported by the "What's new" view.
+COPY CHANGELOG.md ../CHANGELOG.md
 
 RUN npm run build
 

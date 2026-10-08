@@ -11,6 +11,26 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      /*
+       * Apply the theme before the bundle loads so a dark-by-default start does not flash light.
+       * Keep the key and the default in sync with frontend/src/store/theme.ts.
+       */
+      (function () {
+        var known = [
+          "light", "dark", "gray", "tokyonight", "catppuccin",
+          "kanagawa", "nord", "dracula", "gruvbox", "moonfly",
+        ];
+        try {
+          var stored = window.localStorage.getItem("metrolog.theme");
+          var theme = known.indexOf(stored) >= 0 ? stored : "dark";
+          document.documentElement.dataset.theme = theme;
+          document.documentElement.style.colorScheme = theme === "light" || theme === "gray" ? "light" : "dark";
+        } catch (error) {
+          document.documentElement.dataset.theme = "dark";
+        }
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
   </html>

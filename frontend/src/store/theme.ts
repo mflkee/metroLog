@@ -24,8 +24,8 @@ type ThemeState = {
 };
 
 const THEME_STORAGE_KEY = "metrolog.theme";
-const DEFAULT_THEME: ThemeName = "light";
-export const defaultVisibleThemes: ThemeName[] = ["light", "gray", "dark"];
+export const DEFAULT_THEME: ThemeName = "dark";
+export const defaultVisibleThemes: ThemeName[] = ["dark", "light", "gray"];
 
 export const themeOptions: ThemeOption[] = [
   { value: "light", label: "Светлая" },

@@ -1,3 +1,4 @@
+import { formatDateTimeRu } from "@/lib/dates";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
@@ -284,8 +285,5 @@ function formatDateTime(value: string | null) {
   if (Number.isNaN(date.getTime())) {
     return "—";
   }
-  return new Intl.DateTimeFormat("ru-RU", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
+  return formatDateTimeRu(value);
 }

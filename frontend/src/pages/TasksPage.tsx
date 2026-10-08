@@ -1,8 +1,7 @@
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   DndContext,
-  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCorners,
@@ -31,6 +30,7 @@ import {
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import { DateInput } from "@/components/DateInput";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { SearchableMultiSelect, SearchableSelect } from "@/components/ui/searchable-select";
 import { PageHeader } from "@/components/ui/page-header";
@@ -86,12 +86,16 @@ function TaskCard({ task }: { task: TaskListItem }) {
 }
 
 function DraggableTaskCard({ task }: { task: TaskListItem }) {
-  const { attributes, isDragging, listeners, setNodeRef } = useDraggable({ id: task.id });
+  const { attributes, isDragging, listeners, setNodeRef, transform } = useDraggable({ id: task.id });
+  const style = transform
+    ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
+    : undefined;
 
   return (
     <div
-      className={["touch-pan-y", isDragging ? "opacity-40" : ""].filter(Boolean).join(" ")}
+      className={["touch-pan-y", isDragging ? "relative z-50" : ""].filter(Boolean).join(" ")}
       ref={setNodeRef}
+      style={style}
       {...attributes}
       {...listeners}
     >
@@ -104,10 +108,12 @@ function DraggableTaskCard({ task }: { task: TaskListItem }) {
 
 function BoardColumn({
   count,
+  dragging,
   status,
   tasks,
 }: {
   count: number;
+  dragging: boolean;
   status: TaskStatus;
   tasks: TaskListItem[];
 }) {
@@ -117,7 +123,7 @@ function BoardColumn({
     <div
       className={[
         "flex min-h-[120px] flex-col gap-2 rounded-2xl transition",
-        isOver ? "bg-[var(--accent-soft)]" : "",
+        isOver && dragging ? "bg-[var(--accent-soft)]" : "",
       ]
         .filter(Boolean)
         .join(" ")}
@@ -134,6 +140,9 @@ function BoardColumn({
         {tasks.map((task) => (
           <DraggableTaskCard key={task.id} task={task} />
         ))}
+        {isOver && dragging ? (
+          <div className="h-24 rounded-2xl border border-dashed border-line" aria-hidden="true" />
+        ) : null}
       </div>
     </div>
   );
@@ -153,6 +162,7 @@ export function TasksPage() {
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+  const [optimisticStatus, setOptimisticStatus] = useState<Record<number, TaskStatus>>({});
 
   const foldersQuery = useQuery({
     queryKey: ["equipment-folders"],
@@ -185,8 +195,28 @@ export function TasksPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
   });
 
-  const tasks = tasksQuery.data?.items ?? [];
-  const activeTask = tasks.find((task) => task.id === activeTaskId) ?? null;
+  const tasks = useMemo(() => tasksQuery.data?.items ?? [], [tasksQuery.data?.items]);
+  // A drop lands the card immediately; the optimistic status is dropped once the server agrees.
+  function taskStatusOf(task: TaskListItem): TaskStatus {
+    const optimistic = optimisticStatus[task.id];
+    return optimistic && optimistic !== task.status ? optimistic : task.status;
+  }
+
+  useEffect(() => {
+    setOptimisticStatus((current) => {
+      const next: Record<number, TaskStatus> = {};
+      let changed = false;
+      for (const [id, status] of Object.entries(current)) {
+        const task = tasks.find((item) => item.id === Number(id));
+        if (task && task.status !== status) {
+          next[Number(id)] = status;
+        } else {
+          changed = true;
+        }
+      }
+      return changed ? next : current;
+    });
+  }, [tasks]);
   const sensors = useSensors(
     // A small distance keeps a plain click on the card navigating to it.
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -200,9 +230,11 @@ export function TasksPage() {
   function handleDragEnd(event: DragEndEvent) {
     setActiveTaskId(null);
     const drop = resolveBoardDrop(event.active.id, event.over?.id, tasks);
-    if (drop) {
-      statusMutation.mutate(drop);
+    if (!drop) {
+      return;
     }
+    setOptimisticStatus((current) => ({ ...current, [drop.id]: drop.status }));
+    statusMutation.mutate(drop);
   }
 
   function toggleStatus(status: TaskStatus) {
@@ -321,10 +353,11 @@ export function TasksPage() {
         >
           <div className="grid gap-3 lg:grid-cols-5">
             {BOARD_STATUSES.map((status) => {
-              const columnTasks = tasks.filter((task) => task.status === status);
+              const columnTasks = tasks.filter((task) => taskStatusOf(task) === status);
               return (
                 <BoardColumn
                   count={columnTasks.length}
+                  dragging={activeTaskId !== null}
                   key={status}
                   status={status}
                   tasks={columnTasks}
@@ -332,9 +365,6 @@ export function TasksPage() {
               );
             })}
           </div>
-          <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
-            {activeTask ? <TaskCard task={activeTask} /> : null}
-          </DragOverlay>
         </DndContext>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-line">
@@ -556,11 +586,11 @@ function CreateTaskModal({
           </label>
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Срок</span>
-            <input
+            <DateInput
               className="form-input"
-              type="date"
+              placeholder="дд.мм.гггг"
               value={dueDate}
-              onChange={(event) => setDueDate(event.target.value)}
+              onChange={setDueDate}
             />
           </label>
         </div>

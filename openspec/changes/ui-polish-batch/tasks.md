@@ -8,7 +8,7 @@
 
 ## 2. Task board drag and drop
 
-- [x] 2.1 Add the drag library and rebuild the board drag so the card itself moves with an animation and settles into the target column; keep the status mutation on drop. Done: the board is a `DndContext` with `closestCorners`; cards are `useDraggable`, columns are `useDroppable`, and a `DragOverlay` renders the real card with a 220 ms drop animation, so the frame moves and settles into the target column instead of the browser ghost. The native `dragstart`/`ondrop` attributes are gone. `.touch-pan-y` keeps vertical scrolling usable on touch.
+- [x] 2.1 Add the drag library and rebuild the board drag so the card itself moves with an animation and settles into the target column; keep the status mutation on drop. Done: the board is a `DndContext` with `closestCorners`; cards are `useDraggable`, columns are `useDroppable`, and a `DragOverlay` renders the real card with a 220 ms drop animation, so the frame moves and settles into the target column instead of the browser ghost. The native `dragstart`/`ondrop` attributes are gone. `.touch-pan-y` keeps vertical scrolling usable on touch. Reworked after owner feedback: the `DragOverlay` is gone (it made the card travel back to its old column before the async status landed) - the card itself now follows the pointer via its own transform, a dashed slot marks the landing spot in the hovered column, and the drop applies the status optimistically so the card is in the target column the moment the mouse is released.
 - [x] 2.2 Keep keyboard operation working (drag a card and drop it into another column without a mouse) and add a test for the drop -> status change. Done for the logic: the drop decision moved into `src/lib/taskBoard.ts` (`resolveBoardDrop`) and is covered by `taskBoard.test.ts` (move, same column, outside a column, unknown task, string id). `KeyboardSensor` is registered; the interactive keyboard pass belongs to the Stage check in 2.3.
 - [ ] 2.3 Verify on Stage: drag between all five columns, drop on an empty column, and the card animates into place.
 
@@ -33,4 +33,9 @@
 
 - [x] 6.1 Render every hand-rolled popup through the shared floating menu (portal + fixed positioning) so a modal cannot clip it, and drop the extra frame: the searchable selects and the emoji picker now use `FloatingAutocompleteMenu` with the single `.autocomplete-input__menu` surface instead of their own absolute panel with its own border/background.
 - [ ] 6.2 Verify on Stage that the participant/equipment lists and the emoji grid open fully inside the task modal (including near the modal's bottom edge) and look the same outside a modal.
+
+## 7. Date format
+
+- [x] 7.1 Every displayed date is `dd.mm.yyyy`: added `src/lib/dates.ts` (`formatDateRu`, `formatDateTimeRu`, ISO date-only read as a calendar date so the day never shifts), fixed the developer dashboard (`dateStyle: medium` showed `8 окт. 2026 г.`), formatted the ESI monitoring verification window (it printed raw ISO) and replaced the task due-date native picker with the app's `DateInput`. The remaining screens already formatted through `Intl` with `2-digit` parts.
+- [ ] 7.2 Verify on Stage that no screen shows an ISO date: equipment card and registry, repairs, verifications, tasks, events, dashboard, developer dashboard, ESI monitoring.
 

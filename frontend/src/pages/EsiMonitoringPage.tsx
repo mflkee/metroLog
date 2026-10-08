@@ -1,3 +1,4 @@
+import { formatDateRu } from "@/lib/dates";
 import { Link, useSearchParams } from "react-router-dom";
 
 import { useQuery } from "@tanstack/react-query";
@@ -215,9 +216,9 @@ function buildMonitoringRows(items: ESIEquipmentMonitoringItem[]): MonitoringRow
 
 function formatVerificationWindow(module: ESIEquipmentMonitoringModule): string {
   if (module.verificationDate && module.validUntil) {
-    return `${module.verificationDate} до ${module.validUntil}`;
+    return `${formatDateRu(module.verificationDate)} до ${formatDateRu(module.validUntil)}`;
   }
-  return module.verificationDate ?? module.validUntil ?? "—";
+  return formatDateRu(module.verificationDate ?? module.validUntil);
 }
 
 function toSortableTime(value: string | null): number {

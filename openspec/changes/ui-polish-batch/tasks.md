@@ -26,8 +26,8 @@
 
 ## 5. Integration
 
-- [ ] 5.1 Run `npm run check`, push to `main`, confirm the CI run and Stage deploy, and record the bundle-size delta from adding the drag library.
-- [ ] 5.2 Update `AGENTS.md` with the drag/ordering behaviour and the control conventions.
+- [x] 5.1 Run `npm run check`, push to `main`, confirm the CI run and Stage deploy, and record the bundle-size delta from adding the drag library. Done: CI green through checks -> build-images -> deploy-staging on every step. Bundle delta for the drag library: vendor chunk 394,463 -> 437,337 bytes raw / 125,677 -> 139,559 gzipped (+13.6 KB gzip).
+- [x] 5.2 Update `AGENTS.md` with the drag/ordering behaviour and the control conventions. Done: AGENTS.md carries the UI conventions - dnd-kit usage on the board (no overlay, optimistic landing, dashed slot) and on the folder list (per-user order, disabled while searching), the Switch-vs-checkbox rule, the dd.mm.yyyy date helpers and the popup rule (portal through FloatingAutocompleteMenu).
 
 ## 6. Popups outside the layout
 

@@ -3,12 +3,23 @@
 ## Why
 
 The UI is a bespoke design system: 341 CSS custom properties, 10 themes selected through a
-`data-theme` attribute, and 2,780 className usages (`.form-input` alone appears 175
-times). Dialogs, dropdowns and selects are hand-rolled, which is exactly where the recent
-defects came from - a modal that closed on a backdrop click and lost typed text, and a
-version badge that had to be added by hand. A small, vetted set of accessible primitives
-removes that class of bug. `frontend/components.json` already points at our Tailwind
-config and stylesheet, so a hybrid adoption is cheap to try and easy to revert.
+`data-theme` attribute, and 2,780 className usages (`.form-input` alone appears 175 times).
+Dialogs, dropdowns and selects are hand-rolled, which is exactly where the recent defects came
+from - a modal that closed on a backdrop click and lost typed text. A small, vetted set of
+accessible primitives removes that class of bug.
+
+Since this proposal was written, `metroCheck` adopted shadcn and a shared registry
+**`metro-ui`** (`mflkee/metro-ui`) was published for the `metro*` services. It ships
+`metro-theme` (light/dark tokens, Geist), `theme-provider`, `theme-toggle`, `status-badge`,
+`stat-card`, `page-header` and `app-shell`, and it **requires Tailwind v4**. This is now the
+preferred source of primitives, so the pilot adopts from that registry instead of raw shadcn.
+
+**Open product decision (blocks the theming part):** `metro-ui` offers two themes (light/dark),
+while metroLog exposes **10 themes via `data-theme`**, which is a user-facing feature. The
+pilot therefore adopts the presentational items only (`status-badge`, `stat-card`,
+`page-header`) and keeps metroLog's theming; `app-shell` and the light/dark theme are deferred
+until it is decided whether metroLog keeps 10 themes or simplifies to light/dark.
+
 
 ## What Changes
 

@@ -57,6 +57,27 @@ touching the two largest pages, which `refactor-hotspots` is still splitting.
 registry the MCP cannot search or vet items, so every later step would fall back to manual
 copies.
 
+**Use the published `metro-ui` registry as the source of primitives (decided after metroCheck
+shipped and metro-ui was published).** `metro-ui` is a shadcn registry
+(`https://raw.githubusercontent.com/mflkee/metro-ui/main/public/r/{name}.json`) offering
+`metro-theme`, `theme-provider`, `theme-toggle`, `status-badge`, `stat-card`, `page-header` and
+`app-shell`. Rationale: it is the shared design source for the `metro*` services, so adopting it
+keeps metroLog aligned with metroCheck instead of forking a second shadcn setup. Alternative:
+raw `@shadcn` items - still needed for the interactive primitives (dialog, dropdown-menu,
+select, tooltip, tabs) that metro-ui does not ship.
+
+**Tailwind v4 is a prerequisite, and it lands first as its own change.** `metro-ui` requires
+`npx shadcn@latest init` on Tailwind v4, while metroLog is on v3.4 with `tailwind.config.ts`.
+Rationale: the v4 migration touches the config, the token layer and every utility class, so it
+must be verifiable on its own (build + all 10 themes) before any component swap. Alternative:
+adopt components on v3 - rejected because the registry's items assume v4 semantics.
+
+**Keep metroLog's 10 themes; adopt presentational items only.** `status-badge`, `stat-card` and
+`page-header` are token-driven and can read metroLog's variables, so they can be adopted without
+touching theming. `app-shell` and `theme-provider` assume light/dark and would replace the
+10-theme model, which is a product decision - deferred, not silently dropped.
+
+
 ## Risks / Trade-offs
 
 - [Radix adds 50-100 KB gzipped] -> adopt only five primitives and measure the bundle in CI

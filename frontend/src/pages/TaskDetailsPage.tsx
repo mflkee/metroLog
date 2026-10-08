@@ -25,6 +25,7 @@ import {
   uploadTaskAttachments,
   type TaskAttachment,
   type TaskMessageAttachment,
+  type TaskPriority,
   type TaskStatus,
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
@@ -134,6 +135,10 @@ export function TaskDetailsPage() {
 
   const statusMutation = useMutation({
     mutationFn: (status: TaskStatus) => updateTask(token, taskId, { status }),
+    onSuccess: refreshTask,
+  });
+  const priorityMutation = useMutation({
+    mutationFn: (priority: TaskPriority) => updateTask(token, taskId, { priority }),
     onSuccess: refreshTask,
   });
   const checklistAdd = useMutation({
@@ -283,6 +288,18 @@ export function TaskDetailsPage() {
               <StatusBadge tone={TASK_STATUS_TONES[task.status]}>
                 {TASK_STATUS_LABELS[task.status]}
               </StatusBadge>
+              <select
+                aria-label="Приоритет"
+                className="form-input form-input--compact"
+                value={task.priority}
+                onChange={(event) => priorityMutation.mutate(event.target.value as TaskPriority)}
+              >
+                {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
               <span className={task.isOverdue ? "text-sm text-[color:var(--danger)]" : "text-sm text-steel"}>
                 Срок: {task.dueDate ?? "не задан"}
               </span>

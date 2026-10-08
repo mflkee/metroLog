@@ -19,6 +19,7 @@ import {
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { AppDialog } from "@/components/ui/app-dialog";
+import { SearchableMultiSelect, SearchableSelect } from "@/components/ui/searchable-select";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
@@ -455,18 +456,15 @@ function CreateTaskModal({
         <div className="grid gap-3 sm:grid-cols-3">
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Ответственный</span>
-            <select
-              className="form-input"
-              value={responsibleUserId}
-              onChange={(event) => setResponsibleUserId(event.target.value)}
-            >
-              <option value="">— выберите —</option>
-              {(usersQuery.data ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.displayName || user.email}
-                </option>
-              ))}
-            </select>
+            <SearchableSelect
+              onChange={(next) => setResponsibleUserId(next === null ? "" : String(next))}
+              options={(usersQuery.data ?? []).map((user) => ({
+                value: user.id,
+                label: user.displayName || user.email,
+              }))}
+              placeholder="— выберите —"
+              value={responsibleUserId ? Number(responsibleUserId) : null}
+            />
           </label>
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Приоритет</span>
@@ -495,37 +493,29 @@ function CreateTaskModal({
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Исполнители</span>
-            <select
-              className="form-input h-28"
-              multiple
-              value={assigneeIds.map(String)}
-              onChange={(event) =>
-                setAssigneeIds(Array.from(event.target.selectedOptions, (option) => Number(option.value)))
-              }
-            >
-              {(usersQuery.data ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.displayName || user.email}
-                </option>
-              ))}
-            </select>
+            <SearchableMultiSelect
+              loading={usersQuery.isLoading}
+              onChange={setAssigneeIds}
+              options={(usersQuery.data ?? []).map((user) => ({
+                value: user.id,
+                label: user.displayName || user.email,
+              }))}
+              placeholder="Поиск сотрудника…"
+              value={assigneeIds}
+            />
           </label>
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Наблюдатели</span>
-            <select
-              className="form-input h-28"
-              multiple
-              value={observerIds.map(String)}
-              onChange={(event) =>
-                setObserverIds(Array.from(event.target.selectedOptions, (option) => Number(option.value)))
-              }
-            >
-              {(usersQuery.data ?? []).map((user) => (
-                <option key={user.id} value={user.id}>
-                  {user.displayName || user.email}
-                </option>
-              ))}
-            </select>
+            <SearchableMultiSelect
+              loading={usersQuery.isLoading}
+              onChange={setObserverIds}
+              options={(usersQuery.data ?? []).map((user) => ({
+                value: user.id,
+                label: user.displayName || user.email,
+              }))}
+              placeholder="Поиск сотрудника…"
+              value={observerIds}
+            />
           </label>
         </div>
         {folderId ? (
@@ -547,31 +537,19 @@ function CreateTaskModal({
             </label>
             <label className="block space-y-1">
               <span className="text-xs uppercase tracking-wide text-steel">Приборы</span>
-              <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
-                {(equipmentQuery.data?.items ?? []).map((item) => (
-                  <label key={item.id} className="flex items-center gap-2 text-sm text-ink">
-                    <input
-                      checked={equipmentIds.includes(item.id)}
-                      onChange={() =>
-                        setEquipmentIds((current) =>
-                          current.includes(item.id)
-                            ? current.filter((value) => value !== item.id)
-                            : [...current, item.id],
-                        )
-                      }
-                      type="checkbox"
-                    />
-                    <span className="min-w-0 truncate">
-                      {item.name}
-                      {item.serialNumber ? ` · зав. № ${item.serialNumber}` : ""}
-                    </span>
-                  </label>
-                ))}
-                {equipmentQuery.isLoading ? <p className="text-sm text-steel">Загрузка…</p> : null}
-                {!equipmentQuery.isLoading && (equipmentQuery.data?.items ?? []).length === 0 ? (
-                  <p className="text-sm text-steel">Ничего не найдено по выбранному объекту.</p>
-                ) : null}
-              </div>
+              <SearchableMultiSelect
+                emptyLabel="Ничего не найдено по выбранному объекту."
+                loading={equipmentQuery.isLoading}
+                maxResults={5}
+                onChange={setEquipmentIds}
+                options={(equipmentQuery.data?.items ?? []).map((item) => ({
+                  value: item.id,
+                  label: item.name,
+                  hint: item.serialNumber ? `зав. № ${item.serialNumber}` : undefined,
+                }))}
+                placeholder="Поиск прибора…"
+                value={equipmentIds}
+              />
             </label>
           </div>
         ) : null}

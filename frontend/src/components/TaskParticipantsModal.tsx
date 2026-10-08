@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { updateTask, type Task } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
 import { Modal } from "@/components/Modal";
+import { SearchableMultiSelect, SearchableSelect } from "@/components/ui/searchable-select";
 
 type TaskParticipantsModalProps = {
   open: boolean;
@@ -13,10 +14,6 @@ type TaskParticipantsModalProps = {
   onClose: () => void;
   onSaved: () => void;
 };
-
-function toggle(list: number[], id: number): number[] {
-  return list.includes(id) ? list.filter((value) => value !== id) : [...list, id];
-}
 
 export function TaskParticipantsModal({
   open,
@@ -75,67 +72,45 @@ export function TaskParticipantsModal({
   }
 
   const users = usersQuery.data ?? [];
-  const label = (userId: number) =>
-    users.find((user) => user.id === userId)?.displayName ??
-    task.participants.find((participant) => participant.userId === userId)?.displayName ??
-    `#${userId}`;
+  const userOptions = users.map((user) => ({
+    value: user.id,
+    label: user.displayName || user.email,
+  }));
 
   return (
     <Modal title="Участники задачи" open={open} onClose={onClose}>
       <div className="space-y-4">
         <label className="block space-y-1">
           <span className="text-xs uppercase tracking-wide text-steel">Ответственный</span>
-          <select
-            className="form-input"
-            value={responsibleId}
-            onChange={(event) => setResponsibleId(event.target.value)}
-          >
-            <option value="">— выберите —</option>
-            {users.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.displayName || user.email}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            onChange={(next) => setResponsibleId(next === null ? "" : String(next))}
+            options={userOptions}
+            placeholder="— выберите —"
+            value={responsibleId ? Number(responsibleId) : null}
+          />
         </label>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Исполнители</span>
-            <div className="max-h-52 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
-              {users.map((user) => (
-                <label key={user.id} className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    checked={assigneeIds.includes(user.id)}
-                    onChange={() => setAssigneeIds((current) => toggle(current, user.id))}
-                    type="checkbox"
-                  />
-                  <span className="truncate">{user.displayName || user.email}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-steel">
-              Выбрано: {assigneeIds.map(label).join(", ") || "—"}
-            </p>
+            <SearchableMultiSelect
+              loading={usersQuery.isLoading}
+              onChange={setAssigneeIds}
+              options={userOptions}
+              placeholder="Поиск сотрудника…"
+              value={assigneeIds}
+            />
           </div>
 
           <div className="space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Наблюдатели</span>
-            <div className="max-h-52 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
-              {users.map((user) => (
-                <label key={user.id} className="flex items-center gap-2 text-sm text-ink">
-                  <input
-                    checked={observerIds.includes(user.id)}
-                    onChange={() => setObserverIds((current) => toggle(current, user.id))}
-                    type="checkbox"
-                  />
-                  <span className="truncate">{user.displayName || user.email}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-xs text-steel">
-              Выбрано: {observerIds.map(label).join(", ") || "—"}
-            </p>
+            <SearchableMultiSelect
+              loading={usersQuery.isLoading}
+              onChange={setObserverIds}
+              options={userOptions}
+              placeholder="Поиск сотрудника…"
+              value={observerIds}
+            />
           </div>
         </div>
 

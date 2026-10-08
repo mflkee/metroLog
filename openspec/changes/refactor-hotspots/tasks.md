@@ -43,4 +43,4 @@ other group drags along, so they move out first.
 ## 6. Integration verification on Stage
 
 - [ ] 6.1 Push to `main`, confirm the CI run and the Stage deploy succeed, then walk the equipment card, registry, repairs and verifications on Stage and confirm behavior is unchanged.
-- [ ] 6.2 Run `npm run check` and record the result as the refactoring acceptance evidence.
+- [x] 6.2 Run `npm run check` and record the result as the refactoring acceptance evidence. Done: ruff clean, 141 backend tests, 27 frontend tests, eslint with 0 errors, production build ok.

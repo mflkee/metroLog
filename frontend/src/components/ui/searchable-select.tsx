@@ -59,6 +59,24 @@ function useOutsideClose(onClose: () => void) {
   return { fieldRef, menuRef };
 }
 
+/** Case-, ё- and spacing-insensitive form used to compare a query with an option. */
+function normalizeForSearch(value: string): string {
+  return value.toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Every word of the query has to appear somewhere in the option, in any order, so "влажности
+ * анализатор" and "анализатор влажности" both find "Анализатор Влажности".
+ */
+function matchesSearch(haystack: string, query: string): boolean {
+  const words = normalizeForSearch(query).split(" ").filter(Boolean);
+  if (!words.length) {
+    return true;
+  }
+  const normalized = normalizeForSearch(haystack);
+  return words.every((word) => normalized.includes(word));
+}
+
 function useFiltered<T extends string | number>(
   options: SearchableOption<T>[],
   query: string,
@@ -66,15 +84,25 @@ function useFiltered<T extends string | number>(
   filterLocally = true,
 ) {
   return useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    const matches =
-      filterLocally && needle
-        ? options.filter((option) =>
-            `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(needle),
-          )
-        : options;
+    const matches = filterLocally
+      ? options.filter((option) => matchesSearch(`${option.label} ${option.hint ?? ""}`, query))
+      : options;
     return typeof maxResults === "number" ? matches.slice(0, maxResults) : matches;
   }, [filterLocally, maxResults, options, query]);
+}
+
+function useHighlightScroll(
+  open: boolean,
+  highlighted: number,
+  optionRefs: React.RefObject<Array<HTMLButtonElement | null>>,
+) {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+    // jsdom (tests) has no scrollIntoView, hence the optional call.
+    optionRefs.current?.[highlighted]?.scrollIntoView?.({ block: "nearest" });
+  }, [highlighted, open, optionRefs]);
 }
 
 function optionClassName(highlighted: boolean): string {
@@ -106,8 +134,10 @@ export function SearchableSelect<T extends string | number>({
   const [highlighted, setHighlighted] = useState(0);
   const { fieldRef, menuRef } = useOutsideClose(() => setOpen(false));
   const listboxId = useId();
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const filtered = useFiltered(options, query, maxResults);
   const selected = options.find((option) => option.value === value) ?? null;
+  useHighlightScroll(open, highlighted, optionRefs);
 
   useEffect(() => {
     setHighlighted(0);
@@ -169,6 +199,9 @@ export function SearchableSelect<T extends string | number>({
         {filtered.map((option, index) => (
           <button
             key={option.value}
+            ref={(node) => {
+              optionRefs.current[index] = node;
+            }}
             aria-selected={option.value === value}
             className={optionClassName(index === highlighted)}
             role="option"
@@ -211,12 +244,14 @@ export function SearchableMultiSelect<T extends string | number>({
   const [highlighted, setHighlighted] = useState(0);
   const { fieldRef, menuRef } = useOutsideClose(() => setOpen(false));
   const listboxId = useId();
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const filtered = useFiltered(
     options.filter((option) => !value.includes(option.value)),
     query,
     maxResults,
     filterLocally,
   );
+  useHighlightScroll(open, highlighted, optionRefs);
   const selected = value
     .map((id) => options.find((option) => option.value === id))
     .filter((option): option is SearchableOption<T> => Boolean(option));
@@ -335,6 +370,9 @@ export function SearchableMultiSelect<T extends string | number>({
         {filtered.map((option, index) => (
           <button
             key={option.value}
+            ref={(node) => {
+              optionRefs.current[index] = node;
+            }}
             className={optionClassName(index === highlighted)}
             role="option"
             type="button"

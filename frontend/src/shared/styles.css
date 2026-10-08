@@ -512,7 +512,9 @@ textarea.form-input {
   /* Radix modal dialogs set `pointer-events: none` on the body, and this menu is a body child. */
   pointer-events: auto;
   overflow: hidden auto;
-  max-height: 228px;
+  /* The wheel must scroll this list, not chain to the page behind it. */
+  overscroll-behavior: contain;
+  max-height: 384px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--tone-child-bg) 96%, transparent);

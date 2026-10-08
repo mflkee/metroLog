@@ -13,8 +13,8 @@ type FloatingAutocompleteMenuProps<TAnchor extends HTMLElement> = {
 };
 
 const MENU_GAP = 6;
-const MENU_MAX_HEIGHT = 228;
-const MENU_MIN_HEIGHT = 96;
+const MENU_MAX_HEIGHT = 384;
+const MENU_MIN_HEIGHT = 180;
 const MENU_MIN_WIDTH = 180;
 const VIEWPORT_PADDING = 16;
 

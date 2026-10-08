@@ -49,3 +49,38 @@ describe("SearchableMultiSelect", () => {
     expect(onChange).toHaveBeenCalledWith([]);
   });
 });
+
+describe("SearchableSelect search", () => {
+  const EQUIPMENT = [
+    { value: 1, label: "Анализатор Влажности" },
+    { value: 2, label: "Ёмкость мерная" },
+    { value: 3, label: "Весы лабораторные" },
+  ];
+
+  function openWith(query: string) {
+    render(<SearchableSelect onChange={vi.fn()} options={EQUIPMENT} value={null} />);
+    fireEvent.focus(screen.getByRole("combobox"));
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: query } });
+  }
+
+  it("finds an option when the words are typed in another order", () => {
+    openWith("влажности анализатор");
+
+    expect(screen.getByRole("option", { name: "Анализатор Влажности" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Весы лабораторные" })).not.toBeInTheDocument();
+  });
+
+  it("ignores case and ё", () => {
+    openWith("емкость");
+
+    expect(screen.getByRole("option", { name: "Ёмкость мерная" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Анализатор Влажности" })).not.toBeInTheDocument();
+  });
+
+  it("keeps every match when a word only matches one of them", () => {
+    openWith("мерная ёмкость");
+
+    expect(screen.getByRole("option", { name: "Ёмкость мерная" })).toBeInTheDocument();
+  });
+});
+

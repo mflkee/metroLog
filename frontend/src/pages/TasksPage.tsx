@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useDeferredValue, useEffect, useMemo, useState } from "react";
 
 import {
   DndContext,
@@ -452,6 +452,8 @@ function CreateTaskModal({
   const [observerIds, setObserverIds] = useState<number[]>([]);
   const [equipmentIds, setEquipmentIds] = useState<number[]>([]);
   const [objectName, setObjectName] = useState("");
+  const [equipmentSearch, setEquipmentSearch] = useState("");
+  const deferredEquipmentSearch = useDeferredValue(equipmentSearch);
   const [error, setError] = useState<string | null>(null);
 
   const suggestionsQuery = useQuery({
@@ -460,11 +462,12 @@ function CreateTaskModal({
     enabled: open && Boolean(token) && Boolean(folderId),
   });
   const equipmentQuery = useQuery({
-    queryKey: ["equipment-picker", "create", folderId, objectName],
+    queryKey: ["equipment-picker", "create", folderId, objectName, deferredEquipmentSearch],
     queryFn: () =>
       fetchEquipmentPage(token, {
         folderId: Number(folderId),
         objectName: objectName || null,
+        query: deferredEquipmentSearch.trim() || undefined,
         limit: 50,
         offset: 0,
       }),
@@ -521,6 +524,7 @@ function CreateTaskModal({
             onChange={(next) => {
               setFolderId(next === null ? "" : next);
               setObjectName("");
+              setEquipmentSearch("");
             }}
             options={(foldersQuery.data ?? []).map((folder) => ({
               value: String(folder.id),
@@ -621,10 +625,12 @@ function CreateTaskModal({
               <span className="text-xs uppercase tracking-wide text-steel">Приборы</span>
               <SearchableMultiSelect
                 emptyLabel="Ничего не найдено по выбранному объекту."
+                filterLocally={false}
                 history={equipmentSearchHistory}
                 loading={equipmentQuery.isLoading}
                 maxResults={5}
                 onChange={setEquipmentIds}
+                onQueryChange={setEquipmentSearch}
                 onQueryCommitted={rememberEquipmentSearch}
                 options={(equipmentQuery.data?.items ?? []).map((item) => ({
                   value: item.id,

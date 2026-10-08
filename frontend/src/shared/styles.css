@@ -63,36 +63,36 @@
 
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --bg-layer-1: #d7dbe2;
-  --bg-layer-2: #bcc3cd;
-  --bg-glow: rgba(71, 85, 105, 0.14);
-  --text-primary: #111827;
-  --text-muted: #4b5563;
+  --bg-layer-1: oklch(1 0 0);
+  --bg-layer-2: oklch(0.97 0 0);
+  --bg-glow: transparent;
+  --text-primary: oklch(0.145 0 0);
+  --text-muted: oklch(0.556 0 0);
   --placeholder-color: color-mix(in srgb, var(--text-muted) 78%, transparent);
-  --border-color: #98a2b3;
-  --panel-bg: #e5e7eb;
-  --panel-ghost: rgba(229, 231, 235, 0.9);
-  --panel-hover: #edf0f4;
-  --accent: #334155;
-  --accent-soft: rgba(51, 65, 85, 0.1);
-  --success: #325345;
-  --danger: #b04c43;
-  --warning: #8c6a2b;
-  --info: #4c6ea9;
-  --button-primary-bg: #1f2937;
-  --button-primary-text: #ffffff;
-  --input-bg: #d6dae1;
-  --panel-shadow-value: 0 18px 44px rgba(30, 41, 59, 0.12);
+  --border-color: oklch(0.922 0 0);
+  --panel-bg: oklch(1 0 0);
+  --panel-ghost: color-mix(in oklab, var(--panel-bg) 92%, transparent);
+  --panel-hover: oklch(0.97 0 0);
+  --accent: oklch(0.708 0 0);
+  --accent-soft: color-mix(in oklab, var(--accent) 16%, transparent);
+  --success: oklch(0.6 0.15 150);
+  --danger: oklch(0.577 0.245 27.325);
+  --warning: oklch(0.7 0.15 75);
+  --info: oklch(0.6 0.15 250);
+  --button-primary-bg: oklch(0.205 0 0);
+  --button-primary-text: oklch(0.985 0 0);
+  --input-bg: oklch(1 0 0);
+  --panel-shadow-value: 0 1px 2px 0 oklch(0 0 0 / 5%);
   --control-height: 40px;
   --control-height-sm: 34px;
   --control-padding-x: 14px;
   --control-padding-x-sm: 12px;
-  --radius-input: 12px;
-  --radius-panel: 20px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 14px;
-  --radius-3xl: 18px;
+  --radius-input: 10px;
+  --radius-panel: 14px;
+  --radius-lg: 8px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
   --surface-1: color-mix(in srgb, var(--panel-bg) 94%, transparent);
   --surface-2: color-mix(in srgb, var(--surface-1) 72%, var(--bg-layer-2));
   --surface-3: color-mix(in srgb, var(--surface-2) 64%, var(--bg-layer-2));
@@ -103,61 +103,61 @@
   --tone-parent-bg: color-mix(in srgb, var(--panel-bg) 94%, transparent);
   --tone-child-bg: color-mix(in srgb, var(--panel-hover) 72%, var(--panel-bg));
   --tone-grandchild-bg: color-mix(in srgb, var(--input-bg) 76%, var(--panel-hover));
-  --chart-work: #4c6ea9;
-  --chart-repair: color-mix(in srgb, #d97706 78%, var(--panel-bg));
-  --chart-verification: #2c8f85;
-  --chart-both: #8a5ad6;
+  --chart-work: oklch(0.6 0.15 250);
+  --chart-repair: color-mix(in oklab, oklch(0.7 0.15 75) 78%, var(--panel-bg));
+  --chart-verification: oklch(0.6 0.12 190);
+  --chart-both: oklch(0.6 0.19 300);
   --chart-archived: color-mix(in srgb, var(--text-muted) 72%, var(--panel-bg));
   --status-in-work: var(--text-primary);
-  --status-verification: #4c6ea9;
-  --status-repair: #8c6a2b;
-  --status-repaired: #2f7d46;
-  --status-not-repairable: #b04c43;
-  --status-archived: #6b7280;
-  --chart-repaired: #2f7d46;
-  --chart-not-repairable: #b04c43;
-  --timeline-progress: #355f9a;
+  --status-verification: oklch(0.6 0.15 250);
+  --status-repair: oklch(0.7 0.15 75);
+  --status-repaired: oklch(0.6 0.15 150);
+  --status-not-repairable: oklch(0.577 0.245 27.325);
+  --status-archived: oklch(0.556 0 0);
+  --chart-repaired: oklch(0.6 0.15 150);
+  --chart-not-repairable: oklch(0.577 0.245 27.325);
+  --timeline-progress: oklch(0.55 0.15 250);
   --timeline-current-outline: var(--panel-bg);
   color-scheme: light;
-  background:
-    radial-gradient(circle at top left, var(--bg-glow), transparent 34%),
-    linear-gradient(180deg, var(--bg-layer-1) 0%, var(--bg-layer-2) 100%);
+  background: var(--bg-layer-1);
   color: var(--text-primary);
 }
 
 :root[data-theme="dark"] {
-  --bg-layer-1: #0d1117;
-  --bg-layer-2: #161b22;
-  --bg-glow: rgba(88, 166, 255, 0.12);
-  --text-primary: #c9d1d9;
-  --text-muted: #8b949e;
-  --placeholder-color: color-mix(in srgb, var(--text-muted) 34%, var(--input-bg));
-  --border-color: #30363d;
-  --panel-bg: #161b22;
-  --panel-ghost: rgba(22, 27, 34, 0.9);
-  --panel-hover: #21262d;
-  --accent: #58a6ff;
-  --accent-soft: rgba(88, 166, 255, 0.15);
-  --success: #3fb950;
-  --info: #79c0ff;
-  --chart-work: #79c0ff;
-  --chart-repair: #f2a65a;
-  --chart-verification: #56d4c2;
-  --chart-both: #c297ff;
-  --chart-archived: #6e7681;
-  --status-verification: #79c0ff;
-  --status-repair: #d29922;
-  --status-repaired: #3fb950;
-  --status-not-repairable: #f85149;
-  --status-archived: #6e7681;
-  --chart-repaired: #3fb950;
-  --chart-not-repairable: #f85149;
-  --timeline-progress: #79c0ff;
+  --bg-layer-1: oklch(0.145 0 0);
+  --bg-layer-2: oklch(0.205 0 0);
+  --bg-glow: transparent;
+  --text-primary: oklch(0.985 0 0);
+  --text-muted: oklch(0.708 0 0);
+  --placeholder-color: color-mix(in oklab, var(--text-muted) 45%, transparent);
+  --border-color: oklch(1 0 0 / 10%);
+  --panel-bg: oklch(0.205 0 0);
+  --panel-ghost: color-mix(in oklab, var(--panel-bg) 92%, transparent);
+  --panel-hover: oklch(0.269 0 0);
+  --accent: oklch(0.556 0 0);
+  --accent-soft: color-mix(in oklab, var(--accent) 22%, transparent);
+  --success: oklch(0.7 0.15 150);
+  --danger: oklch(0.704 0.191 22.216);
+  --warning: oklch(0.8 0.14 75);
+  --info: oklch(0.72 0.14 250);
+  --chart-work: oklch(0.72 0.14 250);
+  --chart-repair: color-mix(in oklab, oklch(0.8 0.14 75) 78%, var(--panel-bg));
+  --chart-verification: oklch(0.72 0.12 190);
+  --chart-both: oklch(0.7 0.19 300);
+  --chart-archived: color-mix(in oklab, var(--text-muted) 72%, var(--panel-bg));
+  --status-verification: oklch(0.72 0.14 250);
+  --status-repair: oklch(0.8 0.14 75);
+  --status-repaired: oklch(0.7 0.15 150);
+  --status-not-repairable: oklch(0.704 0.191 22.216);
+  --status-archived: oklch(0.556 0 0);
+  --chart-repaired: oklch(0.7 0.15 150);
+  --chart-not-repairable: oklch(0.704 0.191 22.216);
+  --timeline-progress: oklch(0.72 0.14 250);
   --timeline-current-outline: var(--panel-bg);
-  --button-primary-bg: #238636;
-  --button-primary-text: #ffffff;
-  --input-bg: #0d1117;
-  --panel-shadow-value: 0 8px 24px rgba(1, 4, 9, 0.4);
+  --button-primary-bg: oklch(0.922 0 0);
+  --button-primary-text: oklch(0.205 0 0);
+  --input-bg: oklch(0.145 0 0);
+  --panel-shadow-value: 0 1px 2px 0 oklch(0 0 0 / 40%);
   color-scheme: dark;
 }
 
@@ -1803,19 +1803,13 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .sidebar-shell {
-  position: relative;
+  /*
+   * No `position: relative` here: it would shadow the `lg:sticky` utility the sidebar relies on
+   * (an unlayered rule beats a Tailwind utility in v4, and it did the same in v3). The column
+   * divider is a border instead, so the shell needs no positioning context.
+   */
+  border-right: 1px solid var(--border-color);
   background: var(--surface-1);
-}
-
-.sidebar-shell::after {
-  content: "";
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--border-color);
-  pointer-events: none;
 }
 
 .sidebar-nav-item--active {
@@ -1888,6 +1882,16 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .mobile-nav-toggle:focus-visible {
   outline: none;
+}
+
+/*
+ * The toggle is a mobile-only control. The `display` above is unlayered, so the `lg:hidden`
+ * utility in the markup cannot override it; the breakpoint lives here instead.
+ */
+@media (min-width: 1024px) {
+  .mobile-nav-toggle {
+    display: none;
+  }
 }
 
 .sidebar-drawer {

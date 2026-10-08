@@ -245,8 +245,10 @@ export function TasksPage() {
                 }
               }}
             >
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-[var(--accent-soft)] px-3 py-2">
-                <StatusBadge tone={TASK_STATUS_TONES[status]}>{TASK_STATUS_LABELS[status]}</StatusBadge>
+              <div className="flex items-center justify-between gap-2">
+                <StatusBadge className="px-3 py-1 text-sm" tone={TASK_STATUS_TONES[status]}>
+                  {TASK_STATUS_LABELS[status]}
+                </StatusBadge>
                 <span className="text-xs font-semibold text-steel/70">
                   {tasks.filter((task) => task.status === status).length}
                 </span>

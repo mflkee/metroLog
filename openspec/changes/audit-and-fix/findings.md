@@ -235,6 +235,33 @@ invisible.
   an `enabled` gate. This also matters for F-009 - a request fired before the token exists would
   have answered `401` and logged the user out at startup.
 
+## Stage verification (task 6)
+
+Automated evidence gathered on 2026-10-08 without application credentials:
+
+- CI runs for `ac83414`, `1e747c2`, `92becb1`, `9a1c505`, `bb853bc` all succeeded
+  (`build-images` + `deploy-staging`); `deploy-prod` stayed skipped, so Prod was not touched.
+- Health on Stage and Prod: `GET /api/v1/health/ready` -> `{"status":"ready","database":"ok","redis":"ok"}`.
+- Deployment proof by bundle inspection on `http://100.89.18.223:9173` (no auth needed):
+  - `assets/equipment-*.js` contains `repair_id`, `verification_id`, `batch_key`,
+    `targetEquipmentId` -> task 3.1 is live;
+  - `assets/index-*.js` contains `silentUnauthorized` -> task 4.2 is live.
+
+Manual pass requested from the owner (needs real Stage credentials; the local `.env` bootstrap
+account is the dev one and answers `401` on Stage):
+
+1. Sign in to `http://100.89.18.223:9173` as an `MKAIR` user.
+2. Equipment card -> open a repair or verification, type a milestone date, and navigate away
+   within about a second, then return: the date must be saved (F-010).
+3. With an unsaved milestone date, reload the page: the browser must ask for confirmation (F-010).
+4. Follow a deep link to one repair (journal or notification): the request must be
+   `/equipment/repairs?...&repair_id=...` and the network panel must show only that group.
+5. Tasks -> open a card -> "Приборы": the folder and object selectors must filter the list.
+6. As a `CUSTOMER`: the `@`-autocomplete must list only users sharing the caller's folders (F-006).
+7. Remove the auth token from `localStorage`, trigger any request: the app must land on `/login`
+   with the session message (F-009).
+
+
 
 
 

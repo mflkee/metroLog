@@ -34,4 +34,5 @@
 ## 6. Integration verification on Stage
 
 - [ ] 6.1 Push to `main`, confirm the CI run and the Stage deploy succeed, then walk the audited flows on Stage (registry, equipment card, repairs, verifications, tasks, journal) as an `MKAIR` and as a `CUSTOMER`.
-- [ ] 6.2 Run the backend test suite and record the result, confirming no scenario in `openspec/specs/access-control` regressed.
+      Automated part done (CI green, health ready, bundle probes in findings.md); the manual walkthrough needs Stage credentials and the owner's pass - see the checklist in findings.md.
+- [x] 6.2 Run the backend test suite and record the result, confirming no scenario in `openspec/specs/access-control` regressed.

@@ -26,6 +26,8 @@
   --color-destructive-foreground: var(--button-primary-text);
   --color-border: var(--border-color);
   --color-input: var(--input-bg);
+  --color-switch-track: var(--switch-track);
+  --color-switch-thumb: var(--switch-thumb);
   --color-ring: var(--accent);
   --color-info: var(--info);
   --color-success: var(--success);
@@ -82,6 +84,8 @@
   --button-primary-bg: oklch(0.205 0 0);
   --button-primary-text: oklch(0.985 0 0);
   --input-bg: oklch(1 0 0);
+  --switch-track: color-mix(in oklab, var(--text-muted) 45%, transparent);
+  --switch-thumb: oklch(1 0 0);
   --panel-shadow-value: 0 1px 2px 0 oklch(0 0 0 / 5%);
   --control-height: 40px;
   --control-height-sm: 34px;
@@ -157,6 +161,8 @@
   --button-primary-bg: oklch(0.922 0 0);
   --button-primary-text: oklch(0.205 0 0);
   --input-bg: oklch(0.145 0 0);
+  --switch-track: color-mix(in oklab, var(--text-muted) 45%, transparent);
+  --switch-thumb: oklch(0.985 0 0);
   --panel-shadow-value: 0 1px 2px 0 oklch(0 0 0 / 40%);
   color-scheme: dark;
 }

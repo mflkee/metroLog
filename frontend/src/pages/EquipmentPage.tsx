@@ -1,9 +1,11 @@
 
 
+
 import { useEquipmentRegistryQueries } from "@/hooks/useEquipmentRegistryQueries";
 import { useFolderRefresh } from "@/hooks/useFolderRefresh";
 import { useSiImportExport } from "@/hooks/useSiImportExport";
-import { ActiveModal, DeleteTarget, EquipmentFormState, EquipmentSortState, FolderFormState, RepairBatchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
+import { useFolderActions } from "@/hooks/useFolderActions";
+import { ActiveModal, DeleteTarget, EquipmentFormState, EquipmentSortState, RepairBatchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
 import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -16,14 +18,12 @@ import {
 import {
   canChangeEquipmentTypeAfterCreation,
   createEquipment,
-  createEquipmentFolder,
   createEquipmentRepair,
   createEquipmentVerification,
   createRepairBatch,
   createVerificationBatch,
   deleteEquipmentBatch,
   deleteEquipment,
-  deleteEquipmentFolder,
   equipmentStatusLabels,
   equipmentTypeSelectionLabels,
   getEditableEquipmentTypeOptions,
@@ -32,8 +32,6 @@ import {
   isArshinEquipmentType,
   supportsVerification,
   updateEquipment,
-  updateEquipmentFolder,
-  updateFolderProcessSubscriptions,
   type EquipmentFolder,
   type EquipmentFolderRefreshRowStatus,
   type EquipmentPageResult,
@@ -95,7 +93,6 @@ export function EquipmentPage() {
   });
   const [statusFilter, setStatusFilter] = useState<EquipmentStatus | "ALL">("ALL");
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
-  const [folderForm, setFolderForm] = useState<FolderFormState>(defaultFolderForm);
   const [equipmentForm, setEquipmentForm] = useState<EquipmentFormState>(defaultEquipmentForm);
   const [verificationBatchForm, setVerificationBatchForm] = useState<VerificationBatchFormState>(
     defaultVerificationBatchForm,
@@ -105,9 +102,6 @@ export function EquipmentPage() {
   );
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
-  const [folderSubscriptionModalOpen, setFolderSubscriptionModalOpen] = useState(false);
-  const [selectedFolderSubscriptionUserIds, setSelectedFolderSubscriptionUserIds] = useState<number[]>([]);
-  const [folderSubscriptionUserSearchQuery, setFolderSubscriptionUserSearchQuery] = useState("");
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
   const [equipmentPage, setEquipmentPage] = useState(1);
   const [sortState, setSortState] = useState<EquipmentSortState | null>(null);
@@ -156,6 +150,30 @@ export function EquipmentPage() {
 
 
 
+
+  const {
+    folderForm,
+    setFolderForm,
+    folderSubscriptionModalOpen,
+    setFolderSubscriptionModalOpen,
+    selectedFolderSubscriptionUserIds,
+    setSelectedFolderSubscriptionUserIds,
+    folderSubscriptionUserSearchQuery,
+    setFolderSubscriptionUserSearchQuery,
+    createFolderMutation,
+    updateFolderMutation,
+    deleteFolderMutation,
+    updateFolderProcessSubscriptionsMutation,
+    closeFolderModal,
+    closeFolderSubscriptionModal,
+    } = useFolderActions({
+    token,
+    folderId: selectedFolderId,
+    activeModal,
+    setDeleteTarget,
+    setActiveModal,
+    setFolderSelection,
+  });
 
   const {
     folderRefreshModalOpen,
@@ -228,62 +246,9 @@ export function EquipmentPage() {
     folderForm.deadlinePresetId,
   ]);
 
-  const createFolderMutation = useMutation({
-    mutationFn: () =>
-      createEquipmentFolder(token ?? "", {
-        name: folderForm.name,
-        description: folderForm.description,
-        sortOrder: folderForm.sortOrder,
-        deadlinePresetId: folderForm.deadlinePresetId,
-      }),
-    onSuccess: async (folder) => {
-      closeFolderModal();
-      setFolderSelection(folder.id);
-      await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
-    },
-  });
 
-  const updateFolderMutation = useMutation({
-    mutationFn: () => {
-      if (activeModal?.kind !== "folder" || activeModal.mode !== "edit" || !activeModal.folderId) {
-        throw new Error("Папка для редактирования не выбрана.");
-      }
-      return updateEquipmentFolder(token ?? "", activeModal.folderId, {
-        name: folderForm.name,
-        description: folderForm.description,
-        sortOrder: folderForm.sortOrder,
-        deadlinePresetId: folderForm.deadlinePresetId,
-      });
-    },
-    onSuccess: async () => {
-      closeFolderModal();
-      await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
-    },
-  });
 
-  const deleteFolderMutation = useMutation({
-    mutationFn: (folderId: number) => deleteEquipmentFolder(token ?? "", folderId),
-    onSuccess: async (_, folderId) => {
-      if (selectedFolderId === folderId) {
-        setFolderSelection(null);
-      }
-      setDeleteTarget(null);
-      await queryClient.invalidateQueries({ queryKey: ["equipment-folders"] });
-      await invalidateEquipmentRegistryQueries();
-    },
-  });
 
-  const updateFolderProcessSubscriptionsMutation = useMutation({
-    mutationFn: (userIds: number[]) =>
-      updateFolderProcessSubscriptions(token ?? "", selectedFolderId ?? 0, userIds),
-    onSuccess: (result) => {
-      setSelectedFolderSubscriptionUserIds(
-        result.users.filter((userItem) => userItem.enabled).map((userItem) => userItem.userId),
-      );
-      queryClient.setQueryData(["folder-process-subscriptions", selectedFolderId ?? "none"], result);
-      setFolderSubscriptionModalOpen(false);
-    },
-  });
 
 
   const folderRefreshTask = folderRefreshTaskQuery.data?.task ?? startFolderRefreshMutation.data ?? null;
@@ -979,18 +944,6 @@ export function EquipmentPage() {
     startFolderRefreshMutation.reset();
     applyFolderRefreshMutation.reset();
     excludeFolderRefreshSelectionMutation.reset();
-  }
-
-  function closeFolderModal() {
-    setFolderForm(defaultFolderForm);
-    setActiveModal(null);
-  }
-
-  function closeFolderSubscriptionModal() {
-    setFolderSubscriptionModalOpen(false);
-    setSelectedFolderSubscriptionUserIds([]);
-    setFolderSubscriptionUserSearchQuery("");
-    updateFolderProcessSubscriptionsMutation.reset();
   }
 
   function closeFolderRefreshModal() {

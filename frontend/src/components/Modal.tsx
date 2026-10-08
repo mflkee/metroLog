@@ -56,7 +56,7 @@ export function Modal({
   return createPortal(
     <div
       aria-modal="true"
-      className="fixed inset-0 z-[260] flex items-end justify-center overflow-y-auto overscroll-contain bg-[rgba(11,20,27,0.42)] px-2 py-2 sm:items-center sm:px-4 sm:py-8"
+      className="fixed inset-0 z-[260] flex items-end justify-center bg-[rgba(11,20,27,0.42)] px-2 py-2 sm:items-center sm:px-4 sm:py-8"
       role="dialog"
     >
       <div

@@ -55,7 +55,7 @@ export function AppDialog({
         onInteractOutside={(event) => event.preventDefault()}
         onPointerDownOutside={(event) => event.preventDefault()}
         className={[
-          "fixed inset-0 z-[260] flex w-full max-w-none items-end justify-center overflow-y-auto overscroll-contain px-2 py-2",
+          "fixed inset-0 z-[260] flex w-full max-w-none items-end justify-center px-2 py-2",
           "translate-x-0 translate-y-0 border-0 bg-transparent p-0 shadow-none sm:max-w-none sm:items-center sm:px-4 sm:py-8",
           "gap-0 rounded-none",
         ].join(" ")}

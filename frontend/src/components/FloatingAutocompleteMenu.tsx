@@ -82,6 +82,23 @@ export function FloatingAutocompleteMenu<TAnchor extends HTMLElement>({
 
   const placement = position?.placement ?? "bottom";
 
+  /*
+   * A modal dialog installs a document-level, non-passive wheel listener
+   * (`react-remove-scroll`) that cancels the wheel for everything outside the dialog, so a menu
+   * rendered into `document.body` cannot scroll. Inside a dialog the menu is portalled into the
+   * dialog element itself; outside one it keeps going to the body.
+   */
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPortalContainer(null);
+      return;
+    }
+    const dialog = anchorRef.current?.closest('[role="dialog"]');
+    setPortalContainer(dialog instanceof HTMLElement ? dialog : document.body);
+  }, [anchorRef, open]);
+
   useLayoutEffect(() => {
     if (!open || !menuRef.current) {
       return;
@@ -114,6 +131,6 @@ export function FloatingAutocompleteMenu<TAnchor extends HTMLElement>({
     >
       {typeof children === "function" ? children(placement) : children}
     </div>,
-    document.body,
+    portalContainer ?? document.body,
   );
 }

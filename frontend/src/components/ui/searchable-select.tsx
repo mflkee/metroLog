@@ -278,27 +278,6 @@ export function SearchableMultiSelect<T extends string | number>({
 
   return (
     <div className={["relative", className].filter(Boolean).join(" ")} ref={fieldRef}>
-      {selected.length ? (
-        <div className="mb-1 flex flex-wrap gap-1">
-          {selected.map((option) => (
-            <span
-              key={option.value}
-              className="inline-flex max-w-full items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-ink"
-            >
-              <span className="truncate">{option.label}</span>
-              <button
-                aria-label={`Убрать ${option.label}`}
-                className="text-steel transition hover:text-[color:var(--danger)]"
-                disabled={disabled}
-                type="button"
-                onClick={() => onChange(value.filter((entry) => entry !== option.value))}
-              >
-                ×
-              </button>
-            </span>
-          ))}
-        </div>
-      ) : null}
       <input
         aria-controls={open ? listboxId : undefined}
         aria-expanded={open}
@@ -335,6 +314,28 @@ export function SearchableMultiSelect<T extends string | number>({
           }
         }}
       />
+      {/* The picked items sit under the field, so the field itself never moves down as they pile up. */}
+      {selected.length ? (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {selected.map((option) => (
+            <span
+              key={option.value}
+              className="inline-flex max-w-full items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-ink"
+            >
+              <span className="truncate">{option.label}</span>
+              <button
+                aria-label={`Убрать ${option.label}`}
+                className="text-steel transition hover:text-[color:var(--danger)]"
+                disabled={disabled}
+                type="button"
+                onClick={() => onChange(value.filter((entry) => entry !== option.value))}
+              >
+                ×
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <FloatingAutocompleteMenu
         anchorRef={fieldRef}
         id={listboxId}

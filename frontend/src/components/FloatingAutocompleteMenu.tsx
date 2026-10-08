@@ -48,17 +48,15 @@ export function FloatingAutocompleteMenu<TAnchor extends HTMLElement>({
     const maxLeft = viewportWidth - VIEWPORT_PADDING - width;
     const left = Math.max(VIEWPORT_PADDING, Math.min(anchorRect.left, maxLeft));
 
-    const measuredHeight = menuRef.current?.scrollHeight ?? MENU_MAX_HEIGHT;
-    const desiredHeight = Math.min(measuredHeight, MENU_MAX_HEIGHT);
+    /*
+     * The list always drops below its field. Flipping it above covered the very input you are
+     * typing into, so instead it shrinks into the room below and, when even that is tight, slides
+     * up just enough to stay inside the viewport.
+     */
+    const placement: FloatingAutocompleteMenuPlacement = "bottom";
     const spaceBelow = viewportHeight - anchorRect.bottom - VIEWPORT_PADDING - MENU_GAP;
-    const spaceAbove = anchorRect.top - VIEWPORT_PADDING - MENU_GAP;
-    const openAbove = spaceBelow < desiredHeight && spaceAbove > spaceBelow;
-    const placement: FloatingAutocompleteMenuPlacement = openAbove ? "top" : "bottom";
-    const availableHeight = Math.max(0, openAbove ? spaceAbove : spaceBelow);
-    const maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(MENU_MIN_HEIGHT, availableHeight));
-    const desiredTop = openAbove
-      ? anchorRect.top - MENU_GAP - Math.min(desiredHeight, maxHeight)
-      : anchorRect.bottom + MENU_GAP;
+    const maxHeight = Math.min(MENU_MAX_HEIGHT, Math.max(MENU_MIN_HEIGHT, spaceBelow));
+    const desiredTop = anchorRect.bottom + MENU_GAP;
     const maxTop = Math.max(VIEWPORT_PADDING, viewportHeight - VIEWPORT_PADDING - maxHeight);
     const top = Math.max(VIEWPORT_PADDING, Math.min(desiredTop, maxTop));
 

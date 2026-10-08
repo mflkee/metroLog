@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { TASK_STATUSES, TASK_STATUS_LABELS, mapTask } from "@/api/tasks";
+import { TASK_STATUSES, TASK_STATUS_LABELS, mapTask, updateTask } from "@/api/tasks";
 
 describe("mapTask", () => {
   it("maps raw task fields to the camelCase model", () => {
@@ -55,5 +55,66 @@ describe("task board statuses", () => {
       expect(TASK_STATUS_LABELS[status]).toBeTruthy();
     }
     expect(TASK_STATUSES).not.toContain("ARCHIVED");
+  });
+});
+
+const RAW_TASK = {
+  id: 1,
+  folder_id: 2,
+  folder_name: "Папка",
+  title: "Задача",
+  description: null,
+  status: "NEW",
+  priority: "NORMAL",
+  kind: null,
+  tags: [],
+  due_date: null,
+  created_by_user_id: 5,
+  created_by_display_name: "Иванов И.И.",
+  completed_at: null,
+  created_at: "2026-10-01T00:00:00Z",
+  updated_at: "2026-10-02T00:00:00Z",
+  is_overdue: false,
+  participants: [],
+  equipment: [],
+  checklist: [],
+  checklist_done: 0,
+  checklist_total: 0,
+};
+
+function stubFetchOk(): { body: () => unknown } {
+  let captured: RequestInit | undefined;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (...args: unknown[]) => {
+      captured = args[1] as RequestInit;
+      return new Response(JSON.stringify(RAW_TASK), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }),
+  );
+  return { body: () => JSON.parse(String(captured?.body)) };
+}
+
+describe("updateTask due date", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("sends the picked date", async () => {
+    const request = stubFetchOk();
+
+    await updateTask("token", 7, { dueDate: "2026-10-20" });
+
+    expect(request.body()).toEqual({ due_date: "2026-10-20" });
+  });
+
+  it("clears the date with an explicit null, which the API treats as a reset", async () => {
+    const request = stubFetchOk();
+
+    await updateTask("token", 7, { dueDate: null });
+
+    expect(request.body()).toEqual({ due_date: null });
   });
 });

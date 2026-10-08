@@ -32,6 +32,7 @@ import {
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
+import { DateInput } from "@/components/DateInput";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
@@ -141,6 +142,11 @@ export function TaskDetailsPage() {
   });
   const priorityMutation = useMutation({
     mutationFn: (priority: TaskPriority) => updateTask(token, taskId, { priority }),
+    onSuccess: refreshTask,
+  });
+  const dueDateMutation = useMutation({
+    // DateInput reports an empty string for a cleared field; the API wants null there.
+    mutationFn: (dueDate: string | null) => updateTask(token, taskId, { dueDate }),
     onSuccess: refreshTask,
   });
   const checklistAdd = useMutation({
@@ -332,9 +338,27 @@ export function TaskDetailsPage() {
                   </option>
                 ))}
               </select>
-              <span className={task.isOverdue ? "text-sm text-[color:var(--danger)]" : "text-sm text-steel"}>
-                Срок: {task.dueDate ?? "не задан"}
-              </span>
+              <label className="flex items-center gap-2 text-sm text-steel">
+                Срок
+                <DateInput
+                  aria-label="Срок"
+                  className="form-input form-input--compact"
+                  value={task.dueDate}
+                  onChange={(value) => dueDateMutation.mutate(value || null)}
+                />
+              </label>
+              {task.dueDate ? (
+                <button
+                  className="text-xs text-steel underline"
+                  onClick={() => dueDateMutation.mutate(null)}
+                  type="button"
+                >
+                  сбросить срок
+                </button>
+              ) : null}
+              {task.isOverdue ? (
+                <span className="text-xs font-semibold text-[color:var(--danger)]">просрочено</span>
+              ) : null}
               {task.tags.length > 0 ? (
                 <span className="text-xs text-steel">Теги: {task.tags.join(", ")}</span>
               ) : null}

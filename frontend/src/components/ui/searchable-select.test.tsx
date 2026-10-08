@@ -106,3 +106,16 @@ describe("SearchableSelect inside a modal", () => {
   });
 });
 
+describe("SearchableMultiSelect chip order", () => {
+  it("renders the picked items under the field, so the field never slides down", () => {
+    render(<SearchableMultiSelect onChange={vi.fn()} options={OPTIONS} value={[1]} />);
+
+    const input = screen.getByRole("combobox");
+    const chip = screen.getByText("Иванов Иван");
+
+    expect(
+      input.compareDocumentPosition(chip) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});
+

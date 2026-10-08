@@ -242,10 +242,12 @@ Automated evidence gathered on 2026-10-08 without application credentials:
 - CI runs for `ac83414`, `1e747c2`, `92becb1`, `9a1c505`, `bb853bc` all succeeded
   (`build-images` + `deploy-staging`); `deploy-prod` stayed skipped, so Prod was not touched.
 - Health on Stage and Prod: `GET /api/v1/health/ready` -> `{"status":"ready","database":"ok","redis":"ok"}`.
-- Deployment proof by bundle inspection on `http://100.89.18.223:9173` (no auth needed):
+- Deployment proof by bundle inspection on `http://100.89.18.223:9173` (no auth needed), after
+  CI run #37 finished:
   - `assets/equipment-*.js` contains `repair_id`, `verification_id`, `batch_key`,
     `targetEquipmentId` -> task 3.1 is live;
-  - `assets/index-*.js` contains `silentUnauthorized` -> task 4.2 is live.
+  - `assets/index-*.js` contains `silentUnauthorized` -> task 4.2 is live;
+  - `assets/useQueuedAutoSave-*.js` contains `beforeunload` -> task 5.2 is live.
 
 Manual pass requested from the owner (needs real Stage credentials; the local `.env` bootstrap
 account is the dev one and answers `401` on Stage):

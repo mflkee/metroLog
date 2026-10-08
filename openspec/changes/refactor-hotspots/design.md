@@ -69,6 +69,17 @@ mirror each other, so a common core removes duplication and shrinks both at once
 Rationale: highest ratio of removed lines to risk. Alternative: start with the largest page
 - rejected because it duplicates work that the shared core makes unnecessary.
 
+**Measured during implementation: share helpers and sub-blocks, do not merge the components.**
+A character-level similarity of 0.96 between `RepairQueueRow`/`VerificationQueueRow` (and
+`RepairBatchCard`/`VerificationBatchCard`) turned out to be an artefact of shared class names and
+boilerplate: at line level the pairs share 40% and 59% respectively. The repairs side carries
+route and on-site flows, the verification side flow modes and Arshin links, and the message
+editors differ in behaviour. Merging them into one component would move the difference into
+branching rather than remove it, and would risk silent UI regressions in a queue operators use
+daily. The plan is therefore: share the pure helpers (`src/lib/processStages.ts`, done) and the
+repeated sub-blocks (stage-row rendering, message thread, confirmation dialogs), leaving each
+page as the owner of its own flow.
+
 **Split the API client along domain boundaries already present in the file.** Rationale:
 the module is an aggregation of independent domains, so the split is mechanical and easy
 to verify by import errors alone.

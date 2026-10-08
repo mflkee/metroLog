@@ -21,7 +21,13 @@ other group drags along, so they move out first.
 ## 3. Frontend shared process core
 
 - [x] 3.1 Extract the repair/verification common components and hooks used by both pages and verify `npm run build:frontend` passes. Done for the pure helpers: `src/lib/processStages.ts` (218 lines) now holds `normalizeProcessCustomStages`, `renumberProcessCustomStages`, `moveProcessCustomStage`, `canMoveProcessCustomStage`, `areProcessCustomStagesEqual`, `insertProcessCustomStage`, `createLocalProcessCustomStageId` and a parameterised `getStageRowsProgressLabel`; both pages import them and lost their verbatim copies (`RepairsPage` 4028 -> 3834, `VerificationPage` 3748 -> 3553). Component extraction continues in 3.2.
-- [ ] 3.2 Switch `RepairsPage.tsx` and `VerificationPage.tsx` to the shared core and verify both pages still work on Stage (queue, batch, milestones, messages). Measured duplication for the next step: `RepairQueueRow` (1040 lines) vs `VerificationQueueRow` (1092) at 0.98 similarity and `RepairBatchCard` (1333) vs `VerificationBatchCard` (1296) at 0.96 - together roughly 2.4k duplicated lines, the biggest single win in this change.
+- [ ] 3.2 Switch `RepairsPage.tsx` and `VerificationPage.tsx` to the shared core and verify both pages still work on Stage (queue, batch, milestones, messages). Revised after measuring (see design.md): the two big component pairs are **not** duplicates, so this is a sub-block extraction, not a wholesale merge.
+      Measured: `RepairQueueRow` (1039 lines) vs `VerificationQueueRow` (1091) share only 40% of lines, `RepairBatchCard` (1332) vs `VerificationBatchCard` (1295) share 59% (the earlier 0.96 figure was character-level and misleading). The repairs side carries route/on-site flows, the verification side flow modes and Arshin links, and the message editors differ.
+      Sub-blocks that are genuinely repeated (4 copies each) and worth extracting into `src/components/`:
+      - 3.2a the stage-row rendering block (`tone-grandchild` row with label/date/deadline/overdue and inline controls) - appears twice per page;
+      - 3.2b the message thread block (list, edit-in-place, attachments, mention composer) - appears twice per page;
+      - 3.2c the archive-delete confirmation dialog and the toolbar action cluster.
+      Each sub-block is one PR-sized change with a Stage check of the affected flow; do not attempt to unify the whole row/card.
 
 ## 4. Frontend page splits
 

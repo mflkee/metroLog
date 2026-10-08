@@ -77,6 +77,7 @@ import { validateVerificationMilestoneOrder } from "@/lib/milestoneValidation";
 import { useQueuedAutoSave } from "@/lib/useQueuedAutoSave";
 import { handleTextareaSubmitShortcut, insertEmojiAtCursor } from "@/lib/textarea";
 import {
+  applyStageDateChange,
   areProcessCustomStagesEqual,
   canMoveProcessCustomStage,
   getStageRowsProgressLabel,
@@ -1450,29 +1451,15 @@ function VerificationBatchCard({
                       <ProcessStageDateControl
                         disabled={!canManage || !row.editable}
                         onChange={(value) => {
-                          setFormError(null);
-                          if (row.formKey) {
-                            const nextFormKey = row.formKey;
-                            setForm((current) => ({
-                              ...current,
-                              [nextFormKey]: value,
-                            }));
-                            return;
-                          }
-                          if (!row.customStageId) {
-                            return;
-                          }
-                          setCustomStages((current) =>
-                            current.map((stage) =>
-                              stage.id === row.customStageId
-                                ? {
-                                    ...stage,
-                                    date: value.trim() ? value : null,
-                                  }
-                                : stage,
-                            ),
-                          );
-                        }}
+                              setFormError(null);
+                              applyStageDateChange({
+                                customStageId: row.customStageId,
+                                formKey: row.formKey,
+                                setCustomStages,
+                                setForm,
+                                value,
+                              });
+                            }}
                         onEnter={() => void flushMilestonesAutoSave()}
                         value={row.actualValue}
                       />
@@ -2587,29 +2574,15 @@ function VerificationQueueRow({
                       <ProcessStageDateControl
                         disabled={!canManage || !row.editable}
                         onChange={(value) => {
-                          setFormError(null);
-                          if (row.formKey) {
-                            const nextFormKey = row.formKey;
-                            setForm((current) => ({
-                              ...current,
-                              [nextFormKey]: value,
-                            }));
-                            return;
-                          }
-                          if (!row.customStageId) {
-                            return;
-                          }
-                          setCustomStages((current) =>
-                            current.map((stage) =>
-                              stage.id === row.customStageId
-                                ? {
-                                    ...stage,
-                                    date: value.trim() ? value : null,
-                                  }
-                                : stage,
-                            ),
-                          );
-                        }}
+                              setFormError(null);
+                              applyStageDateChange({
+                                customStageId: row.customStageId,
+                                formKey: row.formKey,
+                                setCustomStages,
+                                setForm,
+                                value,
+                              });
+                            }}
                         onEnter={() => void flushMilestonesAutoSave()}
                         value={row.actualValue}
                       />

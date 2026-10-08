@@ -216,3 +216,30 @@ export function getStageRowsProgressLabel(
   }
   return latest?.label ?? stageRows[0]?.label ?? "Этап";
 }
+
+/**
+ * Apply a stage date edit to whichever store owns the row: a fixed template field (via
+ * `formKey`) or a user-created custom stage (via `customStageId`). Both queue pages repeated
+ * this branching inline; keeping it here makes it testable and consistent.
+ */
+export function applyStageDateChange<Form extends Record<string, string>>(params: {
+  formKey: string | null;
+  customStageId: string | null;
+  value: string;
+  setForm: (updater: (current: Form) => Form) => void;
+  setCustomStages: (updater: (current: ProcessCustomStage[]) => ProcessCustomStage[]) => void;
+}): void {
+  const { formKey, customStageId, value, setForm, setCustomStages } = params;
+  if (formKey) {
+    setForm((current) => ({ ...current, [formKey]: value }));
+    return;
+  }
+  if (!customStageId) {
+    return;
+  }
+  setCustomStages((current) =>
+    current.map((stage) =>
+      stage.id === customStageId ? { ...stage, date: value.trim() ? value : null } : stage,
+    ),
+  );
+}

@@ -254,6 +254,13 @@ export function VerificationPage() {
     enabled: Boolean(token) && !hasTargetNavigation,
   });
 
+  const targetVerificationFilter = isPositiveSearchParamId(targetVerificationId)
+    ? targetVerificationId
+    : null;
+  const targetEquipmentFilter = isPositiveSearchParamId(targetEquipmentId)
+    ? targetEquipmentId
+    : null;
+
   const verificationFullQuery = useQuery({
     queryKey: [
       "verification-queue",
@@ -261,12 +268,18 @@ export function VerificationPage() {
       deferredSearchQuery,
       selectedFolderId ?? "all",
       "target-mode",
+      targetBatchKey ?? "",
+      targetVerificationFilter ?? "",
+      targetEquipmentFilter ?? "",
     ],
     queryFn: () =>
       fetchVerificationQueue(token ?? "", {
         lifecycleStatus: tab,
         query: deferredSearchQuery,
         folderId: selectedFolderId,
+        processId: targetVerificationFilter,
+        batchKey: targetBatchKey,
+        targetEquipmentId: targetEquipmentFilter,
       }),
     enabled: Boolean(token) && hasTargetNavigation,
   });

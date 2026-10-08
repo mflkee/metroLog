@@ -601,11 +601,17 @@ async def list_verification_queue(
     lifecycle_status: Annotated[str, Query()] = "active",
     query: Annotated[str | None, Query()] = None,
     folder_id: Annotated[int | None, Query()] = None,
+    verification_id: Annotated[int | None, Query(ge=1)] = None,
+    batch_key: Annotated[str | None, Query()] = None,
+    equipment_id: Annotated[int | None, Query(ge=1)] = None,
 ) -> list[VerificationQueueItemRead]:
     return _equipment_service(db, current_user).list_verification_queue(
         lifecycle_status=lifecycle_status,
         query=query,
         folder_id=folder_id,
+        target_id=verification_id,
+        target_batch_key=batch_key,
+        target_equipment_id=equipment_id,
     )
 
 
@@ -635,11 +641,17 @@ async def list_repair_queue(
     lifecycle_status: Annotated[str, Query()] = "active",
     query: Annotated[str | None, Query()] = None,
     folder_id: Annotated[int | None, Query()] = None,
+    repair_id: Annotated[int | None, Query(ge=1)] = None,
+    batch_key: Annotated[str | None, Query()] = None,
+    equipment_id: Annotated[int | None, Query(ge=1)] = None,
 ) -> list[RepairQueueItemRead]:
     return _equipment_service(db, current_user).list_repair_queue(
         lifecycle_status=lifecycle_status,
         query=query,
         folder_id=folder_id,
+        target_id=repair_id,
+        target_batch_key=batch_key,
+        target_equipment_id=equipment_id,
     )
 
 

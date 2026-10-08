@@ -1235,6 +1235,9 @@ class EquipmentService:
         lifecycle_status: str,
         query: str | None = None,
         folder_id: int | None = None,
+        target_id: int | None = None,
+        target_batch_key: str | None = None,
+        target_equipment_id: int | None = None,
     ) -> list[VerificationQueueItemRead]:
         normalized_lifecycle_status = lifecycle_status.strip().lower()
         if normalized_lifecycle_status not in {"active", "archived"}:
@@ -1250,6 +1253,9 @@ class EquipmentService:
             query=query.strip() if query else None,
             folder_id=folder_id,
             allowed_folder_ids=self._get_accessible_folder_ids(),
+            target_id=target_id,
+            target_batch_key=target_batch_key,
+            target_equipment_id=target_equipment_id,
         )
         return [
             self._build_verification_queue_item(
@@ -1309,6 +1315,9 @@ class EquipmentService:
         lifecycle_status: str,
         query: str | None = None,
         folder_id: int | None = None,
+        target_id: int | None = None,
+        target_batch_key: str | None = None,
+        target_equipment_id: int | None = None,
     ) -> list[RepairQueueItemRead]:
         normalized_lifecycle_status = lifecycle_status.strip().lower()
         if normalized_lifecycle_status not in {"active", "archived"}:
@@ -1324,6 +1333,9 @@ class EquipmentService:
             query=query.strip() if query else None,
             folder_id=folder_id,
             allowed_folder_ids=self._get_accessible_folder_ids(),
+            target_id=target_id,
+            target_batch_key=target_batch_key,
+            target_equipment_id=target_equipment_id,
         )
         return [
             self._build_repair_queue_item(

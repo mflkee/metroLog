@@ -16,10 +16,10 @@
 
 ## 3. Backend correctness and performance
 
-- [ ] 3.1 Review the repair and verification queue queries for unbounded result sets and N+1 access, record findings, and fix by adding bounds and eager loading; verify with a query-count or limit test.
-- [ ] 3.2 Review background folder-refresh execution (session lifecycle, status transitions, idempotency) and fix defects; verify with a test that reruns the task and observes no duplicated rows.
-- [ ] 3.3 Review attachment and export/import handling for size, type and path validation, fix gaps, and verify with tests for rejected oversize and unsupported uploads.
-- [ ] 3.4 Check indexes for the columns used by the audited queries and add missing migrations; verify `alembic upgrade head` applies cleanly on Stage.
+- [x] 3.1 Review the repair and verification queue queries for unbounded result sets and N+1 access, record findings, and fix by adding bounds and eager loading; verify with a query-count or limit test.
+- [x] 3.2 Review background folder-refresh execution (session lifecycle, status transitions, idempotency) and fix defects; verify with a test that reruns the task and observes no duplicated rows.
+- [x] 3.3 Review attachment and export/import handling for size, type and path validation, fix gaps, and verify with tests for rejected oversize and unsupported uploads.
+- [x] 3.4 Check indexes for the columns used by the audited queries and add missing migrations; verify `alembic upgrade head` applies cleanly on Stage.
 
 ## 4. Frontend authorization and role gating
 

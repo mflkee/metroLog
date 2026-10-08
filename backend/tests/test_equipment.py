@@ -5730,6 +5730,102 @@ async def test_repair_queue_page_paginates_by_groups_without_splitting_batch(
 
 
 @pytest.mark.anyio
+async def test_repair_queue_deep_link_filters_to_the_target_group(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Целевые ремонты"},
+    )
+    assert folder_response.status_code == 201
+    folder_id = folder_response.json()["id"]
+
+    equipment_ids: list[int] = []
+    for index in range(3):
+        equipment_response = await client.post(
+            "/api/v1/equipment",
+            headers=headers,
+            json={
+                "folder_id": folder_id,
+                "object_name": "Целевой участок",
+                "equipment_type": "OTHER",
+                "name": f"Целевой прибор #{index + 1}",
+                "status": "IN_WORK",
+            },
+        )
+        assert equipment_response.status_code == 201
+        equipment_ids.append(equipment_response.json()["id"])
+
+    batch_response = await client.post(
+        "/api/v1/equipment/repairs/bulk",
+        headers=headers,
+        files=[
+            *[("equipment_ids", (None, str(equipment_id))) for equipment_id in equipment_ids[:2]],
+            ("batch_name", (None, "Целевая партия")),
+            ("route_city", (None, "Ленск")),
+            ("route_destination", (None, "Иркутск")),
+            ("sent_to_repair_at", (None, "2026-04-01")),
+        ],
+    )
+    assert batch_response.status_code == 201
+    batch_payload = batch_response.json()
+    batch_key = batch_payload[0]["batch_key"]
+
+    single_response = await client.post(
+        f"/api/v1/equipment/{equipment_ids[2]}/repair",
+        headers=headers,
+        data={
+            "route_city": "Ленск",
+            "route_destination": "Тюмень",
+            "sent_to_repair_at": "2026-04-02",
+        },
+    )
+    assert single_response.status_code == 201
+    single_repair_id = single_response.json()["id"]
+
+    unbounded = await client.get(
+        "/api/v1/equipment/repairs",
+        headers=headers,
+        params={"lifecycle_status": "active"},
+    )
+    assert unbounded.status_code == 200
+    assert len(unbounded.json()) == 3
+
+    by_batch = await client.get(
+        "/api/v1/equipment/repairs",
+        headers=headers,
+        params={"lifecycle_status": "active", "batch_key": batch_key},
+    )
+    assert by_batch.status_code == 200
+    assert {item["batch_key"] for item in by_batch.json()} == {batch_key}
+    assert len(by_batch.json()) == 2
+
+    by_repair = await client.get(
+        "/api/v1/equipment/repairs",
+        headers=headers,
+        params={"lifecycle_status": "active", "repair_id": single_repair_id},
+    )
+    assert by_repair.status_code == 200
+    assert len(by_repair.json()) == 1
+    assert by_repair.json()[0]["repair_id"] == single_repair_id
+
+    by_equipment = await client.get(
+        "/api/v1/equipment/repairs",
+        headers=headers,
+        params={"lifecycle_status": "active", "equipment_id": equipment_ids[2]},
+    )
+    assert by_equipment.status_code == 200
+    assert len(by_equipment.json()) == 1
+    assert by_equipment.json()[0]["equipment_id"] == equipment_ids[2]
+
+
+@pytest.mark.anyio
 async def test_repair_queue_page_query_keeps_only_matching_batch_rows(
     client: AsyncClient,
     db_engine,
@@ -8029,6 +8125,19 @@ async def test_folder_refresh_marks_manual_si_as_updated_and_clears_flags_after_
     assert refreshed_equipment["si_verification"]["vri_id"] == "ARSHIN-VRI-777"
     assert refreshed_equipment["si_verification"]["certificate_number"] == "ARSHIN-CERT-777"
     assert refreshed_equipment["si_verification"]["result_docnum"] == "ARSHIN-CERT-777"
+
+    # Re-running the same task must rebuild its rows, not duplicate them.
+    await process_folder_refresh_task(db_engine, task_id=task_id)
+
+    rerun_response = await client.get(
+        f"/api/v1/equipment/folders/{folder['id']}/refresh-tasks/{task_id}",
+        headers=headers,
+    )
+    assert rerun_response.status_code == 200
+    rerun_details = rerun_response.json()
+    assert rerun_details["task"]["status"] == "COMPLETED"
+    assert rerun_details["task"]["total_rows"] == 1
+    assert len(rerun_details["rows"]) == 1
 
 
 @pytest.mark.anyio

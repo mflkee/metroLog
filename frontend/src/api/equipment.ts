@@ -878,6 +878,10 @@ type FetchProcessQueueFilters = {
   lifecycleStatus: "active" | "archived";
   query?: string;
   folderId?: number | null;
+  /** Deep-link target: the process id (repair or verification), its batch key, or its equipment. */
+  processId?: number | null;
+  batchKey?: string | null;
+  targetEquipmentId?: number | null;
 };
 
 export type RepairMessageAttachment = {
@@ -1716,7 +1720,14 @@ export async function fetchEquipmentPage(
 
 export async function fetchVerificationQueue(
   token: string,
-  { lifecycleStatus, query, folderId }: FetchProcessQueueFilters,
+  {
+    lifecycleStatus,
+    query,
+    folderId,
+    processId,
+    batchKey,
+    targetEquipmentId,
+  }: FetchProcessQueueFilters,
 ): Promise<VerificationQueueItem[]> {
   const search = new URLSearchParams();
   search.set("lifecycle_status", lifecycleStatus);
@@ -1725,6 +1736,15 @@ export async function fetchVerificationQueue(
   }
   if (Number.isInteger(folderId) && (folderId ?? 0) > 0) {
     search.set("folder_id", String(folderId));
+  }
+  if (Number.isInteger(processId) && (processId ?? 0) > 0) {
+    search.set("verification_id", String(processId));
+  }
+  if (batchKey?.trim()) {
+    search.set("batch_key", batchKey.trim());
+  }
+  if (Number.isInteger(targetEquipmentId) && (targetEquipmentId ?? 0) > 0) {
+    search.set("equipment_id", String(targetEquipmentId));
   }
 
   const response = await apiRequest<RawVerificationQueueItem[]>(
@@ -1773,7 +1793,7 @@ export async function fetchVerificationQueuePage(
 
 export async function fetchRepairQueue(
   token: string,
-  { lifecycleStatus, query, folderId }: FetchProcessQueueFilters,
+  { lifecycleStatus, query, folderId, processId, batchKey, targetEquipmentId }: FetchProcessQueueFilters,
 ): Promise<RepairQueueItem[]> {
   const search = new URLSearchParams();
   search.set("lifecycle_status", lifecycleStatus);
@@ -1782,6 +1802,15 @@ export async function fetchRepairQueue(
   }
   if (Number.isInteger(folderId) && (folderId ?? 0) > 0) {
     search.set("folder_id", String(folderId));
+  }
+  if (Number.isInteger(processId) && (processId ?? 0) > 0) {
+    search.set("repair_id", String(processId));
+  }
+  if (batchKey?.trim()) {
+    search.set("batch_key", batchKey.trim());
+  }
+  if (Number.isInteger(targetEquipmentId) && (targetEquipmentId ?? 0) > 0) {
+    search.set("equipment_id", String(targetEquipmentId));
   }
   const response = await apiRequest<RawRepairQueueItem[]>(`/equipment/repairs?${search.toString()}`, {
     method: "GET",

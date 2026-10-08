@@ -125,3 +125,53 @@ account could enumerate the organisation's email addresses.
 - Test: `backend/tests/test_tasks.py::test_mention_candidates_are_scoped_to_callers_folders`.
 - Verification: full backend suite `140 passed` (was 139).
 
+### F-007 (MINOR) - Deep-linking to one process loaded the entire queue
+
+The target-navigation flow of `RepairsPage` and `VerificationPage` (`?repairId=`,
+`?verificationId=`, `?batchKey=`, `?equipmentId=`) called the unpaged `/equipment/repairs`
+and `/equipment/verifications` endpoints, which return **every group in the caller's scope**.
+On a large installation the browser received the whole active/archived queue and rendered it,
+the unbounded query shape flagged in `AGENTS.md`.
+
+- Fix: the unpaged endpoints accept `repair_id` / `verification_id`, `batch_key` and
+  `equipment_id`; the repository resolves the matching group keys with a bounded scalar
+  subquery and returns only those groups. Both pages pass the target from the URL and key
+  their query on it.
+- Test: `backend/tests/test_equipment.py::test_repair_queue_deep_link_filters_to_the_target_group`
+  (unbounded = 3 items, `batch_key` = 2, `repair_id` / `equipment_id` = 1).
+- Verification: full suite `141 passed` (was 140).
+
+N+1 review (task 3.1): the queue statements fetch `Repair`/`Verification`, `Equipment` and
+`SIVerification` in one join, with `has_active_repair` / `has_active_verification` as `EXISTS`
+subqueries; `_build_*_queue_item` performs no per-row queries beyond the cached
+per-folder deadline presets. No N+1 was found.
+
+## Backend correctness and performance review (tasks 3.1-3.4)
+
+- **3.2 background folder refresh.** `process_folder_refresh_task` sets `PROCESSING`, resets the
+  counters and deletes the task's previous rows before rebuilding, so a rerun is idempotent; any
+  failure sets `FAILED` with `error_message` and `completed_at`; `apply` answers `409` while the
+  task is `PENDING`/`PROCESSING`. The background entry points open their own `SessionLocal` and
+  build the service without `access_user` (unscoped) on purpose - the scan is already bounded to
+  the task's own folder. No defect found; idempotency is asserted by the rerun step added to the
+  existing `test_folder_refresh_*` test.
+- **3.3 attachments and export/import.** Uploads are streamed with a 25 MB cap (413 on overflow,
+  already covered by tests in `test_equipment.py` and `test_tasks.py`); file names are reduced with
+  `Path(value).name`, so directory components cannot escape the storage directory; images are
+  re-encoded under `attachment_image_target_size_bytes` / `attachment_image_max_dimension_pixels`.
+  One remaining note: F-008.
+- **3.4 indexes.** The audited queries are already backed by partial indexes
+  (`ix_repairs_active_queue_order`, `ix_repairs_archived_queue_order`,
+  `ix_repairs_active_equipment_lookup`, `ix_repairs_active_batch_lookup` and the `verifications`
+  equivalents) plus `folder_id`, `equipment_id` and `batch_key` indexes. No migration is needed.
+
+### F-008 (INFO) - Attachment content types are not restricted
+
+Any file type may be attached; size, empty-file and storage-directory safety are enforced, but
+there is no extension or MIME allowlist. Acceptable for an internal tool, worth a conscious
+decision if attachments are ever served inline rather than downloaded.
+
+- Owner: follow-up change (out of scope for a patch release).
+
+
+

@@ -260,13 +260,30 @@ export function RepairsPage() {
     enabled: Boolean(token) && !hasTargetNavigation,
   });
 
+  const targetRepairFilter = isPositiveSearchParamId(targetRepairId) ? targetRepairId : null;
+  const targetEquipmentFilter = isPositiveSearchParamId(targetEquipmentId)
+    ? targetEquipmentId
+    : null;
+
   const repairsFullQuery = useQuery({
-    queryKey: ["repair-queue", tab, deferredSearchQuery, selectedFolderId ?? "all", "target-mode"],
+    queryKey: [
+      "repair-queue",
+      tab,
+      deferredSearchQuery,
+      selectedFolderId ?? "all",
+      "target-mode",
+      targetBatchKey ?? "",
+      targetRepairFilter ?? "",
+      targetEquipmentFilter ?? "",
+    ],
     queryFn: () =>
       fetchRepairQueue(token ?? "", {
         lifecycleStatus: tab,
         query: deferredSearchQuery,
         folderId: selectedFolderId,
+        processId: targetRepairFilter,
+        batchKey: targetBatchKey,
+        targetEquipmentId: targetEquipmentFilter,
       }),
     enabled: Boolean(token) && hasTargetNavigation,
   });

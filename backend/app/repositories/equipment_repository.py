@@ -44,6 +44,38 @@ from app.models.user import User
 from app.schemas.equipment import EquipmentSortDirection, EquipmentSortKey
 
 
+def _queue_target_group_keys(
+    *,
+    batch_key_column,
+    id_column,
+    equipment_id_column,
+    target_id: int | None,
+    target_batch_key: str | None,
+    target_equipment_id: int | None,
+):
+    """Resolve the group keys a target-navigation request points at.
+
+    Returns a scalar subquery of matching process group keys, or ``None`` when no target was
+    requested. This keeps the queue query bounded when the UI deep-links to a single repair
+    or verification instead of loading every group in scope.
+    """
+
+    filters = []
+    if target_batch_key:
+        filters.append(batch_key_column == target_batch_key)
+    if target_id is not None:
+        filters.append(id_column == target_id)
+    if target_equipment_id is not None:
+        filters.append(equipment_id_column == target_equipment_id)
+    if not filters:
+        return None
+    return (
+        select(func.coalesce(batch_key_column, cast(id_column, String)))
+        .where(or_(*filters))
+        .scalar_subquery()
+    )
+
+
 class DeadlinePresetRepository:
     def __init__(self, session: Session) -> None:
         self.session = session
@@ -996,6 +1028,9 @@ class RepairRepository:
         query: str | None = None,
         folder_id: int | None = None,
         allowed_folder_ids: set[int] | None = None,
+        target_id: int | None = None,
+        target_batch_key: str | None = None,
+        target_equipment_id: int | None = None,
     ) -> list[tuple[Repair, Equipment, SIVerification | None, bool]]:
         if allowed_folder_ids is not None:
             if not allowed_folder_ids:
@@ -1006,6 +1041,17 @@ class RepairRepository:
             folder_id=folder_id,
             allowed_folder_ids=allowed_folder_ids,
         )
+        target_keys = _queue_target_group_keys(
+            batch_key_column=Repair.batch_key,
+            id_column=Repair.id,
+            equipment_id_column=Repair.equipment_id,
+            target_id=target_id,
+            target_batch_key=target_batch_key,
+            target_equipment_id=target_equipment_id,
+        )
+        if target_keys is not None:
+            group_key = func.coalesce(Repair.batch_key, cast(Repair.id, String))
+            statement = statement.where(group_key.in_(target_keys))
         statement = self._apply_queue_ordering(statement, lifecycle_status=lifecycle_status)
         rows = self.session.execute(statement).all()
         return [
@@ -1419,6 +1465,9 @@ class VerificationRepository:
         query: str | None = None,
         folder_id: int | None = None,
         allowed_folder_ids: set[int] | None = None,
+        target_id: int | None = None,
+        target_batch_key: str | None = None,
+        target_equipment_id: int | None = None,
     ) -> list[tuple[Verification, Equipment, SIVerification | None, bool]]:
         if allowed_folder_ids is not None:
             if not allowed_folder_ids:
@@ -1429,6 +1478,17 @@ class VerificationRepository:
             folder_id=folder_id,
             allowed_folder_ids=allowed_folder_ids,
         )
+        target_keys = _queue_target_group_keys(
+            batch_key_column=Verification.batch_key,
+            id_column=Verification.id,
+            equipment_id_column=Verification.equipment_id,
+            target_id=target_id,
+            target_batch_key=target_batch_key,
+            target_equipment_id=target_equipment_id,
+        )
+        if target_keys is not None:
+            group_key = func.coalesce(Verification.batch_key, cast(Verification.id, String))
+            statement = statement.where(group_key.in_(target_keys))
         statement = self._apply_queue_ordering(statement, lifecycle_status=lifecycle_status)
         rows = self.session.execute(statement).all()
         return [

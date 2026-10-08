@@ -122,12 +122,7 @@ function BoardColumn({
 
   return (
     <div
-      className={[
-        "flex min-h-[120px] flex-col gap-2 rounded-2xl transition",
-        isOver && dragging ? "bg-[var(--accent-soft)]" : "",
-      ]
-        .filter(Boolean)
-        .join(" ")}
+      className="flex min-h-[120px] flex-col gap-2 rounded-2xl"
       ref={setNodeRef}
     >
       <StatusBadge

@@ -26,6 +26,14 @@ type SingleProps = SharedProps & {
 type MultiProps = SharedProps & {
   value: number[];
   onChange: (next: number[]) => void;
+  /** Recent queries shown when the search box is empty. */
+  history?: string[];
+  /** Called when a query is actually used (a selection or Enter), to record it. */
+  onQueryCommitted?: (query: string) => void;
+  /** Mirrors the typed query, for callers that search on the server. */
+  onQueryChange?: (query: string) => void;
+  /** Turn off when the caller already filtered the options (e.g. a server-side search). */
+  filterLocally?: boolean;
 };
 
 function useOutsideClose(onClose: () => void) {
@@ -42,16 +50,22 @@ function useOutsideClose(onClose: () => void) {
   return ref;
 }
 
-function useFiltered(options: SearchableOption[], query: string, maxResults?: number) {
+function useFiltered(
+  options: SearchableOption[],
+  query: string,
+  maxResults?: number,
+  filterLocally = true,
+) {
   return useMemo(() => {
     const needle = query.trim().toLowerCase();
-    const matches = needle
-      ? options.filter((option) =>
-          `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(needle),
-        )
-      : options;
+    const matches =
+      filterLocally && needle
+        ? options.filter((option) =>
+            `${option.label} ${option.hint ?? ""}`.toLowerCase().includes(needle),
+          )
+        : options;
     return typeof maxResults === "number" ? matches.slice(0, maxResults) : matches;
-  }, [maxResults, options, query]);
+  }, [filterLocally, maxResults, options, query]);
 }
 
 /**
@@ -170,6 +184,10 @@ export function SearchableMultiSelect({
   loading = false,
   disabled = false,
   className,
+  history,
+  onQueryCommitted,
+  onQueryChange,
+  filterLocally = true,
 }: MultiProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -179,6 +197,7 @@ export function SearchableMultiSelect({
     options.filter((option) => !value.includes(option.value)),
     query,
     maxResults,
+    filterLocally,
   );
   const selected = value
     .map((id) => options.find((option) => option.value === id))
@@ -190,8 +209,19 @@ export function SearchableMultiSelect({
 
   function add(option: SearchableOption) {
     onChange([...value, option.value]);
+    if (query.trim()) {
+      onQueryCommitted?.(query);
+    }
     setQuery("");
+    onQueryChange?.("");
   }
+
+  function updateQuery(next: string) {
+    setQuery(next);
+    onQueryChange?.(next);
+  }
+
+  const showHistory = query.trim() === "" && (history?.length ?? 0) > 0;
 
   return (
     <div className={["relative", className].filter(Boolean).join(" ")} ref={ref}>
@@ -226,7 +256,7 @@ export function SearchableMultiSelect({
         role="combobox"
         value={query}
         onChange={(event) => {
-          setQuery(event.target.value);
+          updateQuery(event.target.value);
           setOpen(true);
         }}
         onFocus={() => setOpen(true)}
@@ -242,6 +272,8 @@ export function SearchableMultiSelect({
             event.preventDefault();
             add(filtered[highlighted]);
             setOpen(true);
+          } else if (event.key === "Enter" && query.trim()) {
+            onQueryCommitted?.(query);
           } else if (event.key === "Escape") {
             setOpen(false);
           } else if (event.key === "Backspace" && query === "" && value.length) {
@@ -250,32 +282,48 @@ export function SearchableMultiSelect({
         }}
       />
       {open ? (
-        <div
-          className="tone-child absolute left-0 right-0 z-[300] mt-1 max-h-64 overflow-y-auto rounded-xl border border-line p-1 shadow-panel"
-          role="listbox"
-        >
-          {loading ? <p className="px-2 py-1.5 text-sm text-steel">Загрузка…</p> : null}
-          {!loading && filtered.length === 0 ? (
-            <p className="px-2 py-1.5 text-sm text-steel">{emptyLabel}</p>
+        <div className="tone-child absolute left-0 right-0 z-[300] mt-1 max-h-64 overflow-y-auto rounded-xl border border-line p-1 shadow-panel">
+          {showHistory ? (
+            <div className="mb-1 border-b border-line pb-1">
+              <p className="px-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-steel">
+                Последние запросы
+              </p>
+              {history?.map((entry) => (
+                <button
+                  key={entry}
+                  className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-steel transition hover:bg-[var(--accent-soft)] hover:text-ink"
+                  type="button"
+                  onClick={() => updateQuery(entry)}
+                >
+                  {entry}
+                </button>
+              ))}
+            </div>
           ) : null}
-          {filtered.map((option, index) => (
-            <button
-              key={option.value}
-              className={[
-                "block w-full rounded-lg px-2 py-1.5 text-left text-sm text-ink transition",
-                index === highlighted ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--accent-soft)]",
-              ].join(" ")}
-              role="option"
-              type="button"
-              onMouseEnter={() => setHighlighted(index)}
-              onClick={() => add(option)}
-            >
-              <span className="block truncate">{option.label}</span>
-              {option.hint ? (
-                <span className="block truncate text-xs text-steel">{option.hint}</span>
-              ) : null}
-            </button>
-          ))}
+          <div role="listbox">
+            {loading ? <p className="px-2 py-1.5 text-sm text-steel">Загрузка…</p> : null}
+            {!loading && filtered.length === 0 ? (
+              <p className="px-2 py-1.5 text-sm text-steel">{emptyLabel}</p>
+            ) : null}
+            {filtered.map((option, index) => (
+              <button
+                key={option.value}
+                className={[
+                  "block w-full rounded-lg px-2 py-1.5 text-left text-sm text-ink transition",
+                  index === highlighted ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--accent-soft)]",
+                ].join(" ")}
+                role="option"
+                type="button"
+                onMouseEnter={() => setHighlighted(index)}
+                onClick={() => add(option)}
+              >
+                <span className="block truncate">{option.label}</span>
+                {option.hint ? (
+                  <span className="block truncate text-xs text-steel">{option.hint}</span>
+                ) : null}
+              </button>
+            ))}
+          </div>
         </div>
       ) : null}
     </div>

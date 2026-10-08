@@ -62,6 +62,7 @@ import {
   getVerificationPresetVariants,
 } from "@/lib/processVariants";
 import { hasOperatorAccess, roleLabels } from "@/lib/roles";
+import { useSearchHistory } from "@/lib/searchHistory";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { insertEmojiAtCursor } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
@@ -591,9 +592,14 @@ export function EquipmentPage() {
     ],
   );
 
+  const { history: equipmentSearchHistory, remember: rememberEquipmentSearch } =
+    useSearchHistory("metroLog.search.equipment");
+
   const equipmentSearchSuggestions = useMemo(
     () =>
       sortAutocompleteSuggestions([
+        // Recent searches first, then the values coming from the data.
+        ...equipmentSearchHistory,
         ...equipmentItems.flatMap((item) => [
           item.objectName,
           item.name,
@@ -611,6 +617,7 @@ export function EquipmentPage() {
       ]),
     [
       equipmentItems,
+      equipmentSearchHistory,
       existingLocations,
       existingObjectNames,
       existingRouteCities,
@@ -1689,6 +1696,12 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                     suggestions={equipmentSearchSuggestions}
                     value={searchQuery}
                     onChange={setSearchQuery}
+                    onBlur={() => rememberEquipmentSearch(searchQuery)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") {
+                        rememberEquipmentSearch(searchQuery);
+                      }
+                    }}
                   />
                 </label>
                 <label className="block text-sm text-steel">

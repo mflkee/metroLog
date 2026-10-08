@@ -9,6 +9,8 @@ import {
 } from "@/api/equipment";
 import { updateTask, type Task } from "@/api/tasks";
 import { Modal } from "@/components/Modal";
+import { SearchableMultiSelect } from "@/components/ui/searchable-select";
+import { useSearchHistory } from "@/lib/searchHistory";
 
 type TaskEquipmentModalProps = {
   open: boolean;
@@ -59,14 +61,6 @@ export function TaskEquipmentModal({ open, token, task, onClose, onSaved }: Task
     enabled: open && Boolean(token) && Boolean(folderId),
   });
 
-  function toggle(equipmentId: number) {
-    setSelected((current) =>
-      current.includes(equipmentId)
-        ? current.filter((value) => value !== equipmentId)
-        : [...current, equipmentId],
-    );
-  }
-
   async function save() {
     setSaving(true);
     setError(null);
@@ -81,6 +75,28 @@ export function TaskEquipmentModal({ open, token, task, onClose, onSaved }: Task
   }
 
   const items = equipmentQuery.data?.items ?? [];
+  const { history, remember } = useSearchHistory("metroLog.search.task-equipment");
+  const loadedIds = new Set(items.map((item) => item.id));
+  // Keep the initially linked equipment visible even when it is not on the loaded page.
+  const options = [
+    ...items.map((item) => ({
+      value: item.id,
+      label: `${item.name}${item.modification ? ` · ${item.modification}` : ""}`,
+      hint:
+        [item.serialNumber ? `зав. № ${item.serialNumber}` : null, item.objectName]
+          .filter(Boolean)
+          .join(" · ") || undefined,
+    })),
+    ...task.equipment
+      .filter((link) => !loadedIds.has(link.equipmentId))
+      .map((link) => ({
+        value: link.equipmentId,
+        label: `${link.name ?? `Прибор #${link.equipmentId}`}${
+          link.modification ? ` · ${link.modification}` : ""
+        }`,
+        hint: link.serialNumber ? `зав. № ${link.serialNumber}` : undefined,
+      })),
+  ];
 
   return (
     <Modal title="Приборы задачи" open={open} onClose={onClose}>
@@ -119,33 +135,22 @@ export function TaskEquipmentModal({ open, token, task, onClose, onSaved }: Task
             </select>
           </label>
         </div>
-        <label className="block text-sm text-steel">
-          Поиск
-          <input
-            className="form-input"
+        <div className="space-y-1 text-sm text-steel">
+          <span>Приборы</span>
+          <SearchableMultiSelect
+            emptyLabel="Ничего не найдено по выбранным фильтрам."
+            filterLocally={false}
+            history={history}
+            loading={equipmentQuery.isLoading}
+            maxResults={5}
+            onChange={setSelected}
+            onQueryChange={setQuery}
+            onQueryCommitted={remember}
+            options={options}
             placeholder="Название, зав. № или объект"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            value={selected}
           />
-        </label>
-        <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
-          {equipmentQuery.isLoading ? <p className="text-sm text-steel">Загрузка…</p> : null}
-          {!equipmentQuery.isLoading && items.length === 0 ? (
-            <p className="text-sm text-steel">Ничего не найдено по выбранным фильтрам.</p>
-          ) : null}
-          {items.map((item) => (
-            <label key={item.id} className="flex items-center gap-2 text-sm text-ink">
-              <input checked={selected.includes(item.id)} onChange={() => toggle(item.id)} type="checkbox" />
-              <span className="min-w-0 truncate">
-                {item.name}
-                {item.modification ? ` · ${item.modification}` : ""}
-                {item.serialNumber ? ` · зав. № ${item.serialNumber}` : ""}
-                {item.objectName ? ` · ${item.objectName}` : ""}
-              </span>
-            </label>
-          ))}
         </div>
-        <p className="text-xs text-steel">Выбрано приборов: {selected.length}</p>
 
         {error ? <p className="text-sm text-[color:var(--danger)]">{error}</p> : null}
 

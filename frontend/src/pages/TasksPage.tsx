@@ -23,6 +23,7 @@ import { SearchableMultiSelect, SearchableSelect } from "@/components/ui/searcha
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
+import { useSearchHistory } from "@/lib/searchHistory";
 import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
 import { resizeTextareaToContent } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
@@ -344,6 +345,8 @@ function CreateTaskModal({
     queryFn: () => fetchMentionUsers(token),
     enabled: open && Boolean(token),
   });
+  const { history: equipmentSearchHistory, remember: rememberEquipmentSearch } =
+    useSearchHistory("metroLog.search.task-equipment");
   const [folderId, setFolderId] = useState<string>(defaultFolderId ? String(defaultFolderId) : "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -539,9 +542,11 @@ function CreateTaskModal({
               <span className="text-xs uppercase tracking-wide text-steel">Приборы</span>
               <SearchableMultiSelect
                 emptyLabel="Ничего не найдено по выбранному объекту."
+                history={equipmentSearchHistory}
                 loading={equipmentQuery.isLoading}
                 maxResults={5}
                 onChange={setEquipmentIds}
+                onQueryCommitted={rememberEquipmentSearch}
                 options={(equipmentQuery.data?.items ?? []).map((item) => ({
                   value: item.id,
                   label: item.name,

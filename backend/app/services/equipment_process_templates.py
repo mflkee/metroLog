@@ -9,11 +9,29 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
+from typing import TYPE_CHECKING
 from uuid import uuid4
 
 from fastapi import HTTPException, status
 
-from app.models.equipment import DeadlinePreset, VerificationFlowMode
+from app.models.equipment import DeadlinePreset, EquipmentFolder, VerificationFlowMode
+from app.models.event import EventCategory
+from app.models.user import User
+from app.schemas.equipment import DeadlinePresetCreateRequest, DeadlinePresetUpdateRequest
+from app.services.equipment_text import (
+    _build_named_detail,
+    _build_nonempty_description,
+    _normalize_optional_text,
+)
+
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Session
+
+    from app.models.equipment import Equipment
+    from app.repositories.equipment_repository import (
+        DeadlinePresetRepository,
+        EquipmentFolderRepository,
+    )
 
 PROCESS_CUSTOM_STAGE_ID_SAFE_PATTERN = re.compile(r"[^a-zA-Z0-9_-]+")
 PROCESS_CUSTOM_STAGE_MAX_ITEMS = 32
@@ -1270,3 +1288,310 @@ def _get_stage_template_labels(
     stage_template: list[dict[str, object]],
 ) -> tuple[tuple[str, str], ...]:
     return tuple((str(item["key"]), str(item["label"])) for item in stage_template[1:])
+
+
+class EquipmentProcessTemplatesMixin:
+    """Deadline-preset API and helpers; mixed into ``EquipmentService``."""
+
+    if TYPE_CHECKING:
+        # Provided by EquipmentService through the MRO.
+        session: Session
+        deadline_presets: DeadlinePresetRepository
+        folders: EquipmentFolderRepository
+
+        def _record_event(
+            self,
+            *,
+            category: EventCategory,
+            action: str,
+            user: User | None,
+            title: str,
+            description: str | None = None,
+            equipment: Equipment | None = None,
+            equipment_id: int | None = None,
+            equipment_name: str | None = None,
+            equipment_modification: str | None = None,
+            equipment_serial_number: str | None = None,
+            folder_id: int | None = None,
+            folder_name: str | None = None,
+            notification_equipment_ids: list[int] | None = None,
+            batch_key: str | None = None,
+        ) -> None: ...
+
+        def _generate_deadline_preset_code(self, name: str) -> str: ...
+
+        def _normalize_deadline_preset_stage_templates(
+            self, preset: DeadlinePreset
+        ) -> DeadlinePreset: ...
+
+    def list_deadline_presets(self, *, include_inactive: bool = False) -> list[DeadlinePreset]:
+        self._ensure_default_deadline_preset()
+        return [
+            self._normalize_deadline_preset_stage_templates(preset)
+            for preset in self.deadline_presets.list_all(include_inactive=include_inactive)
+        ]
+
+    def create_deadline_preset(
+        self,
+        payload: DeadlinePresetCreateRequest,
+        *,
+        current_user: User,
+    ) -> DeadlinePreset:
+        self._ensure_default_deadline_preset()
+        name = _normalize_required_text(payload.name, field_label="Preset name")
+        description = _normalize_optional_text(payload.description)
+        if self.deadline_presets.get_by_name(name) is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Пресет с таким названием уже существует.",
+            )
+        deadline_settings = _build_repair_deadline_settings(
+            repair_total_days=payload.repair_total_days,
+            registration_after_arrival_days=payload.registration_after_arrival_days,
+            incoming_control_after_receipt_days=payload.incoming_control_after_receipt_days,
+            payment_after_control_days=payload.payment_after_control_days,
+        )
+        repair_stage_templates = _normalize_repair_stage_template_variants(
+            payload.repair_stage_templates_json
+        )
+        verification_stage_templates = _normalize_verification_stage_template_variants(
+            payload.verification_stage_templates_json
+        )
+        preset = DeadlinePreset(
+            code=self._generate_deadline_preset_code(name),
+            name=name,
+            description=description,
+            is_active=bool(payload.is_active),
+            is_system=False,
+            sort_order=payload.sort_order,
+            repair_total_days=deadline_settings.repair_total_days,
+            registration_after_arrival_days=deadline_settings.registration_after_arrival_days,
+            incoming_control_after_receipt_days=deadline_settings.incoming_control_after_receipt_days,
+            payment_after_control_days=deadline_settings.payment_after_control_days,
+            repair_stage_templates_json=repair_stage_templates,
+            verification_stage_templates_json=verification_stage_templates,
+        )
+        self.deadline_presets.add(preset)
+        self._record_event(
+            category=EventCategory.EQUIPMENT,
+            action="deadline_preset_created",
+            user=current_user,
+            title=f"Создан пресет дедлайнов «{preset.name}»",
+            description=_build_nonempty_description(
+                [
+                    _build_named_detail("Описание", preset.description),
+                    _build_named_detail("Срок ремонта", f"{preset.repair_total_days} дн."),
+                    _build_named_detail(
+                        "Ожидание прибора после ремонта",
+                        f"{preset.registration_after_arrival_days} дн.",
+                    ),
+                    _build_named_detail(
+                        "После получения",
+                        f"{preset.incoming_control_after_receipt_days} дн.",
+                    ),
+                    _build_named_detail(
+                        "После входного контроля",
+                        f"{preset.payment_after_control_days} дн.",
+                    ),
+                    _build_named_detail(
+                        "Этапы ремонта",
+                        str(len(repair_stage_templates["variants"])),
+                    ),
+                    _build_named_detail(
+                        "Этапы поверки",
+                        str(len(verification_stage_templates["variants"])),
+                    ),
+                ]
+            ),
+        )
+        self.session.commit()
+        self.session.refresh(preset)
+        return self._normalize_deadline_preset_stage_templates(preset)
+
+    def update_deadline_preset(
+        self,
+        *,
+        preset_id: int,
+        payload: DeadlinePresetUpdateRequest,
+        current_user: User,
+    ) -> DeadlinePreset:
+        preset = self._get_deadline_preset(preset_id)
+        changed_fields: list[str] = []
+
+        if "name" in payload.model_fields_set:
+            name = _normalize_required_text(payload.name, field_label="Preset name")
+            existing = self.deadline_presets.get_by_name(name)
+            if existing is not None and existing.id != preset.id:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="Пресет с таким названием уже существует.",
+                )
+            if preset.name != name:
+                preset.name = name
+                changed_fields.append("название")
+
+        if "description" in payload.model_fields_set:
+            description = _normalize_optional_text(payload.description)
+            if preset.description != description:
+                preset.description = description
+                changed_fields.append("описание")
+
+        if "sort_order" in payload.model_fields_set and preset.sort_order != payload.sort_order:
+            preset.sort_order = payload.sort_order
+            changed_fields.append("порядок")
+
+        if "is_active" in payload.model_fields_set:
+            if preset.is_system and payload.is_active is False:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Системный пресет нельзя отключить.",
+                )
+            if preset.is_active != payload.is_active:
+                preset.is_active = bool(payload.is_active)
+                changed_fields.append("статус")
+
+        next_deadline_settings = _build_repair_deadline_settings(
+            repair_total_days=(
+                payload.repair_total_days
+                if "repair_total_days" in payload.model_fields_set
+                else preset.repair_total_days
+            ),
+            registration_after_arrival_days=(
+                payload.registration_after_arrival_days
+                if "registration_after_arrival_days" in payload.model_fields_set
+                else preset.registration_after_arrival_days
+            ),
+            incoming_control_after_receipt_days=(
+                payload.incoming_control_after_receipt_days
+                if "incoming_control_after_receipt_days" in payload.model_fields_set
+                else preset.incoming_control_after_receipt_days
+            ),
+            payment_after_control_days=(
+                payload.payment_after_control_days
+                if "payment_after_control_days" in payload.model_fields_set
+                else preset.payment_after_control_days
+            ),
+        )
+        if (
+            preset.repair_total_days != next_deadline_settings.repair_total_days
+            or preset.registration_after_arrival_days
+            != next_deadline_settings.registration_after_arrival_days
+            or preset.incoming_control_after_receipt_days
+            != next_deadline_settings.incoming_control_after_receipt_days
+            or preset.payment_after_control_days
+            != next_deadline_settings.payment_after_control_days
+        ):
+            preset.repair_total_days = next_deadline_settings.repair_total_days
+            preset.registration_after_arrival_days = (
+                next_deadline_settings.registration_after_arrival_days
+            )
+            preset.incoming_control_after_receipt_days = (
+                next_deadline_settings.incoming_control_after_receipt_days
+            )
+            preset.payment_after_control_days = next_deadline_settings.payment_after_control_days
+            changed_fields.append("дедлайны")
+
+        if "repair_stage_templates_json" in payload.model_fields_set:
+            next_repair_stage_templates = _normalize_repair_stage_template_variants(
+                payload.repair_stage_templates_json
+            )
+            if preset.repair_stage_templates_json != next_repair_stage_templates:
+                preset.repair_stage_templates_json = next_repair_stage_templates
+                changed_fields.append("этапы ремонта")
+
+        if "verification_stage_templates_json" in payload.model_fields_set:
+            next_verification_stage_templates = _normalize_verification_stage_template_variants(
+                payload.verification_stage_templates_json
+            )
+            if preset.verification_stage_templates_json != next_verification_stage_templates:
+                preset.verification_stage_templates_json = next_verification_stage_templates
+                changed_fields.append("этапы поверки")
+
+        if changed_fields:
+            self._record_event(
+                category=EventCategory.EQUIPMENT,
+                action="deadline_preset_updated",
+                user=current_user,
+                title=f"Обновлён пресет дедлайнов «{preset.name}»",
+                description="Изменено: " + ", ".join(changed_fields) + ".",
+            )
+
+        self.session.commit()
+        self.session.refresh(preset)
+        return self._normalize_deadline_preset_stage_templates(preset)
+
+    def delete_deadline_preset(self, *, preset_id: int, current_user: User) -> None:
+        preset = self._get_deadline_preset(preset_id)
+        if preset.is_system:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Системный пресет удалить нельзя.",
+            )
+        if self.deadline_presets.count_attached_folders(preset_id=preset.id) > 0:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Пресет используется в папках и не может быть удалён.",
+            )
+        self._record_event(
+            category=EventCategory.EQUIPMENT,
+            action="deadline_preset_deleted",
+            user=current_user,
+            title=f"Удалён пресет дедлайнов «{preset.name}»",
+        )
+        self.deadline_presets.delete(preset)
+        self.session.commit()
+
+    def _get_deadline_preset(self, preset_id: int) -> DeadlinePreset:
+        self._ensure_default_deadline_preset()
+        preset = self.deadline_presets.get_by_id(preset_id)
+        if preset is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Пресет дедлайнов не найден.",
+            )
+        return preset
+
+    def _ensure_default_deadline_preset(self) -> DeadlinePreset:
+        preset = self.deadline_presets.get_by_code(DEFAULT_DEADLINE_PRESET_CODE)
+        if preset is not None:
+            return preset
+        preset = DeadlinePreset(
+            code=DEFAULT_DEADLINE_PRESET_CODE,
+            name=DEFAULT_DEADLINE_PRESET_NAME,
+            description=DEFAULT_DEADLINE_PRESET_DESCRIPTION,
+            is_active=True,
+            is_system=True,
+            sort_order=0,
+            repair_total_days=DEFAULT_REPAIR_DEADLINE_SETTINGS.repair_total_days,
+            registration_after_arrival_days=(
+                DEFAULT_REPAIR_DEADLINE_SETTINGS.registration_after_arrival_days
+            ),
+            incoming_control_after_receipt_days=(
+                DEFAULT_REPAIR_DEADLINE_SETTINGS.incoming_control_after_receipt_days
+            ),
+            payment_after_control_days=DEFAULT_REPAIR_DEADLINE_SETTINGS.payment_after_control_days,
+            repair_stage_templates_json=_build_default_repair_stage_template_variants(),
+            verification_stage_templates_json=_build_default_verification_stage_template_variants(),
+        )
+        self.deadline_presets.add(preset)
+        return preset
+
+    def _resolve_deadline_preset_for_folder(
+        self,
+        *,
+        preset_id: int | None,
+        current_folder: EquipmentFolder | None,
+    ) -> DeadlinePreset:
+        preset = (
+            self._ensure_default_deadline_preset()
+            if preset_id is None
+            else self._get_deadline_preset(preset_id)
+        )
+        if not preset.is_active and (
+            current_folder is None or current_folder.deadline_preset_id != preset.id
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Выбранный пресет недоступен.",
+            )
+        return preset

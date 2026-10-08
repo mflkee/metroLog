@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+
+import { FloatingAutocompleteMenu } from "@/components/FloatingAutocompleteMenu";
 
 const defaultEmojis = ["😀", "👍", "✅", "⚠️", "❗", "🔧", "🧪", "📦", "📄", "📷", "🚚", "📝"];
 
@@ -8,13 +10,19 @@ type EmojiPickerButtonProps = {
   onPick: (emoji: string) => void;
 };
 
+/**
+ * Emoji picker. The grid is rendered outside the layout (portal + fixed), so a modal never clips
+ * it, and it reuses the shared menu surface so every popup in the app looks the same.
+ */
 export function EmojiPickerButton({
   disabled = false,
   emojis = defaultEmojis,
   onPick,
 }: EmojiPickerButtonProps) {
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
+  const listboxId = useId();
 
   useEffect(() => {
     if (!open) {
@@ -22,9 +30,11 @@ export function EmojiPickerButton({
     }
 
     function handlePointerDown(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
+      const target = event.target as Node;
+      if (fieldRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
       }
+      setOpen(false);
     }
 
     window.addEventListener("mousedown", handlePointerDown);
@@ -32,8 +42,10 @@ export function EmojiPickerButton({
   }, [open]);
 
   return (
-    <div ref={containerRef} className="relative">
+    <div className="relative" ref={fieldRef}>
       <button
+        aria-controls={open ? listboxId : undefined}
+        aria-expanded={open}
         aria-label="Открыть эмодзи"
         className="icon-action-button"
         disabled={disabled}
@@ -43,12 +55,20 @@ export function EmojiPickerButton({
       >
         <span className="text-base leading-none">🙂</span>
       </button>
-      {open ? (
-        <div className="tone-grandchild absolute bottom-full right-0 z-[120] mb-2 grid w-[176px] grid-cols-4 gap-1 rounded-2xl border border-line p-2 shadow-panel">
+      <FloatingAutocompleteMenu
+        anchorRef={fieldRef}
+        id={listboxId}
+        layoutKey={`${open}\u0000${emojis.join("")}`}
+        menuRef={menuRef}
+        open={open}
+      >
+        <div className="grid grid-cols-4 gap-1">
           {emojis.map((emoji) => (
             <button
               key={emoji}
+              aria-selected={false}
               className="flex h-8 w-8 items-center justify-center rounded-xl text-base transition hover:bg-[var(--accent-soft)]"
+              role="option"
               title={emoji}
               type="button"
               onClick={() => {
@@ -60,7 +80,7 @@ export function EmojiPickerButton({
             </button>
           ))}
         </div>
-      ) : null}
+      </FloatingAutocompleteMenu>
     </div>
   );
 }

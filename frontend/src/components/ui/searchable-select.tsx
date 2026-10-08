@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+
+import { FloatingAutocompleteMenu } from "@/components/FloatingAutocompleteMenu";
 
 export type SearchableOption = {
   value: number;
@@ -36,18 +38,25 @@ type MultiProps = SharedProps & {
   filterLocally?: boolean;
 };
 
+/**
+ * Closes the menu on an outside pointer press. The menu is portalled to the body, so containment
+ * has to be checked against both the field and the menu.
+ */
 function useOutsideClose(onClose: () => void) {
-  const ref = useRef<HTMLDivElement | null>(null);
+  const fieldRef = useRef<HTMLDivElement | null>(null);
+  const menuRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
-      if (!ref.current?.contains(event.target as Node)) {
-        onClose();
+      const target = event.target as Node;
+      if (fieldRef.current?.contains(target) || menuRef.current?.contains(target)) {
+        return;
       }
+      onClose();
     }
     window.addEventListener("mousedown", handlePointerDown);
     return () => window.removeEventListener("mousedown", handlePointerDown);
   }, [onClose]);
-  return ref;
+  return { fieldRef, menuRef };
 }
 
 function useFiltered(
@@ -68,9 +77,17 @@ function useFiltered(
   }, [filterLocally, maxResults, options, query]);
 }
 
+function optionClassName(highlighted: boolean): string {
+  return [
+    "block w-full rounded-lg px-2 py-1.5 text-left text-sm text-ink transition",
+    highlighted ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--accent-soft)]",
+  ].join(" ");
+}
+
 /**
  * Searchable single choice. The input doubles as the search box: on focus it clears to show the
- * full list, and when closed it shows the current label. Keyboard: arrows, Enter, Escape.
+ * whole list, and when closed it shows the current label. Keyboard: arrows, Enter, Escape.
+ * The list is rendered outside the layout (portal + fixed), so a modal never clips it.
  */
 export function SearchableSelect({
   options,
@@ -87,7 +104,8 @@ export function SearchableSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(0);
-  const ref = useOutsideClose(() => setOpen(false));
+  const { fieldRef, menuRef } = useOutsideClose(() => setOpen(false));
+  const listboxId = useId();
   const filtered = useFiltered(options, query, maxResults);
   const selected = options.find((option) => option.value === value) ?? null;
 
@@ -102,8 +120,9 @@ export function SearchableSelect({
   }
 
   return (
-    <div className={["relative", className].filter(Boolean).join(" ")} ref={ref}>
+    <div className={["relative", className].filter(Boolean).join(" ")} ref={fieldRef}>
       <input
+        aria-controls={open ? listboxId : undefined}
         aria-expanded={open}
         aria-haspopup="listbox"
         autoComplete="off"
@@ -136,43 +155,41 @@ export function SearchableSelect({
           }
         }}
       />
-      {open ? (
-        <div
-          className="tone-child absolute left-0 right-0 z-[300] mt-1 max-h-64 overflow-y-auto rounded-xl border border-line p-1 shadow-panel"
-          role="listbox"
-        >
-          {loading ? <p className="px-2 py-1.5 text-sm text-steel">Загрузка…</p> : null}
-          {!loading && filtered.length === 0 ? (
-            <p className="px-2 py-1.5 text-sm text-steel">{emptyLabel}</p>
-          ) : null}
-          {filtered.map((option, index) => (
-            <button
-              key={option.value}
-              aria-selected={option.value === value}
-              className={[
-                "block w-full rounded-lg px-2 py-1.5 text-left text-sm text-ink transition",
-                index === highlighted ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--accent-soft)]",
-              ].join(" ")}
-              role="option"
-              type="button"
-              onMouseEnter={() => setHighlighted(index)}
-              onClick={() => choose(option)}
-            >
-              <span className="block truncate">{option.label}</span>
-              {option.hint ? (
-                <span className="block truncate text-xs text-steel">{option.hint}</span>
-              ) : null}
-            </button>
-          ))}
-        </div>
-      ) : null}
+      <FloatingAutocompleteMenu
+        anchorRef={fieldRef}
+        id={listboxId}
+        layoutKey={`${query}\u0000${filtered.map((option) => option.value).join(",")}`}
+        menuRef={menuRef}
+        open={open}
+      >
+        {loading ? <p className="px-2 py-1.5 text-sm text-steel">Загрузка…</p> : null}
+        {!loading && filtered.length === 0 ? (
+          <p className="px-2 py-1.5 text-sm text-steel">{emptyLabel}</p>
+        ) : null}
+        {filtered.map((option, index) => (
+          <button
+            key={option.value}
+            aria-selected={option.value === value}
+            className={optionClassName(index === highlighted)}
+            role="option"
+            type="button"
+            onMouseEnter={() => setHighlighted(index)}
+            onClick={() => choose(option)}
+          >
+            <span className="block truncate">{option.label}</span>
+            {option.hint ? (
+              <span className="block truncate text-xs text-steel">{option.hint}</span>
+            ) : null}
+          </button>
+        ))}
+      </FloatingAutocompleteMenu>
     </div>
   );
 }
 
 /**
- * Searchable multiple choice with removable chips. Same visual language as the single variant;
- * the results are capped by `maxResults` (the equipment picker uses 5).
+ * Searchable multiple choice with removable chips. Same visual language and the same portalled
+ * menu as the single variant; the results are capped by `maxResults` (the equipment picker uses 5).
  */
 export function SearchableMultiSelect({
   options,
@@ -192,7 +209,8 @@ export function SearchableMultiSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(0);
-  const ref = useOutsideClose(() => setOpen(false));
+  const { fieldRef, menuRef } = useOutsideClose(() => setOpen(false));
+  const listboxId = useId();
   const filtered = useFiltered(
     options.filter((option) => !value.includes(option.value)),
     query,
@@ -224,7 +242,7 @@ export function SearchableMultiSelect({
   const showHistory = query.trim() === "" && (history?.length ?? 0) > 0;
 
   return (
-    <div className={["relative", className].filter(Boolean).join(" ")} ref={ref}>
+    <div className={["relative", className].filter(Boolean).join(" ")} ref={fieldRef}>
       {selected.length ? (
         <div className="mb-1 flex flex-wrap gap-1">
           {selected.map((option) => (
@@ -247,6 +265,7 @@ export function SearchableMultiSelect({
         </div>
       ) : null}
       <input
+        aria-controls={open ? listboxId : undefined}
         aria-expanded={open}
         aria-haspopup="listbox"
         autoComplete="off"
@@ -281,51 +300,54 @@ export function SearchableMultiSelect({
           }
         }}
       />
-      {open ? (
-        <div className="tone-child absolute left-0 right-0 z-[300] mt-1 max-h-64 overflow-y-auto rounded-xl border border-line p-1 shadow-panel">
-          {showHistory ? (
-            <div className="mb-1 border-b border-line pb-1">
-              <p className="px-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-steel">
-                Последние запросы
-              </p>
-              {history?.map((entry) => (
-                <button
-                  key={entry}
-                  className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-steel transition hover:bg-[var(--accent-soft)] hover:text-ink"
-                  type="button"
-                  onClick={() => updateQuery(entry)}
-                >
-                  {entry}
-                </button>
-              ))}
-            </div>
-          ) : null}
-          <div role="listbox">
-            {loading ? <p className="px-2 py-1.5 text-sm text-steel">Загрузка…</p> : null}
-            {!loading && filtered.length === 0 ? (
-              <p className="px-2 py-1.5 text-sm text-steel">{emptyLabel}</p>
-            ) : null}
-            {filtered.map((option, index) => (
+      <FloatingAutocompleteMenu
+        anchorRef={fieldRef}
+        id={listboxId}
+        layoutKey={`${query}\u0000${showHistory ? (history ?? []).join(",") : ""}\u0000${filtered
+          .map((option) => option.value)
+          .join(",")}`}
+        menuRef={menuRef}
+        open={open}
+      >
+        {showHistory ? (
+          <div className="mb-1 border-b border-line pb-1">
+            <p className="px-2 pt-1 text-[11px] font-semibold uppercase tracking-wide text-steel">
+              Последние запросы
+            </p>
+            {history?.map((entry) => (
               <button
-                key={option.value}
-                className={[
-                  "block w-full rounded-lg px-2 py-1.5 text-left text-sm text-ink transition",
-                  index === highlighted ? "bg-[var(--accent-soft)]" : "hover:bg-[var(--accent-soft)]",
-                ].join(" ")}
+                key={entry}
+                className="block w-full truncate rounded-lg px-2 py-1.5 text-left text-sm text-steel transition hover:bg-[var(--accent-soft)] hover:text-ink"
                 role="option"
                 type="button"
-                onMouseEnter={() => setHighlighted(index)}
-                onClick={() => add(option)}
+                aria-selected={false}
+                onClick={() => updateQuery(entry)}
               >
-                <span className="block truncate">{option.label}</span>
-                {option.hint ? (
-                  <span className="block truncate text-xs text-steel">{option.hint}</span>
-                ) : null}
+                {entry}
               </button>
             ))}
           </div>
-        </div>
-      ) : null}
+        ) : null}
+        {loading ? <p className="px-2 py-1.5 text-sm text-steel">Загрузка…</p> : null}
+        {!loading && filtered.length === 0 && !showHistory ? (
+          <p className="px-2 py-1.5 text-sm text-steel">{emptyLabel}</p>
+        ) : null}
+        {filtered.map((option, index) => (
+          <button
+            key={option.value}
+            className={optionClassName(index === highlighted)}
+            role="option"
+            type="button"
+            onMouseEnter={() => setHighlighted(index)}
+            onClick={() => add(option)}
+          >
+            <span className="block truncate">{option.label}</span>
+            {option.hint ? (
+              <span className="block truncate text-xs text-steel">{option.hint}</span>
+            ) : null}
+          </button>
+        ))}
+      </FloatingAutocompleteMenu>
     </div>
   );
 }

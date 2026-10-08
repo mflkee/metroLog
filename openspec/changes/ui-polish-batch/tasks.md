@@ -28,3 +28,9 @@
 
 - [ ] 5.1 Run `npm run check`, push to `main`, confirm the CI run and Stage deploy, and record the bundle-size delta from adding the drag library.
 - [ ] 5.2 Update `AGENTS.md` with the drag/ordering behaviour and the control conventions.
+
+## 6. Popups outside the layout
+
+- [x] 6.1 Render every hand-rolled popup through the shared floating menu (portal + fixed positioning) so a modal cannot clip it, and drop the extra frame: the searchable selects and the emoji picker now use `FloatingAutocompleteMenu` with the single `.autocomplete-input__menu` surface instead of their own absolute panel with its own border/background.
+- [ ] 6.2 Verify on Stage that the participant/equipment lists and the emoji grid open fully inside the task modal (including near the modal's bottom edge) and look the same outside a modal.
+

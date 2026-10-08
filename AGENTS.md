@@ -140,6 +140,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/components/equipment-details/SiSections.tsx` | SI presentation sections for the equipment card. |
 | `src/components/equipment-details/EsiSections.tsx` | ESI composition sections for the equipment card. |
 | `src/lib/equipmentDetails.ts` | Pure formatting/parsing helpers for the equipment card. |
+| `src/hooks/useEquipmentDetailsQueries.ts` | Read-only queries of the equipment card (equipment, folders, presets, suggestions, mentions, share recipients, process messages). |
 | `src/components/ProcessStageInlineControls.tsx` | Milestone date editing + custom stages. |
 | `src/lib/milestoneValidation.ts` | Milestone order validation rules. |
 | `src/lib/processVariants.ts` | Repair/verification preset variant helpers. |

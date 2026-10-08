@@ -4,7 +4,7 @@ import { SIListSection, SIReferenceTableRow, SIReferenceTableSection, SISection 
 import { type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
   fetchArshinEsiDetail,
@@ -48,13 +48,6 @@ import {
   equipmentStatusLabels,
   equipmentTypeSelectionLabels,
   equipmentTypeLabels,
-  fetchDeadlinePresets,
-  fetchEquipmentDetails,
-  fetchEquipmentFolderSuggestions,
-  fetchEquipmentFolders,
-  fetchEquipmentShareRecipients,
-  fetchEquipmentRepairMessages,
-  fetchEquipmentVerificationMessages,
   type EquipmentAttachment,
   type EquipmentComment,
   type EquipmentCommentAttachment,
@@ -89,6 +82,7 @@ import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
+import { useEquipmentDetailsQueries } from "@/hooks/useEquipmentDetailsQueries";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -115,7 +109,6 @@ import {
 import { hasOperatorAccess, roleLabels } from "@/lib/roles";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { useAuthStore } from "@/store/auth";
-import { fetchMentionUsers } from "@/api/users";
 
 type EquipmentFormState = {
   folderId: string;
@@ -294,47 +287,10 @@ export function EquipmentDetailsPage() {
   const targetCommentId = Number(searchParams.get("commentId") ?? "");
   const [flashingCommentId, setFlashingCommentId] = useState<number | null>(null);
 
-  const equipmentQuery = useQuery({
-    queryKey: ["equipment-details", parsedEquipmentId],
-    queryFn: () => fetchEquipmentDetails(token ?? "", parsedEquipmentId),
-    enabled: Boolean(token) && Number.isInteger(parsedEquipmentId) && parsedEquipmentId > 0,
-  });
 
-  const foldersQuery = useQuery({
-    queryKey: ["equipment-folders"],
-    queryFn: () => fetchEquipmentFolders(token ?? ""),
-    enabled: Boolean(token),
-  });
-  const deadlinePresetsQuery = useQuery({
-    queryKey: ["deadline-presets", "equipment-details"],
-    queryFn: () => fetchDeadlinePresets(token ?? "", { includeInactive: true }),
-    enabled: Boolean(token) && canManage,
-  });
 
-  const suggestionsFolderId = Number(
-    form?.folderId ?? equipmentQuery.data?.equipment.folderId ?? 0,
-  );
-  const folderSuggestionsQuery = useQuery({
-    queryKey: ["equipment-folder-suggestions", suggestionsFolderId || "none"],
-    queryFn: () => fetchEquipmentFolderSuggestions(token ?? "", suggestionsFolderId),
-    enabled: Boolean(token) && suggestionsFolderId > 0,
-  });
 
-  const mentionUsersQuery = useQuery({
-    queryKey: ["mention-users"],
-    queryFn: () => fetchMentionUsers(token ?? ""),
-    enabled: Boolean(token),
-  });
 
-  const shareRecipientsQuery = useQuery({
-    queryKey: ["equipment-share-recipients", parsedEquipmentId],
-    queryFn: () => fetchEquipmentShareRecipients(token ?? "", parsedEquipmentId),
-    enabled:
-      Boolean(token)
-      && Number.isInteger(parsedEquipmentId)
-      && parsedEquipmentId > 0
-      && shareModalOpen,
-  });
 
   async function invalidateEquipmentRegistryQueries() {
     await queryClient.invalidateQueries({ queryKey: ["equipment-items"] });
@@ -342,28 +298,27 @@ export function EquipmentDetailsPage() {
     await queryClient.invalidateQueries({ queryKey: ["equipment-selected-items"] });
   }
 
-  const repairMessagesQuery = useQuery({
-    queryKey: ["equipment-repair-messages", parsedEquipmentId],
-    queryFn: () => fetchEquipmentRepairMessages(token ?? "", parsedEquipmentId),
-    enabled:
-      Boolean(token)
-      && Number.isInteger(parsedEquipmentId)
-      && parsedEquipmentId > 0
-      && Boolean(equipmentQuery.data?.equipment.activeRepair)
-      && repairExpanded
-      && repairDialogExpanded,
-  });
 
-  const verificationMessagesQuery = useQuery({
-    queryKey: ["equipment-verification-messages", parsedEquipmentId],
-    queryFn: () => fetchEquipmentVerificationMessages(token ?? "", parsedEquipmentId),
-    enabled:
-      Boolean(token)
-      && Number.isInteger(parsedEquipmentId)
-      && parsedEquipmentId > 0
-      && Boolean(equipmentQuery.data?.equipment.activeVerification)
-      && verificationExpanded
-      && verificationDialogExpanded,
+
+  const {
+    equipmentQuery,
+    foldersQuery,
+    deadlinePresetsQuery,
+    folderSuggestionsQuery,
+    mentionUsersQuery,
+    shareRecipientsQuery,
+    repairMessagesQuery,
+    verificationMessagesQuery,
+  } = useEquipmentDetailsQueries({
+    canManage,
+    equipmentId: parsedEquipmentId,
+    formFolderId: form?.folderId,
+    repairDialogExpanded,
+    repairExpanded,
+    shareModalOpen,
+    token,
+    verificationDialogExpanded,
+    verificationExpanded,
   });
 
   const equipment = equipmentQuery.data?.equipment ?? null;

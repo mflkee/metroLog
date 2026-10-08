@@ -62,6 +62,7 @@ import { useEquipmentShare } from "@/hooks/useEquipmentShare";
 import { useEquipmentArshinEsi } from "@/hooks/useEquipmentArshinEsi";
 import { useEquipmentProcessActions } from "@/hooks/useEquipmentProcessActions";
 import { invalidateEquipmentRegistryQueries } from "@/lib/equipmentQueries";
+import { Switch } from "@/components/ui/switch";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -2358,14 +2359,17 @@ export function EquipmentDetailsPage() {
                     <div className="mt-4 space-y-4">
                       {canManage && equipment.createdManually ? (
                         <div className="tone-child rounded-2xl border border-line px-4 py-3">
-                          <label className="flex items-start gap-3 text-sm text-ink">
-                            <input
+                          <label
+                            className="flex items-start gap-3 text-sm text-ink"
+                            htmlFor="exclude-from-arshin-refresh"
+                          >
+                            <Switch
                               checked={equipment.excludeFromArshinRefresh}
-                              className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
+                              className="mt-0.5"
                               disabled={updateArshinRefreshExclusionMutation.isPending}
-                              type="checkbox"
-                              onChange={(event) =>
-                                updateArshinRefreshExclusionMutation.mutate(event.target.checked)
+                              id="exclude-from-arshin-refresh"
+                              onCheckedChange={(checked) =>
+                                updateArshinRefreshExclusionMutation.mutate(checked)
                               }
                             />
                             <span>
@@ -4064,17 +4068,20 @@ export function EquipmentDetailsPage() {
                     />
                   </label>
                 </div>
-                <label className="flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink">
-                  <input
+                <label
+                  className="flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+                  htmlFor="manual-verification-interval"
+                >
+                  <Switch
                     checked={Boolean(form.manualVerificationIntervalMonths)}
-                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--accent)]"
-                    type="checkbox"
-                    onChange={(event) =>
+                    className="mt-0.5"
+                    id="manual-verification-interval"
+                    onCheckedChange={(checked) =>
                       setForm((current) =>
                         current
                           ? {
                               ...current,
-                              manualVerificationIntervalMonths: event.target.checked
+                              manualVerificationIntervalMonths: checked
                                 ? (current.manualVerificationIntervalMonths || "12")
                                 : "",
                             }

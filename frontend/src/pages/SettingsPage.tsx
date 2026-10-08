@@ -29,6 +29,7 @@ import {
   type DashboardWidgetKey,
 } from "@/lib/dashboard";
 import { hasAdminAccess } from "@/lib/roles";
+import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/auth";
 import {
   defaultVisibleThemes,
@@ -651,12 +652,13 @@ export function SettingsPage() {
                       <label
                         key={folder.id}
                         className="tone-child flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+                        htmlFor={`dashboard-folder-${folder.id}`}
                       >
-                        <input
+                        <Switch
                           checked={isSelected}
-                          className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                          type="checkbox"
-                          onChange={() => toggleDashboardFolder(folder.id)}
+                          className="mt-1"
+                          id={`dashboard-folder-${folder.id}`}
+                          onCheckedChange={() => toggleDashboardFolder(folder.id)}
                         />
                         <span className="min-w-0">
                           <span className="block font-semibold">{folder.name}</span>
@@ -705,12 +707,13 @@ export function SettingsPage() {
                       <label
                         key={folder.id}
                         className="tone-child flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+                        htmlFor={`hidden-folder-${folder.id}`}
                       >
-                        <input
+                        <Switch
                           checked={isHidden}
-                          className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                          type="checkbox"
-                          onChange={() => toggleHiddenEquipmentFolder(folder.id)}
+                          className="mt-1"
+                          id={`hidden-folder-${folder.id}`}
+                          onCheckedChange={() => toggleHiddenEquipmentFolder(folder.id)}
                         />
                         <span className="min-w-0">
                           <span className="block font-semibold">{folder.name}</span>
@@ -742,12 +745,13 @@ export function SettingsPage() {
                 <label
                   key={option.value}
                   className="tone-child flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+                  htmlFor={`dashboard-widget-${option.value}`}
                 >
-                  <input
+                  <Switch
                     checked={option.checked}
-                    className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                    type="checkbox"
-                    onChange={() => toggleDashboardWidget(option.value)}
+                    className="mt-1"
+                    id={`dashboard-widget-${option.value}`}
+                    onCheckedChange={() => toggleDashboardWidget(option.value)}
                   />
                   <span className="min-w-0">
                     <span className="block font-semibold">{option.label}</span>
@@ -872,12 +876,13 @@ export function SettingsPage() {
                 <label
                   key={option.value}
                   className="tone-child flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+                  htmlFor={`theme-option-${option.value}`}
                 >
-                  <input
+                  <Switch
                     checked={option.checked}
-                    className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                    type="checkbox"
-                    onChange={() => toggleTheme(option.value)}
+                    className="mt-1"
+                    id={`theme-option-${option.value}`}
+                    onCheckedChange={() => toggleTheme(option.value)}
                   />
                   <span className="min-w-0">
                     <span className="block font-semibold">{option.label}</span>
@@ -905,12 +910,15 @@ export function SettingsPage() {
           onToggle={() => toggleSection("notifications")}
         >
           <div className="space-y-4">
-            <label className="tone-child flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink">
-              <input
+            <label
+              className="tone-child flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+              htmlFor="mention-email-notifications"
+            >
+              <Switch
                 checked={mentionEmailNotificationsEnabled}
-                className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                type="checkbox"
-                onChange={(event) => setMentionEmailNotificationsEnabled(event.target.checked)}
+                className="mt-1"
+                id="mention-email-notifications"
+                onCheckedChange={setMentionEmailNotificationsEnabled}
               />
               <span className="min-w-0">
                 <span className="block font-semibold">Письма при упоминании</span>
@@ -1003,13 +1011,15 @@ export function SettingsPage() {
             />
           </label>
           <div className="grid gap-4 md:grid-cols-2">
-            <label className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink">
-              <input
+            <label
+              className="flex items-center gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+              htmlFor="preset-is-active"
+            >
+              <Switch
                 checked={presetForm.isActive}
-                className="h-4 w-4 accent-[var(--accent)]"
-                type="checkbox"
-                onChange={(event) =>
-                  setPresetForm((current) => ({ ...current, isActive: event.target.checked }))
+                id="preset-is-active"
+                onCheckedChange={(checked) =>
+                  setPresetForm((current) => ({ ...current, isActive: checked }))
                 }
               />
               <span className="font-semibold">Активный пресет</span>

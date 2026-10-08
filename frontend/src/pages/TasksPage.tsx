@@ -33,6 +33,7 @@ import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { SearchableMultiSelect, SearchableSelect } from "@/components/ui/searchable-select";
+import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
@@ -314,12 +315,12 @@ export function TasksPage() {
               </button>
             ))}
           </div>
-          <label className="flex items-center gap-2 text-sm text-steel">
-            <input type="checkbox" checked={overdueOnly} onChange={(event) => setOverdueOnly(event.target.checked)} />
+          <label className="flex items-center gap-2 text-sm text-steel" htmlFor="tasks-overdue-only">
+            <Switch checked={overdueOnly} id="tasks-overdue-only" onCheckedChange={setOverdueOnly} />
             Просроченные
           </label>
-          <label className="flex items-center gap-2 text-sm text-steel">
-            <input type="checkbox" checked={mine} onChange={(event) => setMine(event.target.checked)} />
+          <label className="flex items-center gap-2 text-sm text-steel" htmlFor="tasks-mine">
+            <Switch checked={mine} id="tasks-mine" onCheckedChange={setMine} />
             Где я исполнитель
           </label>
           <div className="ml-auto flex gap-1 rounded-xl border border-line p-1">

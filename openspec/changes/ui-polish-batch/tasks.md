@@ -20,8 +20,8 @@
 
 ## 4. Switch instead of checkboxes
 
-- [ ] 4.1 Vendor `switch` from the registry and use it for the boolean settings on the Settings page and for boolean filters.
-- [ ] 4.2 Sweep the remaining checkbox sites and record, per file, whether it is a boolean (switch), a list picker (already the searchable multi select) or a selection (keep the checkbox).
+- [x] 4.1 Vendor `switch` from the registry and use it for the boolean settings on the Settings page and for boolean filters. Done: vendored `switch` (`@shadcn`, radix-ui) and used it for the boolean settings - settings page (folder participates in analytics, folder hidden in equipment, dashboard widgets, interface themes, mention emails, preset is active), user admin (user is active, folder access) and the equipment card (exclude from Arshin refresh, manual verification interval). Toggle filters on the task page moved too. Every label is wired through `htmlFor`/`id`, so clicking the text toggles the switch.
+- [x] 4.2 Sweep the remaining checkbox sites and record, per file, whether it is a boolean (switch), a list picker (already the searchable multi select) or a selection (keep the checkbox). Done: 15 checkboxes remain and all are selection or checklists - registry/Arshin table row selection and select-all, the bulk-action selection on the equipment page, the share-recipient picker and the task checklist item. A switch has no indeterminate state and would be the wrong control for those.
 - [ ] 4.3 Verify on Stage that the switches reflect and persist their state and that the keyboard can operate them.
 
 ## 5. Integration

@@ -8,6 +8,7 @@ import { fetchEquipmentFolders } from "@/api/equipment";
 import { createUser, deleteUser, fetchUsers, resetUserPassword, updateUser } from "@/api/users";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Switch } from "@/components/ui/switch";
 import { isDeveloperRole, roleLabels } from "@/lib/roles";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { useAuthStore } from "@/store/auth";
@@ -348,12 +349,8 @@ export function AdminUsersPage() {
             </label>
 
             <div className="flex flex-col justify-end gap-3">
-              <label className="inline-flex items-center gap-2 text-sm text-steel">
-                <input
-                  checked={isActive}
-                  type="checkbox"
-                  onChange={(event) => setIsActive(event.target.checked)}
-                />
+              <label className="inline-flex items-center gap-2 text-sm text-steel" htmlFor="create-user-active">
+                <Switch checked={isActive} id="create-user-active" onCheckedChange={setIsActive} />
                 Активный пользователь
               </label>
               <button
@@ -661,12 +658,13 @@ export function AdminUsersPage() {
                                 <label
                                   key={folder.id}
                                   className="tone-parent flex items-start gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink"
+                                  htmlFor={`create-user-folder-${folder.id}`}
                                 >
-                                  <input
+                                  <Switch
                                     checked={accessFolderIds.includes(folder.id)}
-                                    className="mt-1 h-4 w-4 accent-[var(--accent)]"
-                                    type="checkbox"
-                                    onChange={() => toggleAccessFolder(folder.id)}
+                                    className="mt-1"
+                                    id={`create-user-folder-${folder.id}`}
+                                    onCheckedChange={() => toggleAccessFolder(folder.id)}
                                   />
                                   <span className="min-w-0">
                                     <span className="block font-semibold">{folder.name}</span>

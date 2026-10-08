@@ -18,14 +18,17 @@
        */
       (function () {
         var known = [
-          "light", "dark", "gray", "tokyonight", "catppuccin",
+          "light", "dark", "tokyonight", "catppuccin",
           "kanagawa", "nord", "dracula", "gruvbox", "moonfly",
         ];
         try {
           var stored = window.localStorage.getItem("metrolog.theme");
+          if (stored === "gray") {
+            stored = "light";
+          }
           var theme = known.indexOf(stored) >= 0 ? stored : "dark";
           document.documentElement.dataset.theme = theme;
-          document.documentElement.style.colorScheme = theme === "light" || theme === "gray" ? "light" : "dark";
+          document.documentElement.style.colorScheme = theme === "light" ? "light" : "dark";
         } catch (error) {
           document.documentElement.dataset.theme = "dark";
         }

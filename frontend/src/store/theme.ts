@@ -3,7 +3,6 @@ import { create } from "zustand";
 export type ThemeName =
   | "light"
   | "dark"
-  | "gray"
   | "tokyonight"
   | "catppuccin"
   | "kanagawa"
@@ -25,12 +24,11 @@ type ThemeState = {
 
 const THEME_STORAGE_KEY = "metrolog.theme";
 export const DEFAULT_THEME: ThemeName = "dark";
-export const defaultVisibleThemes: ThemeName[] = ["dark", "light", "gray"];
+export const defaultVisibleThemes: ThemeName[] = ["dark", "light"];
 
 export const themeOptions: ThemeOption[] = [
   { value: "light", label: "Светлая" },
   { value: "dark", label: "Темная" },
-  { value: "gray", label: "Серая" },
   { value: "tokyonight", label: "Tokyo Night", source: "folke/tokyonight.nvim" },
   { value: "catppuccin", label: "Catppuccin", source: "catppuccin/catppuccin" },
   { value: "kanagawa", label: "Kanagawa", source: "rebelot/kanagawa.nvim" },
@@ -51,7 +49,6 @@ export function coerceThemePreference(value: string | null | undefined): ThemeNa
   if (
     value === "light"
     || value === "dark"
-    || value === "gray"
     || value === "tokyonight"
     || value === "catppuccin"
     || value === "kanagawa"
@@ -67,8 +64,9 @@ export function coerceThemePreference(value: string | null | undefined): ThemeNa
     return "dark";
   }
 
-  if (value === "gruvbox") {
-    return "gray";
+  // The retired themes: their palettes live on under the survivors.
+  if (value === "gray") {
+    return "light";
   }
 
   if (value === "flexoki") {

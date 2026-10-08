@@ -521,21 +521,18 @@ function CreateTaskModal({
       <form className="space-y-3" onSubmit={handleSubmit}>
         <label className="block space-y-1">
           <span className="text-xs uppercase tracking-wide text-steel">Папка</span>
-          <select
-            className="form-input"
-            value={folderId}
-            onChange={(event) => {
-              setFolderId(event.target.value);
+          <SearchableSelect
+            onChange={(next) => {
+              setFolderId(next === null ? "" : next);
               setObjectName("");
             }}
-          >
-            <option value="">— выберите —</option>
-            {(foldersQuery.data ?? []).map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
+            options={(foldersQuery.data ?? []).map((folder) => ({
+              value: String(folder.id),
+              label: folder.name,
+            }))}
+            placeholder="— выберите —"
+            value={folderId === "" ? null : folderId}
+          />
         </label>
         <label className="block space-y-1">
           <span className="text-xs uppercase tracking-wide text-steel">Название</span>
@@ -568,17 +565,15 @@ function CreateTaskModal({
           </label>
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Приоритет</span>
-            <select
-              className="form-input"
+            <SearchableSelect
+              onChange={(next) => setPriority((next ?? "NORMAL") as TaskPriority)}
+              options={Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              }))}
+              placeholder="— выберите —"
               value={priority}
-              onChange={(event) => setPriority(event.target.value as TaskPriority)}
-            >
-              {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            />
           </label>
           <label className="block space-y-1">
             <span className="text-xs uppercase tracking-wide text-steel">Срок</span>
@@ -622,18 +617,18 @@ function CreateTaskModal({
           <div className="space-y-3">
             <label className="block space-y-1">
               <span className="text-xs uppercase tracking-wide text-steel">Объект</span>
-              <select
-                className="form-input"
+              <SearchableSelect
+                onChange={(next) => setObjectName(next ?? "")}
+                options={[
+                  { value: "", label: "Все объекты" },
+                  ...(suggestionsQuery.data?.objectNames ?? []).map((name) => ({
+                    value: name,
+                    label: name,
+                  })),
+                ]}
+                placeholder="Все объекты"
                 value={objectName}
-                onChange={(event) => setObjectName(event.target.value)}
-              >
-                <option value="">Все объекты</option>
-                {(suggestionsQuery.data?.objectNames ?? []).map((name) => (
-                  <option key={name} value={name}>
-                    {name}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
             <label className="block space-y-1">
               <span className="text-xs uppercase tracking-wide text-steel">Приборы</span>

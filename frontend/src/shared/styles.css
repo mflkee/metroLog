@@ -544,6 +544,8 @@ textarea.form-input {
 .autocomplete-input__menu {
   position: fixed;
   z-index: 320;
+  /* Radix modal dialogs set `pointer-events: none` on the body, and this menu is a body child. */
+  pointer-events: auto;
   overflow: hidden auto;
   max-height: 228px;
   border: 1px solid var(--border-color);
@@ -672,6 +674,8 @@ textarea.form-input {
 .date-input__popover {
   position: fixed;
   z-index: 320;
+  /* Radix modal dialogs set `pointer-events: none` on the body, and this popover is a body child. */
+  pointer-events: auto;
   min-width: 272px;
   border: 1px solid var(--border-color);
   border-radius: var(--radius-2xl);

@@ -2,14 +2,14 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { FloatingAutocompleteMenu } from "@/components/FloatingAutocompleteMenu";
 
-export type SearchableOption = {
-  value: number;
+export type SearchableOption<T extends string | number = number> = {
+  value: T;
   label: string;
   hint?: string;
 };
 
-type SharedProps = {
-  options: SearchableOption[];
+type SharedProps<T extends string | number> = {
+  options: SearchableOption<T>[];
   placeholder?: string;
   searchPlaceholder?: string;
   emptyLabel?: string;
@@ -20,14 +20,14 @@ type SharedProps = {
   className?: string;
 };
 
-type SingleProps = SharedProps & {
-  value: number | null;
-  onChange: (next: number | null) => void;
+type SingleProps<T extends string | number> = SharedProps<T> & {
+  value: T | null;
+  onChange: (next: T | null) => void;
 };
 
-type MultiProps = SharedProps & {
-  value: number[];
-  onChange: (next: number[]) => void;
+type MultiProps<T extends string | number> = SharedProps<T> & {
+  value: T[];
+  onChange: (next: T[]) => void;
   /** Recent queries shown when the search box is empty. */
   history?: string[];
   /** Called when a query is actually used (a selection or Enter), to record it. */
@@ -59,8 +59,8 @@ function useOutsideClose(onClose: () => void) {
   return { fieldRef, menuRef };
 }
 
-function useFiltered(
-  options: SearchableOption[],
+function useFiltered<T extends string | number>(
+  options: SearchableOption<T>[],
   query: string,
   maxResults?: number,
   filterLocally = true,
@@ -89,7 +89,7 @@ function optionClassName(highlighted: boolean): string {
  * whole list, and when closed it shows the current label. Keyboard: arrows, Enter, Escape.
  * The list is rendered outside the layout (portal + fixed), so a modal never clips it.
  */
-export function SearchableSelect({
+export function SearchableSelect<T extends string | number>({
   options,
   value,
   onChange,
@@ -100,7 +100,7 @@ export function SearchableSelect({
   loading = false,
   disabled = false,
   className,
-}: SingleProps) {
+}: SingleProps<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(0);
@@ -113,7 +113,7 @@ export function SearchableSelect({
     setHighlighted(0);
   }, [query, open]);
 
-  function choose(option: SearchableOption) {
+  function choose(option: SearchableOption<T>) {
     onChange(option.value);
     setQuery("");
     setOpen(false);
@@ -191,7 +191,7 @@ export function SearchableSelect({
  * Searchable multiple choice with removable chips. Same visual language and the same portalled
  * menu as the single variant; the results are capped by `maxResults` (the equipment picker uses 5).
  */
-export function SearchableMultiSelect({
+export function SearchableMultiSelect<T extends string | number>({
   options,
   value,
   onChange,
@@ -205,7 +205,7 @@ export function SearchableMultiSelect({
   onQueryCommitted,
   onQueryChange,
   filterLocally = true,
-}: MultiProps) {
+}: MultiProps<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlighted, setHighlighted] = useState(0);
@@ -219,13 +219,13 @@ export function SearchableMultiSelect({
   );
   const selected = value
     .map((id) => options.find((option) => option.value === id))
-    .filter((option): option is SearchableOption => Boolean(option));
+    .filter((option): option is SearchableOption<T> => Boolean(option));
 
   useEffect(() => {
     setHighlighted(0);
   }, [query, open]);
 
-  function add(option: SearchableOption) {
+  function add(option: SearchableOption<T>) {
     onChange([...value, option.value]);
     if (query.trim()) {
       onQueryCommitted?.(query);
@@ -256,7 +256,7 @@ export function SearchableMultiSelect({
                 className="text-steel transition hover:text-[color:var(--danger)]"
                 disabled={disabled}
                 type="button"
-                onClick={() => onChange(value.filter((id) => id !== option.value))}
+                onClick={() => onChange(value.filter((entry) => entry !== option.value))}
               >
                 ×
               </button>

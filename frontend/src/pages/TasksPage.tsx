@@ -18,7 +18,7 @@ import {
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
-import { Modal } from "@/components/Modal";
+import { AppDialog } from "@/components/ui/app-dialog";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
@@ -414,7 +414,7 @@ function CreateTaskModal({
   }
 
   return (
-    <Modal title="Новая задача" open={open} onClose={onClose}>
+    <AppDialog title="Новая задача" open={open} onClose={onClose}>
       <form className="space-y-3" onSubmit={handleSubmit}>
         <label className="block space-y-1">
           <span className="text-xs uppercase tracking-wide text-steel">Папка</span>
@@ -583,6 +583,6 @@ function CreateTaskModal({
           </button>
         </div>
       </form>
-    </Modal>
+    </AppDialog>
   );
 }

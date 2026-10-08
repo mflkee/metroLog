@@ -19,12 +19,12 @@
 
 ## 4. Dialog dismissal contract
 
-- [ ] 4.1 Configure the adopted dialog to not close on outside click and verify by a manual Stage scenario that entered content survives a backdrop click.
-- [ ] 4.2 Verify the explicit close control and the Escape key close the dialog, and add a test for this dismissal contract.
+- [ ] 4.1 Configure the adopted dialog to not close on outside click and verify by a manual Stage scenario that entered content survives a backdrop click. Config done: `src/components/ui/app-dialog.tsx` prevents `onInteractOutside` and `onPointerDownOutside` on the vendored Radix `DialogContent`, so a backdrop click cannot close it; the Stage scenario itself is pending (needs the owner's credentials).
+- [x] 4.2 Verify the explicit close control and the Escape key close the dialog, and add a test for this dismissal contract. Done: `src/components/ui/app-dialog.test.tsx` covers the three cases - a backdrop pointer/mouse/click keeps the dialog open with the typed value intact, the explicit close control calls `onClose`, and Escape calls `onClose`.
 
 ## 5. Pilot on the task pages
 
-- [ ] 5.1 Replace the hand-rolled dialog/dropdown/select usage on `TasksPage.tsx` and `TaskDetailsPage.tsx` with the adopted primitives and verify the page builds. Partly done: the adopted `PageHeader` replaced the bespoke header on both task pages and `StatusBadge` (with `TASK_STATUS_TONES` in `src/lib/taskStatusTone.ts`) replaced the plain status text in the board column header, the table and the task card; the interactive dialog/dropdown/select replacement is still open.
+- [ ] 5.1 Replace the hand-rolled dialog/dropdown/select usage on `TasksPage.tsx` and `TaskDetailsPage.tsx` with the adopted primitives and verify the page builds. Partly done: the adopted `PageHeader` replaced the bespoke header on both task pages and `StatusBadge` (with `TASK_STATUS_TONES` in `src/lib/taskStatusTone.ts`) replaced the plain status text in the board column header, the table and the task card; the create-task dialog on `TasksPage` is now the adopted `AppDialog` (Radix focus trap, aria and scroll lock behind our own shell), and the dropdown/select replacement is still open.
 - [ ] 5.2 Verify the pilot flows on Stage (board drag, filters, task card composer, equipment picker) as an operator.
 
 ## 6. Audit, docs and integration

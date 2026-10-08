@@ -23,8 +23,8 @@
 
 ## 4. Frontend authorization and role gating
 
-- [ ] 4.1 Build the page x action matrix and audit every role-conditional control; record and fix any action offered but rejected by the backend.
-- [ ] 4.2 Audit `src/api/client.ts` for `401`/`403` handling (expired token, denial feedback) and fix; verify with tests covering both error paths.
+- [x] 4.1 Build the page x action matrix and audit every role-conditional control; record and fix any action offered but rejected by the backend.
+- [x] 4.2 Audit `src/api/client.ts` for `401`/`403` handling (expired token, denial feedback) and fix; verify with tests covering both error paths.
 
 ## 5. Frontend data and state correctness
 

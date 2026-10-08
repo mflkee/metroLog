@@ -106,6 +106,7 @@ export type UpdateProfilePayload = {
 export async function loginUser(payload: LoginPayload): Promise<AuthResponse> {
   const response = await apiRequest<RawAuthResponse>("/auth/login", {
     method: "POST",
+    silentUnauthorized: true,
     body: {
       email: payload.email,
       password: payload.password,

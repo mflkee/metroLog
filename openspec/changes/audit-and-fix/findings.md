@@ -173,5 +173,43 @@ decision if attachments are ever served inline rather than downloaded.
 
 - Owner: follow-up change (out of scope for a patch release).
 
+### F-009 (MINOR) - An expired session left the interface in a dead state
+
+`apiRequest` threw `ApiError` and nothing reacted to `401`, so once the 12-hour token expired
+mid-session every request failed and the page showed errors while the app still considered the
+user signed in. Only a manual re-login recovered.
+
+- Fix: `client.ts` gained `setUnauthorizedHandler` and a `silentUnauthorized` option; on a `401`
+  the registered handler clears the session (`src/lib/sessionExpiry.ts`, registered from
+  `main.tsx`), and the existing `RequireAuth` / `RequireRoles` guards perform the redirect to
+  `/login` with the reason from `buildLoginRedirectState`. The login request opts out, so a wrong
+  password cannot loop.
+- Tests: `src/api/client.test.ts` (5 cases) and `src/lib/sessionExpiry.test.ts` (2 cases);
+  frontend suite `10 -> 17 passed`.
+- Also added a `window.localStorage` shim to `src/test/setup.ts`, which the jsdom environment
+  lacks while the auth/theme stores read it at import time.
+
+## Frontend authorization matrix (task 4.1)
+
+Every role-conditional control was checked against its backend guard:
+
+| UI control | Frontend gate | Backend guard | Verdict |
+|---|---|---|---|
+| Create equipment (registry, Arshin) | `hasOperatorAccess` | route dep `CurrentUser`, but `_assert_create_equipment_access` answers `403` | consistent |
+| Edit / delete / batch-delete equipment | `canManage` | `OperatorUser` | consistent |
+| Repairs and verifications: create, milestones, close | `canManage` | `OperatorUser` | consistent |
+| Messages in repairs/verifications | author-only editing | `_assert_*_message_owner` / `_editor` (`403`) | consistent |
+| Folders, groups, deadline presets | `hasAdminAccess` | `OperatorUser` / `AdminUser` | consistent |
+| Tasks: create, edit, checklist, participants | offered to participants | `_assert_can_mutate` (`403`) | consistent |
+| Private notes (equipment and tasks) | hidden for non-operators | `403` on create, hidden in lists | consistent |
+| Share link, comments, attachments | shown to everyone | `CurrentUser` + folder scope | consistent |
+| `/admin/users`, DEVELOPER assignment | `hasAdminAccess` / `isDeveloperRole` | `AdminUser` + role rules | consistent |
+
+Result: no control was found that the interface hides while the backend allows it. The single
+suspected case (equipment creation) is a route-level `CurrentUser` with a service-level
+`403` - recorded here so the asymmetry is not "fixed" twice. Note: `PUT
+/equipment/{id}/process-subscription` is not referenced by any UI code (unused API surface).
+
+
 
 

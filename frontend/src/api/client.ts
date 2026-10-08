@@ -5,7 +5,21 @@ export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? fallbackBaseUrl;
 type ApiRequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
   token?: string | null;
+  /** Skip the session-expiry hook (used by the login request itself). */
+  silentUnauthorized?: boolean;
 };
+
+type UnauthorizedHandler = () => void;
+
+let unauthorizedHandler: UnauthorizedHandler | null = null;
+
+/**
+ * Register the reaction to an authenticated request answering `401`, so an expired session
+ * drops the user back to the login screen instead of leaving a dead page.
+ */
+export function setUnauthorizedHandler(handler: UnauthorizedHandler | null): void {
+  unauthorizedHandler = handler;
+}
 
 export class ApiError extends Error {
   status: number;
@@ -41,7 +55,7 @@ export async function getResponseErrorMessage(
 }
 
 export async function apiRequest<T>(path: string, options: ApiRequestOptions = {}): Promise<T> {
-  const { body, headers, token, ...init } = options;
+  const { body, headers, token, silentUnauthorized, ...init } = options;
   const requestHeaders = new Headers(headers);
   requestHeaders.set("Accept", "application/json");
   const isFormDataBody = body instanceof FormData;
@@ -74,6 +88,10 @@ export async function apiRequest<T>(path: string, options: ApiRequestOptions = {
   }
 
   const contentType = response.headers.get("content-type") ?? "";
+
+  if (response.status === 401 && !silentUnauthorized) {
+    unauthorizedHandler?.();
+  }
 
   if (response.status === 204 || !contentType.includes("application/json")) {
     if (!response.ok) {

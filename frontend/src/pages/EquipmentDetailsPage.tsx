@@ -9,10 +9,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getArshinErrorMessage } from "@/api/arshin";
 import {
   canChangeEquipmentTypeAfterCreation,
-  createEquipmentRepair,
-  createEquipmentVerification,
   deleteEquipmentCommentDraftAttachment,
-  deleteEquipment,
   downloadEquipmentCommentAttachment,
   downloadRepairMessageAttachment,
   downloadVerificationMessageAttachment,
@@ -47,7 +44,6 @@ import {
   type VerificationMessageAttachment,
   type VerificationFlowMode,
   supportsVerification,
-  updateEquipmentArshinRefreshExclusion,
   uploadEquipmentCommentDraftAttachment,
   updateEquipment } from "@/api/equipment";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
@@ -64,6 +60,7 @@ import { useEquipmentAttachments } from "@/hooks/useEquipmentAttachments";
 import { useProcessMessages } from "@/hooks/useProcessMessages";
 import { useEquipmentShare } from "@/hooks/useEquipmentShare";
 import { useEquipmentArshinEsi } from "@/hooks/useEquipmentArshinEsi";
+import { useEquipmentProcessActions } from "@/hooks/useEquipmentProcessActions";
 import { invalidateEquipmentRegistryQueries } from "@/lib/equipmentQueries";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
@@ -110,7 +107,7 @@ type EquipmentFormState = {
   manualVerificationIntervalMonths: string;
 };
 
-type RepairFormState = {
+export type RepairFormState = {
   isOnSite: boolean;
   stageTemplateVariantId: string;
   routeCity: string;
@@ -121,7 +118,7 @@ type RepairFormState = {
   files: File[];
 };
 
-type VerificationFormState = {
+export type VerificationFormState = {
   flowMode: VerificationFlowMode;
   stageTemplateVariantId: string;
   routeCity: string;
@@ -155,35 +152,10 @@ export function EquipmentDetailsPage() {
   const user = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const [form, setForm] = useState<EquipmentFormState | null>(null);
-  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [repairModalOpen, setRepairModalOpen] = useState(false);
-  const [verificationModalOpen, setVerificationModalOpen] = useState(false);
-  const [repairForm, setRepairForm] = useState<RepairFormState>({
-    isOnSite: false,
-    stageTemplateVariantId: "",
-    routeCity: "",
-    routeDestination: "",
-    sentToRepairAt: getTodayDateInputValue(),
-    initialMessageText: "",
-    initialMessageIsPrivate: false,
-    files: [],
-  });
-  const [verificationForm, setVerificationForm] = useState<VerificationFormState>({
-    flowMode: "OFFSITE_WITH_DEMOLITION",
-    stageTemplateVariantId: "",
-    routeCity: "",
-    routeDestination: "",
-    sentToVerificationAt: getTodayDateInputValue(),
-    initialMessageText: "",
-    initialMessageIsPrivate: false,
-    files: [],
-  });
   const [downloadingCommentAttachmentId, setDownloadingCommentAttachmentId] = useState<number | null>(null);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [siExpanded, setSiExpanded] = useState(false);
-  const repairInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
-  const verificationInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
   const repairMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const verificationMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -337,6 +309,34 @@ export function EquipmentDetailsPage() {
   const equipment = equipmentQuery.data?.equipment ?? null;
 
   const {
+    confirmDeleteOpen,
+    setConfirmDeleteOpen,
+    repairModalOpen,
+    setRepairModalOpen,
+    verificationModalOpen,
+    setVerificationModalOpen,
+    repairForm,
+    setRepairForm,
+    verificationForm,
+    setVerificationForm,
+    repairInitialFilesInputRef,
+    verificationInitialFilesInputRef,
+    updateArshinRefreshExclusionMutation,
+    createRepairMutation,
+    createVerificationMutation,
+    deleteEquipmentMutation,
+  } = useEquipmentProcessActions({
+    token,
+    equipmentId: parsedEquipmentId,
+    equipment,
+    navigate,
+    folders: foldersQuery.data ?? [],
+    deadlinePresets: deadlinePresetsQuery.data ?? [],
+    setRepairActionError,
+    setVerificationActionError,
+  });
+
+  const {
     siRefreshCertificate,
     setSiRefreshCertificate,
     siRefreshResults,
@@ -425,122 +425,6 @@ export function EquipmentDetailsPage() {
     },
   });
 
-  const updateArshinRefreshExclusionMutation = useMutation({
-    mutationFn: (excludeFromArshinRefresh: boolean) =>
-      updateEquipmentArshinRefreshExclusion(
-        token ?? "",
-        parsedEquipmentId,
-        excludeFromArshinRefresh,
-      ),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries(queryClient);
-    },
-  });
-
-  const createRepairMutation = useMutation({
-    mutationFn: () => {
-      const processFolder = getCurrentProcessFolder(foldersQuery.data ?? [], equipment);
-      const livePreset =
-        (deadlinePresetsQuery.data ?? []).find(
-          (preset) => preset.id === processFolder?.deadlinePresetId,
-        ) ?? null;
-      const selectedVariant = getProcessVariantById(
-        livePreset?.repairStageTemplates?.variants
-          ?? getRepairPresetVariants(processFolder),
-        repairForm.stageTemplateVariantId,
-      );
-      const isOnSite = selectedVariant
-        ? selectedVariant.routeKind === "on_site"
-        : repairForm.isOnSite;
-      return createEquipmentRepair(token ?? "", parsedEquipmentId, {
-        isOnSite,
-        stageTemplateVariantId: selectedVariant?.id ?? null,
-        routeCity: isOnSite ? getOnSiteProcessRouteValue() : repairForm.routeCity,
-        routeDestination: isOnSite ? getOnSiteProcessRouteValue() : repairForm.routeDestination,
-        sentToRepairAt: repairForm.sentToRepairAt,
-        initialMessageText: repairForm.initialMessageText,
-        initialMessageIsPrivate: repairForm.initialMessageIsPrivate,
-        files: repairForm.files,
-      });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries(queryClient);
-      await queryClient.invalidateQueries({ queryKey: ["equipment-repair-messages", parsedEquipmentId] });
-      setRepairModalOpen(false);
-      setRepairActionError(null);
-      setRepairForm({
-        isOnSite: false,
-        stageTemplateVariantId: "",
-        routeCity: "",
-        routeDestination: "",
-        sentToRepairAt: getTodayDateInputValue(),
-        initialMessageText: "",
-        initialMessageIsPrivate: false,
-        files: [],
-      });
-      if (repairInitialFilesInputRef.current) {
-        repairInitialFilesInputRef.current.value = "";
-      }
-    },
-  });
-
-  const createVerificationMutation = useMutation({
-    mutationFn: () => {
-      const processFolder = getCurrentProcessFolder(foldersQuery.data ?? [], equipment);
-      const livePreset =
-        (deadlinePresetsQuery.data ?? []).find(
-          (preset) => preset.id === processFolder?.deadlinePresetId,
-        ) ?? null;
-      const selectedVariant = getProcessVariantById(
-        livePreset?.verificationStageTemplates?.variants
-          ?? getVerificationPresetVariants(processFolder),
-        verificationForm.stageTemplateVariantId,
-      );
-      const flowMode = getVerificationFlowModeForVariant(selectedVariant)
-        ?? verificationForm.flowMode;
-      return createEquipmentVerification(token ?? "", parsedEquipmentId, {
-        flowMode,
-        stageTemplateVariantId: selectedVariant?.id ?? null,
-        routeCity: isVerificationFlowOnSite(flowMode)
-          ? getOnSiteProcessRouteValue()
-          : verificationForm.routeCity,
-        routeDestination: isVerificationFlowOnSite(flowMode)
-          ? getOnSiteProcessRouteValue()
-          : verificationForm.routeDestination,
-        sentToVerificationAt: verificationForm.sentToVerificationAt,
-        initialMessageText: verificationForm.initialMessageText,
-        initialMessageIsPrivate: verificationForm.initialMessageIsPrivate,
-        files: verificationForm.files,
-      });
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] });
-      await invalidateEquipmentRegistryQueries(queryClient);
-      await queryClient.invalidateQueries({
-        queryKey: ["equipment-verification-messages", parsedEquipmentId],
-      });
-      setVerificationModalOpen(false);
-      setVerificationActionError(null);
-      setVerificationForm({
-        flowMode: "OFFSITE_WITH_DEMOLITION",
-        stageTemplateVariantId: "",
-        routeCity: "",
-        routeDestination: "",
-        sentToVerificationAt: getTodayDateInputValue(),
-        initialMessageText: "",
-        initialMessageIsPrivate: false,
-        files: [],
-      });
-      if (verificationInitialFilesInputRef.current) {
-        verificationInitialFilesInputRef.current.value = "";
-      }
-    },
-  });
 
 
 
@@ -549,18 +433,8 @@ export function EquipmentDetailsPage() {
 
 
 
-  const deleteEquipmentMutation = useMutation({
-    mutationFn: () => deleteEquipment(token ?? "", parsedEquipmentId),
-    onSuccess: () => {
-      setConfirmDeleteOpen(false);
-      navigate("/equipment");
-      void Promise.all([
-        invalidateEquipmentRegistryQueries(queryClient),
-        queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] }),
-        queryClient.invalidateQueries({ queryKey: ["equipment-item", parsedEquipmentId] }),
-      ]);
-    },
-  });
+
+
 
   const isAttachmentUploadPending = uploadAttachmentMutation.isPending;
   const triggerAttachmentUpload = uploadAttachmentMutation.mutateAsync;
@@ -4392,7 +4266,7 @@ function formatCompactAttachmentMeta(attachment: {
   return formatAttachmentShortMeta(attachment.fileSize, attachment.fileMimeType);
 }
 
-function getCurrentProcessFolder(
+export function getCurrentProcessFolder(
   folders: EquipmentFolder[],
   equipment: EquipmentItem | null,
 ): EquipmentFolder | null {
@@ -4558,7 +4432,7 @@ function formatShortDisplayName(value: string): string {
   return `${lastName} ${initials}`.trim();
 }
 
-function getTodayDateInputValue(): string {
+export function getTodayDateInputValue(): string {
   const now = new Date();
   const year = now.getFullYear();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -4801,11 +4675,11 @@ export function buildFallbackLine(value: unknown): string | null {
   return parts.length ? parts.join("; ") : null;
 }
 
-function getOnSiteProcessRouteValue(): string {
+export function getOnSiteProcessRouteValue(): string {
   return "На месте";
 }
 
-function isVerificationFlowOnSite(flowMode: VerificationFlowMode): boolean {
+export function isVerificationFlowOnSite(flowMode: VerificationFlowMode): boolean {
   return flowMode !== "OFFSITE_WITH_DEMOLITION";
 }
 

@@ -1,4 +1,7 @@
-import { type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { buildSIReferenceTableRow, extractSiCardDetail, extractYearFromDateValue, normalizeDisplayDate } from "@/lib/equipmentDetails";
+import { ESICompositionDetailCard, ESICompositionSection, ESIRelatedProfileRow } from "@/components/equipment-details/EsiSections";
+import { SIListSection, SIReferenceTableRow, SIReferenceTableSection, SISection } from "@/components/equipment-details/SiSections";
+import { type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -9,8 +12,7 @@ import {
   getArshinErrorMessage,
   searchArshin,
   type ArshinSearchResult,
-  type ArshinVriDetail,
-} from "@/api/arshin";
+  type ArshinVriDetail } from "@/api/arshin";
 import {
   buildSIVerificationPayloadFromArshin,
   canChangeEquipmentTypeAfterCreation,
@@ -61,10 +63,8 @@ import {
   type EquipmentESICompositionEntry,
   type EquipmentFolder,
   type EquipmentItem,
-  type ESIModuleKind,
   type RepairMessage,
   type RepairMessageAttachment,
-  type EquipmentSIVerification,
   type EquipmentStatus,
   type EquipmentType,
   type VerificationMessage,
@@ -80,8 +80,7 @@ import {
   updateEquipmentVerificationMessage,
   uploadEquipmentAttachment,
   uploadEquipmentCommentDraftAttachment,
-  updateEquipment,
-} from "@/api/equipment";
+  updateEquipment } from "@/api/equipment";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
@@ -90,7 +89,6 @@ import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
-import { IconActionLink } from "@/components/IconActionLink";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -102,21 +100,18 @@ import {
   buildPendingFileKey,
   formatAttachmentShortMeta,
   openFilePicker,
-  removePendingFile,
-} from "@/lib/attachments";
+  removePendingFile } from "@/lib/attachments";
 import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import {
   handleTextareaSubmitShortcut,
   insertEmojiAtCursor,
-  resizeTextareaToContent as resizeCommentInput,
-} from "@/lib/textarea";
+  resizeTextareaToContent as resizeCommentInput } from "@/lib/textarea";
 import {
   getProcessFormatButtonClass,
   getProcessVariantById,
   getRepairPresetVariants,
   getVerificationFlowModeForVariant,
-  getVerificationPresetVariants,
-} from "@/lib/processVariants";
+  getVerificationPresetVariants } from "@/lib/processVariants";
 import { hasOperatorAccess, roleLabels } from "@/lib/roles";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { useAuthStore } from "@/store/auth";
@@ -4889,313 +4884,6 @@ function mergeEquipmentAttachments(
   });
 }
 
-function SISection({
-  title,
-  rows,
-}: {
-  title: string;
-  rows: Array<[string, string | null]>;
-}) {
-  const visibleRows = rows.filter((row): row is [string, string] => Boolean(row[1] && row[1].trim()));
-  if (!visibleRows.length) {
-    return null;
-  }
-
-  return (
-    <section className="tone-parent overflow-hidden rounded-3xl border border-line">
-      <div className="tone-child border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
-        {title}
-      </div>
-      <dl>
-        {visibleRows.map(([label, value], index) => (
-          <div
-            key={label}
-            className={[
-              "grid gap-2 px-4 py-3 text-sm sm:grid-cols-[240px_minmax(0,1fr)] sm:gap-4",
-              index > 0 ? "border-t border-line" : "",
-            ].join(" ")}
-          >
-            <dt className="text-xs font-semibold uppercase tracking-[0.16em] text-steel">{label}</dt>
-            <dd className="min-w-0 break-words font-medium leading-6 text-ink">
-              {renderTechnicalText(value, `${title}-${label}-${index}`)}
-            </dd>
-          </div>
-        ))}
-      </dl>
-    </section>
-  );
-}
-
-function SIListSection({
-  title,
-  items,
-}: {
-  title: string;
-  items: string[];
-}) {
-  if (!items.length) {
-    return null;
-  }
-
-  return (
-    <section className="tone-parent overflow-hidden rounded-3xl border border-line">
-      <div className="tone-child border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
-        {title}
-      </div>
-      <div className="space-y-2 px-4 py-3 text-sm text-ink">
-        {items.map((item, index) => (
-          <article key={`${title}-${index}`} className="tone-child rounded-2xl border border-line px-4 py-3">
-            <FormattedSIListItem item={item} itemKey={`${title}-${index}`} />
-          </article>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-type SIReferenceTableRow = {
-  source: string | null;
-  registryNumber: string | null;
-  typeNumber: string | null;
-  title: string | null;
-  notation: string | null;
-  modification: string | null;
-  serialNumber: string | null;
-  manufactureYear: string | null;
-  rank: string | null;
-  documentTitle: string | null;
-};
-
-type ESIRelatedProfileRow = {
-  entryId: number | null;
-  moduleKind: ESIModuleKind;
-  selected: boolean;
-  vriId: string | null;
-  rawPayloadJson: Record<string, unknown> | null;
-  registryNumber: string | null;
-  measurementLimit: string | null;
-  rank: string | null;
-  title: string | null;
-  modification: string | null;
-  serialNumber: string | null;
-  manufactureYear: string | null;
-  verificationDate: string | null;
-  validUntil: string | null;
-  certificateNumber: string | null;
-  arshinUrl: string | null;
-  canDelete: boolean;
-};
-
-type ESIRelatedVerificationRow = {
-  selected: boolean;
-  certificateNumber: string | null;
-  registryNumber: string | null;
-  modification: string | null;
-  verificationDate: string | null;
-  validUntil: string | null;
-  documentTitle: string | null;
-  applicability: string | null;
-  arshinUrl: string | null;
-};
-
-function SIReferenceTableSection({
-  title,
-  rows,
-  showSource,
-}: {
-  title: string;
-  rows: SIReferenceTableRow[];
-  showSource?: boolean;
-}) {
-  if (!rows.length) {
-    return null;
-  }
-
-  const hasSource = Boolean(showSource && rows.some((row) => row.source));
-
-  return (
-    <section className="tone-parent overflow-hidden rounded-3xl border border-line">
-      <div className="tone-child border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
-        {title}
-      </div>
-      <div className="max-h-[440px] overflow-auto">
-        <table className="min-w-[1120px] table-auto border-collapse text-left text-sm">
-          <thead className="tone-child sticky top-0 z-10 text-[11px] uppercase tracking-[0.12em] text-steel">
-            <tr>
-              {hasSource ? <th className="border-b border-line px-3 py-2 font-semibold">Раздел</th> : null}
-              <th className="border-b border-line px-3 py-2 font-semibold">Номер</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Рег. № типа</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Наименование</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Обозначение</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Модификация</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Заводской номер</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Год</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Разряд</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Схема / документ</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={`${title}-${index}`} className="align-top">
-                {hasSource ? (
-                  <td className="border-b border-line px-3 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-steel">
-                    {row.source ?? "—"}
-                  </td>
-                ) : null}
-                <td className="border-b border-line px-3 py-2 font-mono text-xs text-ink">
-                  {renderTechnicalText(row.registryNumber ?? "—", `${title}-${index}-number`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">
-                  {renderTechnicalText(row.typeNumber ?? "—", `${title}-${index}-type-number`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.title ?? "—", `${title}-${index}-title`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.notation ?? "—", `${title}-${index}-notation`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.modification ?? "—", `${title}-${index}-modification`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">
-                  {renderTechnicalText(row.serialNumber ?? "—", `${title}-${index}-serial`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">{row.manufactureYear ?? "—"}</td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.rank ?? "—", `${title}-${index}-rank`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.documentTitle ?? "—", `${title}-${index}-document`)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
-function ESICompositionSection({
-  rows,
-  previewLoadingId,
-  onPreview,
-  onEdit,
-  onDelete,
-}: {
-  rows: ESIRelatedProfileRow[];
-  previewLoadingId: string | null;
-  onPreview: (row: ESIRelatedProfileRow) => void;
-  onEdit?: (row: ESIRelatedProfileRow) => void;
-  onDelete?: (row: ESIRelatedProfileRow) => void;
-}) {
-  if (!rows.length) {
-    return null;
-  }
-
-  return (
-    <section className="tone-parent overflow-hidden rounded-3xl border border-line">
-      <div className="max-h-[420px] overflow-x-auto overflow-y-auto">
-        <table className="min-w-[1120px] w-full table-auto border-collapse text-left text-sm">
-          <thead className="tone-child sticky top-0 z-10 text-[11px] uppercase tracking-[0.12em] text-steel">
-            <tr>
-              <th className="border-b border-line px-3 py-2 font-semibold">Номер в перечне</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Предел измерения</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Разряд</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Наименование</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Модификация</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Заводской номер</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Год</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Дата поверки</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Действительно до</th>
-              <th className="border-b border-line px-3 py-2 font-semibold">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr
-                key={row.vriId ?? row.registryNumber ?? `esi-profile-${index}`}
-                className={["align-top", row.selected ? "bg-[color:var(--accent-soft)]/35" : ""].join(" ")}
-              >
-                <td className="border-b border-line px-3 py-2 font-mono text-xs text-ink">
-                  {renderTechnicalText(row.registryNumber ?? "—", `esi-profile-${index}-number`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(
-                    row.measurementLimit ?? "Не указан",
-                    `esi-profile-${index}-measurement-limit`,
-                  )}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.rank ?? "—", `esi-profile-${index}-rank`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.title ?? "—", `esi-profile-${index}-title`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                  {renderTechnicalText(row.modification ?? "—", `esi-profile-${index}-modification`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">
-                  {renderTechnicalText(row.serialNumber ?? "—", `esi-profile-${index}-serial`)}
-                </td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">{row.manufactureYear ?? "—"}</td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">{row.verificationDate ?? "—"}</td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">{row.validUntil ?? "—"}</td>
-                <td className="border-b border-line px-3 py-2 text-xs text-ink">
-                  <div className="icon-action-row">
-                    <IconActionButton
-                      disabled={!row.certificateNumber || previewLoadingId === row.registryNumber}
-                      icon={
-                        previewLoadingId === row.registryNumber ? (
-                          <span className="text-sm leading-none">…</span>
-                        ) : (
-                          <Icon className="h-4 w-4" name="details" />
-                        )
-                      }
-                      label="Подробнее"
-                      size="tiny"
-                      onClick={() => onPreview(row)}
-                    />
-                    {onEdit && row.entryId ? (
-                      <IconActionButton
-                        icon={<Icon className="h-4 w-4" name="edit" />}
-                        label="Редактировать"
-                        size="tiny"
-                        onClick={() => onEdit(row)}
-                      />
-                    ) : null}
-                    {onDelete && row.entryId && row.canDelete ? (
-                      <IconActionButton
-                        className="icon-action-button--danger"
-                        icon={<Icon className="h-4 w-4" name="delete" />}
-                        label="Удалить"
-                        size="tiny"
-                        onClick={() => onDelete(row)}
-                      />
-                    ) : null}
-                    {row.arshinUrl ? (
-                      <IconActionLink
-                        href={row.arshinUrl}
-                        icon={<Icon className="h-4 w-4" name="arshin" />}
-                        label="Аршин"
-                        rel="noreferrer"
-                        size="tiny"
-                        target="_blank"
-                      />
-                    ) : (
-                      <span className="text-xs text-steel">—</span>
-                    )}
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </section>
-  );
-}
-
 function sortEsiCompositionRows(rows: ESIRelatedProfileRow[]): ESIRelatedProfileRow[] {
   return [...rows].sort((left, right) => {
     if (left.moduleKind !== right.moduleKind) {
@@ -5226,140 +4914,7 @@ function toSortableTime(value: string | null): number {
   return Number.isNaN(parsed.getTime()) ? Number.NEGATIVE_INFINITY : parsed.getTime();
 }
 
-function ESICompositionDetailCard({
-  row,
-  detail,
-}: {
-  row: ESIRelatedProfileRow;
-  detail: ArshinVriDetail;
-}) {
-  const raw = (detail.rawPayloadJson ?? {}) as Record<string, unknown>;
-  const verificationRows = buildRelatedEsiVerificationRows(raw).filter(
-    (item) => !row.registryNumber || item.registryNumber === row.registryNumber,
-  );
-  const summaryRows: Array<[string, string]> = [
-    ["Номер в перечне", row.registryNumber ?? "—"],
-    ["Номер свидетельства", row.certificateNumber ?? detail.certificateNumber ?? "—"],
-    ["Регистрационный номер типа СИ", detail.regNumber ?? "—"],
-    ["Наименование типа СИ", detail.typeName ?? row.title ?? "—"],
-    ["Обозначение типа СИ", detail.typeDesignation ?? "—"],
-    ["Модификация СИ", detail.modification ?? row.modification ?? "—"],
-    ["Заводской номер СИ", detail.serialNumber ?? row.serialNumber ?? "—"],
-    ["Год выпуска СИ", detail.manufactureYear ? String(detail.manufactureYear) : row.manufactureYear ?? "—"],
-    [
-      "Поверочная схема",
-      [getFirstString(raw.schematype), getFirstString(raw.schematitle)].filter(Boolean).join(" · ") || "—",
-    ],
-    ["ГПЭ, к которому прослеживается СИ", getFirstString(raw.npenumber) ?? "—"],
-    [
-      "Разряд эталона",
-      formatSIReferenceRank(getFirstString(raw.rankcode), getFirstString(raw.rankclass)) ?? "—",
-    ],
-    ["Пригодность", formatBooleanLabel(detail.isUsable) ?? "—"],
-  ];
-
-  return (
-    <div className="space-y-4">
-      <div className="grid gap-3 md:grid-cols-2">
-        {summaryRows.map(([label, value]) => (
-          <div key={label} className="rounded-2xl border border-line px-4 py-3">
-            <div className="text-xs uppercase tracking-[0.18em] text-steel">{label}</div>
-            <div className="mt-2 text-sm text-ink">{value}</div>
-          </div>
-        ))}
-      </div>
-
-      <section className="tone-parent overflow-hidden rounded-3xl border border-line">
-        <div className="tone-child border-b border-line px-4 py-3 text-xs font-semibold uppercase tracking-[0.16em] text-steel">
-          Сведения о поверках
-        </div>
-        {verificationRows.length ? (
-          <div className="max-h-[320px] overflow-auto">
-            <table className="min-w-[880px] table-auto border-collapse text-left text-sm">
-              <thead className="tone-child sticky top-0 z-10 text-[11px] uppercase tracking-[0.12em] text-steel">
-                <tr>
-                  <th className="border-b border-line px-3 py-2 font-semibold">Организация-поверитель</th>
-                  <th className="border-b border-line px-3 py-2 font-semibold">Дата поверки</th>
-                  <th className="border-b border-line px-3 py-2 font-semibold">Действительна до</th>
-                  <th className="border-b border-line px-3 py-2 font-semibold">Номер свидетельства</th>
-                  <th className="border-b border-line px-3 py-2 font-semibold">Пригодность</th>
-                </tr>
-              </thead>
-              <tbody>
-                {verificationRows.map((verificationRow, index) => (
-                  <tr
-                    key={`esi-verification-${verificationRow.certificateNumber ?? index}`}
-                    className={verificationRow.selected ? "bg-[color:var(--accent-soft)]/35" : ""}
-                  >
-                    <td className="border-b border-line px-3 py-2 text-xs leading-5 text-ink">
-                      {detail.organization ?? "—"}
-                    </td>
-                    <td className="border-b border-line px-3 py-2 text-xs text-ink">
-                      {verificationRow.verificationDate ?? detail.verificationDate ?? "—"}
-                    </td>
-                    <td className="border-b border-line px-3 py-2 text-xs text-ink">
-                      {verificationRow.validUntil ?? detail.validUntil ?? "—"}
-                    </td>
-                    <td className="border-b border-line px-3 py-2 font-mono text-xs text-ink">
-                      {renderTechnicalText(
-                        verificationRow.certificateNumber ?? detail.certificateNumber ?? "—",
-                        `esi-verification-certificate-${index}`,
-                      )}
-                    </td>
-                    <td className="border-b border-line px-3 py-2 text-xs text-ink">
-                      {verificationRow.applicability ?? formatBooleanLabel(detail.isUsable) ?? "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="px-4 py-4 text-sm text-steel">
-            Сведения о поверках для этого профиля пока не загружены.
-          </div>
-        )}
-      </section>
-    </div>
-  );
-}
-
-function FormattedSIListItem({
-  item,
-  itemKey,
-}: {
-  item: string;
-  itemKey: string;
-}) {
-  const formattedItem = formatSIListItem(item);
-
-  return (
-    <div className="space-y-2">
-      {formattedItem.code ? (
-        <div className="inline-flex max-w-full rounded-full border border-line px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-steel">
-          <span className="min-w-0 break-all font-mono normal-case tracking-normal">
-            {renderTechnicalText(formattedItem.code, `${itemKey}-code`)}
-          </span>
-        </div>
-      ) : null}
-      <div className="space-y-1.5">
-        {formattedItem.lines.map((line, lineIndex) => (
-          <p
-            key={`${itemKey}-line-${lineIndex}`}
-            className={[
-              "break-words leading-6 text-ink",
-              !formattedItem.code && lineIndex === 0 ? "font-medium" : "",
-            ].join(" ")}
-          >
-            {renderTechnicalText(line, `${itemKey}-line-${lineIndex}`)}
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function formatSIListItem(item: string): { code: string | null; lines: string[] } {
+export function formatSIListItem(item: string): { code: string | null; lines: string[] } {
   const parts = item
     .split(";")
     .map((part) => part.trim())
@@ -5398,32 +4953,6 @@ function looksLikeTechnicalCode(value: string): boolean {
     (/[0-9]/.test(normalized) && /[./-]/.test(normalized) && whitespaceCount === 0)
     || (/[0-9]/.test(normalized) && /[A-Za-zА-Яа-яЁё]/.test(normalized) && /[./-]/.test(normalized))
   );
-}
-
-function renderTechnicalText(value: string, keyPrefix: string): ReactNode {
-  const matches = Array.from(value.matchAll(/\[\^([^\]]+)\]/g));
-  if (!matches.length) {
-    return value;
-  }
-
-  const parts: ReactNode[] = [];
-  let lastIndex = 0;
-  for (const [matchIndex, match] of matches.entries()) {
-    const startIndex = match.index ?? 0;
-    if (startIndex > lastIndex) {
-      parts.push(value.slice(lastIndex, startIndex));
-    }
-    parts.push(
-      <sup key={`${keyPrefix}-sup-${matchIndex}`} className="text-[0.7em] leading-none">
-        {match[1]}
-      </sup>,
-    );
-    lastIndex = startIndex + match[0].length;
-  }
-  if (lastIndex < value.length) {
-    parts.push(value.slice(lastIndex));
-  }
-  return parts;
 }
 
 function formatDateTime(value: string): string {
@@ -5512,7 +5041,7 @@ function getTodayDateInputValue(): string {
   return `${year}-${month}-${day}`;
 }
 
-function formatBooleanLabel(value: boolean | null): string | null {
+export function formatBooleanLabel(value: boolean | null): string | null {
   if (value === null) {
     return null;
   }
@@ -5537,108 +5066,7 @@ function formatMeasurementRange(
   return "Не указан";
 }
 
-function extractSiCardDetail(
-  equipmentType: EquipmentType,
-  si: EquipmentSIVerification,
-) {
-  const raw = (si.detailPayloadJson ?? si.rawPayloadJson ?? {}) as Record<string, unknown>;
-  const miInfo = getNestedObject(raw, ["miInfo"]);
-  const miSingle =
-    getNestedObject(miInfo, ["singleMI"]) ??
-    getNestedObject(miInfo, ["mi"]) ??
-    getNestedObject(miInfo, ["etaMI"]) ??
-    {};
-  const vriInfo = getNestedObject(raw, ["vriInfo"]) ?? {};
-  const info = getNestedObject(raw, ["info"]) ?? {};
-
-  return {
-    certificateNumber:
-      equipmentType === "ESI"
-        ? (
-            getFirstString(raw.number, si.resultDocnum)
-            ?? null
-          )
-        : (
-            getNestedString(vriInfo, ["applicable", "certNum"])
-            ?? si.certificateNumber
-            ?? si.resultDocnum
-            ?? null
-          ),
-    sourceCertificateNumber:
-      equipmentType === "ESI"
-        ? (getNestedString(vriInfo, ["applicable", "certNum"]) ?? si.certificateNumber ?? null)
-        : null,
-    organization: getFirstString(
-      vriInfo.organization,
-      vriInfo.orgTitle,
-      raw.organization,
-      si.orgTitle,
-    ),
-    regNumber: getFirstString(miSingle.mitypeNumber, raw.mitype_num, si.mitNumber),
-    typeDesignation: getFirstString(miSingle.mitypeType, normalizeNotation(raw.minotation), si.mitNotation),
-    typeName: getFirstString(miSingle.mitypeTitle, raw.mitype, si.mitTitle),
-    serialNumber: getFirstString(miSingle.manufactureNum, raw.factory_num, si.miNumber),
-    manufactureYear: getNumber(miSingle.manufactureYear) ?? getNumber(raw.year),
-    modification: getFirstString(miSingle.modification, raw.modification),
-    schemeType: getFirstString(raw.schematype),
-    schemeTitle: getFirstString(raw.schematitle, miSingle.schemaTitle),
-    npeNumber: getFirstString(raw.npenumber),
-    rankCode: getFirstString(raw.rankcode, miSingle.rankCode),
-    rankClass: getFirstString(raw.rankclass, miSingle.rankTitle),
-    ownerName: getFirstString(vriInfo.miOwner, vriInfo.owner, vriInfo.ownerName),
-    verificationMarkCipher: getFirstString(vriInfo.signCipher, vriInfo.markCipher),
-    verificationType: getFirstString(vriInfo.verificationType, vriInfo.typeTitle, vriInfo.verificationTitle),
-    verificationDate: getFirstString(
-      vriInfo.vrfDate,
-      typeof raw.verification_date === "string" ? normalizeDisplayDate(raw.verification_date) : null,
-      normalizeDisplayDate(si.verificationDate),
-    ),
-    validUntil: getFirstString(
-      vriInfo.validDate,
-      typeof raw.valid_date === "string" ? normalizeDisplayDate(raw.valid_date) : null,
-      normalizeDisplayDate(si.validDate),
-    ),
-    documentTitle: getFirstString(vriInfo.docTitle, info.docTitle, info.doc_title),
-    isUsable: getBool(vriInfo.applicable ?? raw.applicability),
-    passportMark: getBool(vriInfo.signPass ?? vriInfo.signInPassport ?? info.signPass ?? info.signInPassport),
-    deviceMark: getBool(vriInfo.signMi ?? vriInfo.signOnMi ?? info.signMi ?? info.signOnMi),
-    reducedScope: getBool(vriInfo.shortScope ?? vriInfo.reducedScope ?? info.shortScope ?? info.reducedScope),
-    etalonLines: buildEtalonLines(raw),
-    meansLines: buildVerificationMeansLines(raw),
-    etalonTableRows: buildEtalonTableRows(raw),
-    meansTableRows: buildVerificationMeansTableRows(raw),
-    relatedEsiProfiles: buildRelatedEsiProfileRows(raw),
-    relatedEsiVerificationRecords: buildRelatedEsiVerificationRows(raw),
-  };
-}
-
-function normalizeNotation(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-  const normalized = value.trim();
-  if (!normalized) {
-    return null;
-  }
-  if (normalized.startsWith("[") && normalized.endsWith("]")) {
-    try {
-      const parsed = JSON.parse(normalized);
-      if (Array.isArray(parsed)) {
-        const items = parsed.filter(
-          (item): item is string => typeof item === "string" && item.trim().length > 0,
-        );
-        if (items.length) {
-          return items.join(", ");
-        }
-      }
-    } catch {
-      return normalized;
-    }
-  }
-  return normalized;
-}
-
-function getNestedObject(
+export function getNestedObject(
   value: unknown,
   path: string[],
 ): Record<string, unknown> | null {
@@ -5655,7 +5083,7 @@ function getNestedObject(
   return current as Record<string, unknown>;
 }
 
-function getNestedString(value: unknown, path: string[]): string | null {
+export function getNestedString(value: unknown, path: string[]): string | null {
   let current: unknown = value;
   for (const key of path) {
     if (!current || typeof current !== "object" || Array.isArray(current)) {
@@ -5678,7 +5106,7 @@ function getFirstString(...values: unknown[]): string | null {
   return null;
 }
 
-function getNumber(value: unknown): number | null {
+export function getNumber(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value;
   }
@@ -5689,35 +5117,7 @@ function getNumber(value: unknown): number | null {
   return null;
 }
 
-function getBool(value: unknown): boolean | null {
-  if (typeof value === "boolean") {
-    return value;
-  }
-  if (value && typeof value === "object" && !Array.isArray(value)) {
-    const certificate = getFirstString(
-      (value as Record<string, unknown>).certNum,
-      (value as Record<string, unknown>).certificateNumber,
-    );
-    if (certificate) {
-      return true;
-    }
-    if (typeof (value as Record<string, unknown>).applicable === "boolean") {
-      return (value as Record<string, unknown>).applicable as boolean;
-    }
-  }
-  if (typeof value === "string") {
-    const normalized = value.trim().toLowerCase();
-    if (["да", "yes", "true", "1"].includes(normalized)) {
-      return true;
-    }
-    if (["нет", "no", "false", "0"].includes(normalized)) {
-      return false;
-    }
-  }
-  return null;
-}
-
-function buildEtalonLines(raw: Record<string, unknown>): string[] {
+export function buildEtalonLines(raw: Record<string, unknown>): string[] {
   const means = getNestedObject(raw, ["means"]);
   if (!means) {
     return [];
@@ -5739,7 +5139,7 @@ function buildEtalonLines(raw: Record<string, unknown>): string[] {
     .filter((item): item is string => Boolean(item));
 }
 
-function buildEtalonTableRows(raw: Record<string, unknown>): SIReferenceTableRow[] {
+export function buildEtalonTableRows(raw: Record<string, unknown>): SIReferenceTableRow[] {
   const means = getNestedObject(raw, ["means"]);
   if (!means) {
     return [];
@@ -5751,40 +5151,7 @@ function buildEtalonTableRows(raw: Record<string, unknown>): SIReferenceTableRow
     .filter((item): item is SIReferenceTableRow => item !== null);
 }
 
-function buildVerificationMeansLines(raw: Record<string, unknown>): string[] {
-  const means = getNestedObject(raw, ["means"]);
-  if (!means) {
-    return [];
-  }
-
-  const lines: string[] = [];
-  for (const [key, value] of Object.entries(means)) {
-    if (key === "mieta" || !Array.isArray(value)) {
-      continue;
-    }
-    for (const item of value) {
-      const line =
-        buildSemicolonLine(item, [
-          "mitypeNumber",
-          "mitypeTitle",
-          "notation",
-          "modification",
-          "manufactureNum",
-          "manufactureYear",
-          "number",
-          "title",
-          "name",
-        ]) ?? buildFallbackLine(item);
-      if (line) {
-        lines.push(line);
-      }
-    }
-  }
-
-  return lines;
-}
-
-function buildVerificationMeansTableRows(raw: Record<string, unknown>): SIReferenceTableRow[] {
+export function buildVerificationMeansTableRows(raw: Record<string, unknown>): SIReferenceTableRow[] {
   const means = getNestedObject(raw, ["means"]);
   if (!means) {
     return [];
@@ -5804,95 +5171,6 @@ function buildVerificationMeansTableRows(raw: Record<string, unknown>): SIRefere
   }
 
   return rows;
-}
-
-function buildRelatedEsiProfileRows(raw: Record<string, unknown>): ESIRelatedProfileRow[] {
-  const items = Array.isArray(raw.metrolog_related_esi_profiles)
-    ? raw.metrolog_related_esi_profiles
-    : [];
-  const verificationYear = resolveCurrentEsiVerificationYear(raw);
-  const verificationRows = buildRelatedEsiVerificationRows(raw);
-  const verificationByRegistryNumber = new Map(
-    verificationRows
-      .filter((item) => item.registryNumber)
-      .map((item) => [item.registryNumber as string, item] as const),
-  );
-
-  return items
-    .map<ESIRelatedProfileRow | null>((item) => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) {
-        return null;
-      }
-
-      const record = item as Record<string, unknown>;
-      const registryNumber = getFirstString(record.number);
-      const relatedVerification =
-        registryNumber ? verificationByRegistryNumber.get(registryNumber) ?? null : null;
-      return {
-        entryId: null,
-        moduleKind: "INTERNAL",
-        selected: Boolean(record.selected),
-        vriId: getFirstString(record.vri_id),
-        rawPayloadJson: {
-          ...record,
-          metrolog_related_esi_verification_records:
-            Array.isArray(raw.metrolog_related_esi_verification_records)
-              ? raw.metrolog_related_esi_verification_records
-              : [],
-        },
-        registryNumber,
-        measurementLimit: null,
-        rank: formatSIReferenceRank(
-          getFirstString(record.rankcode),
-          getFirstString(record.rankclass),
-        ),
-        title: getFirstString(record.mitype, record.minotation),
-        modification: getFirstString(record.modification),
-        serialNumber: getFirstString(record.factory_num),
-        manufactureYear: getFirstString(record.year),
-        verificationDate: normalizeDisplayDate(getFirstString(record.verification_date)),
-        validUntil: relatedVerification?.validUntil ?? normalizeDisplayDate(getFirstString(record.valid_date)),
-        certificateNumber: relatedVerification?.certificateNumber ?? getFirstString(record.certificate_number),
-        arshinUrl: getFirstString(record.arshin_url),
-        canDelete: false,
-      };
-    })
-    .filter((item): item is ESIRelatedProfileRow => item !== null)
-    .filter(
-      (item) =>
-        item.selected
-        || verificationYear === null
-        || extractYearFromDateValue(item.verificationDate) === verificationYear,
-    );
-}
-
-function buildRelatedEsiVerificationRows(raw: Record<string, unknown>): ESIRelatedVerificationRow[] {
-  const items = Array.isArray(raw.metrolog_related_esi_verification_records)
-    ? raw.metrolog_related_esi_verification_records
-    : [];
-  const verificationYear = resolveCurrentEsiVerificationYear(raw);
-
-  return items
-    .map((item) => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) {
-        return null;
-      }
-
-      const record = item as Record<string, unknown>;
-      return {
-        selected: Boolean(record.selected),
-        certificateNumber: getFirstString(record.certificate_number),
-        registryNumber: getFirstString(record.eta_number),
-        modification: getFirstString(record.mi_modification),
-        verificationDate: normalizeDisplayDate(getFirstString(record.verification_date)),
-        validUntil: normalizeDisplayDate(getFirstString(record.valid_date)),
-        documentTitle: getFirstString(record.document_title),
-        applicability: formatBooleanLabel(getBool(record.applicability)),
-        arshinUrl: getFirstString(record.arshin_url),
-      } satisfies ESIRelatedVerificationRow;
-    })
-    .filter((item): item is ESIRelatedVerificationRow => item !== null)
-    .filter((item) => item.selected || verificationYear === null || extractYearFromDateValue(item.verificationDate) === verificationYear);
 }
 
 function buildStoredEsiCompositionRank(entry: EquipmentESICompositionEntry): string | null {
@@ -5947,7 +5225,7 @@ function buildStoredEsiCompositionCertificate(
   );
 }
 
-function resolveCurrentEsiVerificationYear(raw: Record<string, unknown>): number | null {
+export function resolveCurrentEsiVerificationYear(raw: Record<string, unknown>): number | null {
   const vriInfo = getNestedObject(raw, ["vriInfo"]);
   return extractYearFromDateValue(
     getFirstString(
@@ -5957,67 +5235,7 @@ function resolveCurrentEsiVerificationYear(raw: Record<string, unknown>): number
   );
 }
 
-function extractYearFromDateValue(value: string | null): number | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const displayMatch = normalized.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (displayMatch) {
-    const parsedYear = Number(displayMatch[3]);
-    return Number.isFinite(parsedYear) ? parsedYear : null;
-  }
-
-  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
-  if (isoMatch) {
-    const parsedYear = Number(isoMatch[1]);
-    return Number.isFinite(parsedYear) ? parsedYear : null;
-  }
-
-  const parsed = new Date(normalized);
-  if (Number.isNaN(parsed.getTime())) {
-    return null;
-  }
-  return parsed.getFullYear();
-}
-
-function buildSIReferenceTableRow(
-  value: unknown,
-  source: string | null,
-): SIReferenceTableRow | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-
-  const record = value as Record<string, unknown>;
-  const rank = formatSIReferenceRank(
-    getFirstString(record.rankCode, record.rankcode),
-    getFirstString(record.rankTitle, record.rankclass),
-  );
-
-  const row: SIReferenceTableRow = {
-    source,
-    registryNumber: getFirstString(record.regNumber, record.number),
-    typeNumber: getFirstString(record.mitypeNumber),
-    title: getFirstString(record.mitypeTitle, record.title, record.name),
-    notation: getFirstString(record.notation, record.mitypeType, record.type),
-    modification: getFirstString(record.modification),
-    serialNumber: getFirstString(record.manufactureNum),
-    manufactureYear: getFirstString(record.manufactureYear),
-    rank,
-    documentTitle: getFirstString(record.schemaTitle, record.metroChars),
-  };
-
-  const hasData = Object.values(row).some((item) => Boolean(item));
-  return hasData ? row : null;
-}
-
-function formatSIReferenceRank(code: string | null, title: string | null): string | null {
+export function formatSIReferenceRank(code: string | null, title: string | null): string | null {
   if (code && title) {
     return `${code} · ${title}`;
   }
@@ -6035,7 +5253,7 @@ function getMeansSourceLabel(key: string): string {
   return labels[key] ?? key.toUpperCase();
 }
 
-function buildSemicolonLine(value: unknown, keys: string[]): string | null {
+export function buildSemicolonLine(value: unknown, keys: string[]): string | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -6046,7 +5264,7 @@ function buildSemicolonLine(value: unknown, keys: string[]): string | null {
   return parts.length ? parts.join("; ") : null;
 }
 
-function buildFallbackLine(value: unknown): string | null {
+export function buildFallbackLine(value: unknown): string | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
   }
@@ -6056,39 +5274,6 @@ function buildFallbackLine(value: unknown): string | null {
     .map((item) => String(item).trim())
     .filter(Boolean);
   return parts.length ? parts.join("; ") : null;
-}
-
-function normalizeDisplayDate(value: string | null): string | null {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim();
-  if (!normalized) {
-    return null;
-  }
-
-  const displayMatch = normalized.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-  if (displayMatch) {
-    const day = displayMatch[1].padStart(2, "0");
-    const month = displayMatch[2].padStart(2, "0");
-    return `${day}.${month}.${displayMatch[3]}`;
-  }
-
-  const isoMatch = normalized.match(/^(\d{4})-(\d{2})-(\d{2})(?:T.*)?$/);
-  if (isoMatch) {
-    return `${isoMatch[3]}.${isoMatch[2]}.${isoMatch[1]}`;
-  }
-
-  const parsed = new Date(normalized);
-  if (Number.isNaN(parsed.getTime())) {
-    return normalized;
-  }
-  return new Intl.DateTimeFormat("ru-RU", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(parsed);
 }
 
 function getOnSiteProcessRouteValue(): string {

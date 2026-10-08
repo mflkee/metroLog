@@ -137,6 +137,9 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/components/AutocompleteInput.tsx` | Floating autocomplete menu with keyboard nav. |
 | `src/components/AttachmentPreviewList.tsx` | Lazy-loaded image/PDF previews. |
 | `src/components/ProcessTimelineStrip.tsx` | Visual timeline for repairs/verifications. |
+| `src/components/equipment-details/SiSections.tsx` | SI presentation sections for the equipment card. |
+| `src/components/equipment-details/EsiSections.tsx` | ESI composition sections for the equipment card. |
+| `src/lib/equipmentDetails.ts` | Pure formatting/parsing helpers for the equipment card. |
 | `src/components/ProcessStageInlineControls.tsx` | Milestone date editing + custom stages. |
 | `src/lib/milestoneValidation.ts` | Milestone order validation rules. |
 | `src/lib/processVariants.ts` | Repair/verification preset variant helpers. |

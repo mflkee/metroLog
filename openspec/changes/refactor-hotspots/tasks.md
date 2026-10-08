@@ -31,7 +31,7 @@ other group drags along, so they move out first.
 
 ## 4. Frontend page splits
 
-- [ ] 4.1 Split `EquipmentDetailsPage.tsx` into feature sections and hooks and verify the page builds and renders on Stage (SI, ESI and OTHER cards, comments, attachments).
+- [ ] 4.1 Split `EquipmentDetailsPage.tsx` into feature sections and hooks and verify the page builds and renders on Stage (SI, ESI and OTHER cards, comments, attachments). Started: the page-local sections and helpers moved out into `src/components/equipment-details/SiSections.tsx` (6 declarations, 216 lines), `src/components/equipment-details/EsiSections.tsx` (4 declarations, 250 lines) and `src/lib/equipmentDetails.ts` (9 helpers, 344 lines); `EquipmentDetailsPage.tsx` 6144 -> 5329 lines, tsc/eslint/vitest/build clean. Remaining: the main component still holds 4666 lines of state and JSX - the next step is extracting its query/mutation hooks and the large JSX sections (comments, attachments, repair/verification dialogs, share and delete modals).
 - [ ] 4.2 Split `EquipmentPage.tsx` into feature sections and hooks and verify the registry works on Stage (filters, bulk actions, modals, pagination).
 
 ## 5. Frontend API client split

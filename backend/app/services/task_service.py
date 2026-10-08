@@ -55,7 +55,7 @@ from app.schemas.task import (
     TaskSubscriptionRead,
     TaskUpdateRequest,
 )
-from app.services.equipment_service import (
+from app.services.equipment_comments import (
     UploadedFilePayload,
     _normalize_attachment_file_name,
     _normalize_message_text,

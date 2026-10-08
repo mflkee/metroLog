@@ -25,7 +25,7 @@ from app.schemas.task import (
     TaskSubscriptionRead,
     TaskUpdateRequest,
 )
-from app.services.equipment_service import UploadedFilePayload
+from app.services.equipment_comments import UploadedFilePayload
 from app.services.task_service import TaskService
 
 router = APIRouter(prefix="/tasks")

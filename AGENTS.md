@@ -91,6 +91,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/services/equipment_folders.py` | Folder and group API plus folder-access helpers, extracted from the main service (`EquipmentFoldersMixin`). |
 | `app/services/equipment_comments.py` | Comments, equipment attachments and the attachment/image storage pipeline, extracted from the main service (`EquipmentCommentsMixin`). |
 | `app/services/equipment_repairs.py` | Repair processes: queue, batches, milestones, messages and archives, extracted from the main service (`EquipmentRepairsMixin`). |
+| `app/services/equipment_verifications.py` | Verification processes: queue, batches, milestones, messages, Arshin refresh and archives, extracted from the main service (`EquipmentVerificationsMixin`). |
 | `app/services/equipment_text.py` | Small text helpers shared by the equipment service mixins. |
 | `app/services/user_service.py` | Auth, bootstrap admin, roles, folder access. |
 | `app/services/event_service.py` | Audit journal. |

@@ -86,7 +86,8 @@ from app.schemas.equipment import (
     VerificationRead,
 )
 from app.services.arshin_service import ArshinService
-from app.services.equipment_service import EquipmentService, UploadedFilePayload
+from app.services.equipment_comments import UploadedFilePayload
+from app.services.equipment_service import EquipmentService
 
 router = APIRouter(prefix="/equipment")
 ATTACHMENT_FILE = File(...)

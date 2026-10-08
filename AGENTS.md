@@ -141,6 +141,19 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/components/equipment-details/EsiSections.tsx` | ESI composition sections for the equipment card. |
 | `src/lib/equipmentDetails.ts` | Pure formatting/parsing helpers for the equipment card. |
 | `src/hooks/useEquipmentDetailsQueries.ts` | Read-only queries of the equipment card (equipment, folders, presets, suggestions, mentions, share recipients, process messages). |
+| `src/hooks/useEquipmentComments.ts` | Equipment-card discussion slice: composer state, draft-upload refs, comment mutations. |
+| `src/hooks/useEquipmentAttachments.ts` | Equipment-card attachment slice: upload/delete mutations and composer bookkeeping. |
+| `src/hooks/useProcessMessages.ts` | Repair and verification discussion slices: drafts, refs and the six message mutations. |
+| `src/hooks/useEquipmentShare.ts` | Share-link modal state and mutation. |
+| `src/hooks/useEquipmentArshinEsi.ts` | Arshin SI-refresh and ESI-composition tooling (state, mutations, modal helpers). |
+| `src/hooks/useEquipmentProcessActions.ts` | Create-repair/verification, delete and Arshin-exclusion actions. |
+| `src/hooks/useEquipmentRegistryQueries.ts` | Registry page queries (folders, presets, page, selection, suggestions, refresh task, mentions). |
+| `src/hooks/useFolderRefresh.ts` | Folder rescan state and mutations of the registry page. |
+| `src/hooks/useFolderActions.ts` | Folder CRUD and folder-subscription actions. |
+| `src/hooks/useSiImportExport.ts` | Arshin SI import/export slice of the registry page. |
+| `src/components/equipment-registry/EquipmentTable.tsx` | Registry table row and sortable header. |
+| `src/lib/equipmentRegistry.ts` | Registry page types, defaults and pure helpers. |
+| `src/lib/equipmentQueries.ts` | Shared registry query invalidation helper. |
 | `src/components/ProcessStageInlineControls.tsx` | Milestone date editing + custom stages. |
 | `src/lib/milestoneValidation.ts` | Milestone order validation rules. |
 | `src/lib/processVariants.ts` | Repair/verification preset variant helpers. |

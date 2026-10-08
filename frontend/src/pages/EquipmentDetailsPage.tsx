@@ -22,11 +22,9 @@ import {
   createEquipmentVerification,
   createEquipmentRepairMessage,
   createEquipmentVerificationMessage,
-  createEquipmentComment,
   deleteEquipmentCommentDraftAttachment,
   deleteEquipmentRepairMessage,
   deleteEquipmentVerificationMessage,
-  deleteEquipmentComment,
   deleteEquipmentAttachment,
   deleteEquipment,
   downloadEquipmentCommentAttachment,
@@ -68,7 +66,6 @@ import {
   supportsVerification,
   updateEquipmentArshinRefreshExclusion,
   updateEquipmentEsiCompositionEntry,
-  updateEquipmentComment,
   updateEquipmentRepairMessage,
   updateEquipmentVerificationMessage,
   uploadEquipmentAttachment,
@@ -83,6 +80,7 @@ import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { useEquipmentDetailsQueries } from "@/hooks/useEquipmentDetailsQueries";
+import { useEquipmentComments } from "@/hooks/useEquipmentComments";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -202,7 +200,6 @@ export function EquipmentDetailsPage() {
   const [downloadingRepairAttachmentId, setDownloadingRepairAttachmentId] = useState<number | null>(null);
   const [downloadingVerificationAttachmentId, setDownloadingVerificationAttachmentId] = useState<number | null>(null);
   const [attachmentActionError, setAttachmentActionError] = useState<string | null>(null);
-  const [commentActionError, setCommentActionError] = useState<string | null>(null);
   const [repairActionError, setRepairActionError] = useState<string | null>(null);
   const [verificationActionError, setVerificationActionError] = useState<string | null>(null);
   const [attachmentToDelete, setAttachmentToDelete] = useState<EquipmentAttachment | null>(null);
@@ -211,17 +208,6 @@ export function EquipmentDetailsPage() {
   const [attachmentUploadErrorsByKey, setAttachmentUploadErrorsByKey] = useState<
     Record<string, string>
   >({});
-  const [commentDraft, setCommentDraft] = useState("");
-  const [commentDraftIsPrivate, setCommentDraftIsPrivate] = useState(false);
-  const [commentFiles, setCommentFiles] = useState<File[]>([]);
-  const [commentUploadedAttachments, setCommentUploadedAttachments] = useState<
-    Record<string, EquipmentCommentDraftAttachment>
-  >({});
-  const [uploadingCommentFileKeys, setUploadingCommentFileKeys] = useState<string[]>([]);
-  const [commentUploadErrorsByKey, setCommentUploadErrorsByKey] = useState<
-    Record<string, string>
-  >({});
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const [repairMessageDraft, setRepairMessageDraft] = useState("");
   const [repairMessageDraftIsPrivate, setRepairMessageDraftIsPrivate] = useState(false);
   const [verificationMessageDraft, setVerificationMessageDraft] = useState("");
@@ -257,27 +243,16 @@ export function EquipmentDetailsPage() {
   const [editingEsiModule, setEditingEsiModule] = useState<ESIRelatedProfileRow | null>(null);
   const [editingEsiMeasurementLimit, setEditingEsiMeasurementLimit] = useState("");
   const [esiModuleToDelete, setEsiModuleToDelete] = useState<ESIRelatedProfileRow | null>(null);
-  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
-  const [commentEditDraft, setCommentEditDraft] = useState("");
   const [editingRepairMessageId, setEditingRepairMessageId] = useState<number | null>(null);
   const [repairMessageEditDraft, setRepairMessageEditDraft] = useState("");
   const [editingVerificationMessageId, setEditingVerificationMessageId] = useState<number | null>(null);
   const [verificationMessageEditDraft, setVerificationMessageEditDraft] = useState("");
-  const [commentToDelete, setCommentToDelete] = useState<EquipmentComment | null>(null);
   const attachmentInputRef = useRef<HTMLInputElement | null>(null);
-  const commentFilesInputRef = useRef<HTMLInputElement | null>(null);
   const repairInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const verificationInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const repairMessageFilesInputRef = useRef<HTMLInputElement | null>(null);
   const verificationMessageFilesInputRef = useRef<HTMLInputElement | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const commentFilesRef = useRef<File[]>([]);
-  const commentUploadedAttachmentsRef = useRef<Record<string, EquipmentCommentDraftAttachment>>(
-    {},
-  );
-  const commentUploadPromisesRef = useRef(
-    new Map<string, Promise<EquipmentCommentDraftAttachment | null>>(),
-  );
   const repairMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const verificationMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const editCommentInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -320,6 +295,38 @@ export function EquipmentDetailsPage() {
     verificationDialogExpanded,
     verificationExpanded,
   });
+
+  const {
+    commentActionError,
+    setCommentActionError,
+    commentDraft,
+    setCommentDraft,
+    commentDraftIsPrivate,
+    setCommentDraftIsPrivate,
+    commentFiles,
+    setCommentFiles,
+    commentUploadedAttachments,
+    setCommentUploadedAttachments,
+    uploadingCommentFileKeys,
+    setUploadingCommentFileKeys,
+    commentUploadErrorsByKey,
+    setCommentUploadErrorsByKey,
+    isSubmittingComment,
+    setIsSubmittingComment,
+    editingCommentId,
+    setEditingCommentId,
+    commentEditDraft,
+    setCommentEditDraft,
+    commentToDelete,
+    setCommentToDelete,
+    commentFilesInputRef,
+    commentFilesRef,
+    commentUploadedAttachmentsRef,
+    commentUploadPromisesRef,
+    createCommentMutation,
+    updateCommentMutation,
+    deleteCommentMutation,
+  } = useEquipmentComments({ equipmentId: parsedEquipmentId, token });
 
   const equipment = equipmentQuery.data?.equipment ?? null;
   const filteredShareRecipients = useMemo(
@@ -705,59 +712,8 @@ export function EquipmentDetailsPage() {
     },
   });
 
-  const createCommentMutation = useMutation({
-    mutationFn: ({
-      text,
-      isPrivate,
-      uploadedAttachmentTokens,
-    }: {
-      text: string;
-      isPrivate: boolean;
-      uploadedAttachmentTokens: string[];
-    }) =>
-      createEquipmentComment(token ?? "", parsedEquipmentId, {
-        text,
-        isPrivate,
-        uploadedAttachmentTokens,
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      setCommentDraft("");
-      setCommentDraftIsPrivate(false);
-      setCommentFiles([]);
-      commentFilesRef.current = [];
-      setCommentUploadedAttachments({});
-      commentUploadedAttachmentsRef.current = {};
-      setCommentUploadErrorsByKey({});
-      setCommentActionError(null);
-      if (commentFilesInputRef.current) {
-        commentFilesInputRef.current.value = "";
-      }
-    },
-  });
 
-  const updateCommentMutation = useMutation({
-    mutationFn: ({
-      commentId,
-      text,
-    }: {
-      commentId: number;
-      text: string;
-    }) => updateEquipmentComment(token ?? "", parsedEquipmentId, commentId, { text }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      setEditingCommentId(null);
-      setCommentEditDraft("");
-    },
-  });
 
-  const deleteCommentMutation = useMutation({
-    mutationFn: (commentId: number) => deleteEquipmentComment(token ?? "", parsedEquipmentId, commentId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      setCommentToDelete(null);
-    },
-  });
 
   const searchSiRefreshMutation = useMutation({
     mutationFn: (documentNumber: string) =>

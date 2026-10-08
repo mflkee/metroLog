@@ -210,6 +210,32 @@ suspected case (equipment creation) is a route-level `CurrentUser` with a servic
 `403` - recorded here so the asymmetry is not "fixed" twice. Note: `PUT
 /equipment/{id}/process-subscription` is not referenced by any UI code (unused API surface).
 
+### F-010 (MINOR) - Unsaved milestone edits were dropped when leaving the page
+
+`useQueuedAutoSave` cancelled its debounce timer on unmount and had no unload guard, so a
+milestone date typed and then followed by navigation inside the debounce window (or a page
+reload) was silently lost. The pages only flushed on explicit dialog actions, so the loss was
+invisible.
+
+- Fix: the hook flushes the latest value on unmount (a no-op when nothing changed, because
+  `submit` returns early on equality) and blocks `beforeunload` while the value differs from the
+  saved baseline.
+- Tests: `src/lib/useQueuedAutoSave.test.ts` (6 cases); frontend suite `17 -> 23 passed`.
+
+## Frontend data and state review (task 5.1)
+
+- **Query keys.** Every `queryKey` includes the parameters that change the response
+  (`["equipment-details", id]`, `["tasks", filters]`, `["repair-queue-page", tab, query,
+  folder, page, size]`), and the same resource deliberately reuses one key across files so the
+  cache is shared (`["equipment-details", parsedEquipmentId]` in 21 places, `["mention-users"]`
+  in 7). List and detail keys are separate. No mismatched or under-specified key was found.
+- **Invalidation.** Mutations invalidate by prefix (`["tasks"]`, `invalidateRepairQueries`,
+  `["equipment-details", id]`), so the widget, board and detail views all refresh.
+- **`enabled` gates.** Checked programmatically: 0 queries build a request from `token` without
+  an `enabled` gate. This also matters for F-009 - a request fired before the token exists would
+  have answered `401` and logged the user out at startup.
+
+
 
 
 

@@ -33,6 +33,8 @@ export function useQueuedAutoSave<T>({
   const pendingRef = useRef(false);
   const queuedValueRef = useRef<T | null>(null);
   const timeoutIdRef = useRef<number | null>(null);
+  const enabledRef = useRef(enabled);
+  const isEqualRef = useRef(isEqual);
 
   const cancel = useCallback(() => {
     if (timeoutIdRef.current !== null) {
@@ -44,6 +46,11 @@ export function useQueuedAutoSave<T>({
   useEffect(() => {
     latestValueRef.current = value;
   }, [value]);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+    isEqualRef.current = isEqual;
+  }, [enabled, isEqual]);
 
   const submit = useCallback(
     async (candidate: T): Promise<boolean> => {
@@ -123,6 +130,41 @@ export function useQueuedAutoSave<T>({
   }, [cancel, delayMs, enabled, isEqual, submit, value]);
 
   useEffect(() => cancel, [cancel]);
+
+  const submitRef = useRef(submit);
+
+  useEffect(() => {
+    submitRef.current = submit;
+  }, [submit]);
+
+  // Flush a still-pending edit instead of dropping it when the component unmounts
+  // (for example when the user navigates away inside the debounce window).
+  useEffect(
+    () => () => {
+      cancel();
+      if (enabledRef.current) {
+        void submitRef.current(latestValueRef.current);
+      }
+    },
+    [cancel],
+  );
+
+  // Warn before a reload or tab close while an edit has not reached the server yet.
+  useEffect(() => {
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      if (!enabledRef.current) {
+        return;
+      }
+      if (isEqualRef.current(latestValueRef.current, lastSavedValueRef.current)) {
+        return;
+      }
+      event.preventDefault();
+      event.returnValue = "";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, []);
 
   return { flush, cancel };
 }

@@ -28,8 +28,8 @@
 
 ## 5. Frontend data and state correctness
 
-- [ ] 5.1 Audit react-query keys, `enabled` gates and invalidation for stale or mismatched data; fix and verify with a test or a documented Stage scenario.
-- [ ] 5.2 Audit `useQueuedAutoSave` and modal state reset for data loss on close or reload; verify the loss is reproduced before the fix and gone after it.
+- [x] 5.1 Audit react-query keys, `enabled` gates and invalidation for stale or mismatched data; fix and verify with a test or a documented Stage scenario.
+- [x] 5.2 Audit `useQueuedAutoSave` and modal state reset for data loss on close or reload; verify the loss is reproduced before the fix and gone after it.
 
 ## 6. Integration verification on Stage
 

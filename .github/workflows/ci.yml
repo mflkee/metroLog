@@ -71,6 +71,31 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Lint and tests gate every deploy: previously the pipeline only built images, so a change
+  # that broke the test suite still shipped. Runs on GitHub-hosted runners to keep the app
+  # host free.
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+      - name: Backend lint
+        run: uv run --directory backend ruff check .
+      - name: Backend tests
+        run: uv run --directory backend pytest --cov=app --cov-report=term-missing:skip-covered
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Frontend install
+        run: npm ci --prefix frontend
+      - name: Frontend lint
+        run: npm --prefix frontend run lint
+      - name: Frontend tests
+        run: npm --prefix frontend run test -- --run
+
   # Fail fast with a clear message when the self-hosted runner that executes the
   # deploy jobs is offline, instead of letting the deploy job fail to start with
   # no explanation. Waits up to ~10 minutes for the runner to come back.
@@ -104,7 +129,7 @@ jobs:
 
   deploy-staging:
     if: github.ref == 'refs/heads/main'
-    needs: [build-images, runner-preflight]
+    needs: [checks, build-images, runner-preflight]
     runs-on: [self-hosted, mkair]
     environment: staging
     steps:
@@ -137,7 +162,7 @@ jobs:
 
   deploy-prod:
     if: startsWith(github.ref, 'refs/heads/release/')
-    needs: [build-images, runner-preflight]
+    needs: [checks, build-images, runner-preflight]
     runs-on: [self-hosted, mkair]
     environment: production
     steps:

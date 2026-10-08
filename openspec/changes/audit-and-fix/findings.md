@@ -60,12 +60,16 @@ no missing folder scope elsewhere. Tasks 2.2 and 2.3 therefore required no furth
 
 ### F-001 (MINOR) - The pipeline never runs tests
 
-`ci.yml` builds images and deploys, but runs neither `pytest` nor `vitest`. Tests
-execute only through `npm run check` on a developer machine, and pre-commit runs only
-`ruff` and `eslint`. A change that breaks tests still ships.
+Originally `ci.yml` built images and deployed, but ran neither `pytest` nor `vitest`. Tests
+executed only through `npm run check` on a developer machine, and pre-commit runs only `ruff`
+and `eslint`. A change that broke tests still shipped.
 
-- Evidence: `.github/workflows/ci.yml` contains no test invocation.
-- Owner: audit-and-fix (tooling baseline, tasks 1.2/1.4) plus a CI job.
+- Fixed: `ci.yml` gained a GitHub-hosted `checks` job (`ruff check`, `pytest` with a coverage
+  report, `eslint`, `vitest --run`), and both deploy jobs now declare
+  `needs: [checks, build-images, runner-preflight]`, so a red check blocks the deploy.
+- Documented in `AGENTS.md` (section 5).
+- Note: mypy and coverage thresholds stay advisory for now (see F-002/F-003), so the job fails
+  only on lint and test failures.
 
 ### F-002 (MINOR) - Mypy reports 81 errors that were never triaged
 

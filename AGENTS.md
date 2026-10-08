@@ -212,11 +212,13 @@ runner dir `~/actions-runner-metrolog`. Прод и Stage живут на это
 Теги: `main` → `:staging` + `:sha-<sha>`; `release/*` → `:latest` + `:sha-<sha>`.
 
 `ci.yml` jobs:
-1. `build-images` — `actions/checkout`, login GHCR, buildx, build & push backend + frontend (cache `type=gha`).
-2. `deploy-staging` (только `main`) — `git reset --hard origin/main` в `~/apps/metroLog`,
+1. `checks` — гейт на GitHub-hosted: `ruff check`, `pytest` (с coverage-отчётом), `eslint`,
+   `vitest --run` (фронт-тесты). Деплой не стартует, если проверки красные.
+2. `build-images` — `actions/checkout`, login GHCR, buildx, build & push backend + frontend (cache `type=gha`).
+3. `deploy-staging` (только `main`, `needs: [checks, build-images, runner-preflight]`) — `git reset --hard origin/main` в `~/apps/metroLog`,
    `POSTGRES_STG_PORT=5439 IMAGE_TAG=staging docker compose -p metrolog-stg -f docker-compose.staging.yml pull && up -d`,
    health-check `:9000`.
-3. `deploy-prod` (только `release/*`) — `git reset --hard origin/<release>`, `pg_dump` в `~/.backups/`,
+4. `deploy-prod` (только `release/*`, `needs: [checks, build-images, runner-preflight]`) — `git reset --hard origin/<release>`, `pg_dump` в `~/.backups/`,
    `IMAGE_TAG=latest docker compose pull && up -d`, health-check `:8000`.
 
 В `docker-compose*.yml` образы параметризованы: `image: ghcr.io/mflkee/metrolog-backend:${IMAGE_TAG:-latest}`

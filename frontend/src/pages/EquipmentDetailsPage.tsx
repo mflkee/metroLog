@@ -20,11 +20,7 @@ import {
   deleteEquipmentEsiCompositionEntry,
   createEquipmentRepair,
   createEquipmentVerification,
-  createEquipmentRepairMessage,
-  createEquipmentVerificationMessage,
   deleteEquipmentCommentDraftAttachment,
-  deleteEquipmentRepairMessage,
-  deleteEquipmentVerificationMessage,
   deleteEquipment,
   downloadEquipmentCommentAttachment,
   downloadRepairMessageAttachment,
@@ -64,8 +60,6 @@ import {
   supportsVerification,
   updateEquipmentArshinRefreshExclusion,
   updateEquipmentEsiCompositionEntry,
-  updateEquipmentRepairMessage,
-  updateEquipmentVerificationMessage,
   uploadEquipmentCommentDraftAttachment,
   updateEquipment } from "@/api/equipment";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
@@ -79,6 +73,7 @@ import { IconActionButton } from "@/components/IconActionButton";
 import { useEquipmentDetailsQueries } from "@/hooks/useEquipmentDetailsQueries";
 import { useEquipmentComments } from "@/hooks/useEquipmentComments";
 import { useEquipmentAttachments } from "@/hooks/useEquipmentAttachments";
+import { useProcessMessages } from "@/hooks/useProcessMessages";
 import { Modal } from "@/components/Modal";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -194,20 +189,6 @@ export function EquipmentDetailsPage() {
     files: [],
   });
   const [downloadingCommentAttachmentId, setDownloadingCommentAttachmentId] = useState<number | null>(null);
-  const [downloadingRepairAttachmentId, setDownloadingRepairAttachmentId] = useState<number | null>(null);
-  const [downloadingVerificationAttachmentId, setDownloadingVerificationAttachmentId] = useState<number | null>(null);
-  const [repairActionError, setRepairActionError] = useState<string | null>(null);
-  const [verificationActionError, setVerificationActionError] = useState<string | null>(null);
-  const [repairMessageDraft, setRepairMessageDraft] = useState("");
-  const [repairMessageDraftIsPrivate, setRepairMessageDraftIsPrivate] = useState(false);
-  const [verificationMessageDraft, setVerificationMessageDraft] = useState("");
-  const [verificationMessageDraftIsPrivate, setVerificationMessageDraftIsPrivate] = useState(false);
-  const [repairMessageFiles, setRepairMessageFiles] = useState<File[]>([]);
-  const [verificationMessageFiles, setVerificationMessageFiles] = useState<File[]>([]);
-  const [repairExpanded, setRepairExpanded] = useState(false);
-  const [verificationExpanded, setVerificationExpanded] = useState(false);
-  const [repairDialogExpanded, setRepairDialogExpanded] = useState(false);
-  const [verificationDialogExpanded, setVerificationDialogExpanded] = useState(false);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [siExpanded, setSiExpanded] = useState(false);
   const [shareModalOpen, setShareModalOpen] = useState(false);
@@ -233,14 +214,8 @@ export function EquipmentDetailsPage() {
   const [editingEsiModule, setEditingEsiModule] = useState<ESIRelatedProfileRow | null>(null);
   const [editingEsiMeasurementLimit, setEditingEsiMeasurementLimit] = useState("");
   const [esiModuleToDelete, setEsiModuleToDelete] = useState<ESIRelatedProfileRow | null>(null);
-  const [editingRepairMessageId, setEditingRepairMessageId] = useState<number | null>(null);
-  const [repairMessageEditDraft, setRepairMessageEditDraft] = useState("");
-  const [editingVerificationMessageId, setEditingVerificationMessageId] = useState<number | null>(null);
-  const [verificationMessageEditDraft, setVerificationMessageEditDraft] = useState("");
   const repairInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const verificationInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
-  const repairMessageFilesInputRef = useRef<HTMLInputElement | null>(null);
-  const verificationMessageFilesInputRef = useRef<HTMLInputElement | null>(null);
   const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
   const repairMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const verificationMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -263,6 +238,53 @@ export function EquipmentDetailsPage() {
   }
 
 
+
+  const {
+    repairActionError,
+    setRepairActionError,
+    repairMessageDraft,
+    setRepairMessageDraft,
+    repairMessageDraftIsPrivate,
+    setRepairMessageDraftIsPrivate,
+    repairMessageFiles,
+    setRepairMessageFiles,
+    repairExpanded,
+    setRepairExpanded,
+    repairDialogExpanded,
+    setRepairDialogExpanded,
+    editingRepairMessageId,
+    setEditingRepairMessageId,
+    repairMessageEditDraft,
+    setRepairMessageEditDraft,
+    downloadingRepairAttachmentId,
+    setDownloadingRepairAttachmentId,
+    verificationActionError,
+    setVerificationActionError,
+    verificationMessageDraft,
+    setVerificationMessageDraft,
+    verificationMessageDraftIsPrivate,
+    setVerificationMessageDraftIsPrivate,
+    verificationMessageFiles,
+    setVerificationMessageFiles,
+    verificationExpanded,
+    setVerificationExpanded,
+    verificationDialogExpanded,
+    setVerificationDialogExpanded,
+    editingVerificationMessageId,
+    setEditingVerificationMessageId,
+    verificationMessageEditDraft,
+    setVerificationMessageEditDraft,
+    downloadingVerificationAttachmentId,
+    setDownloadingVerificationAttachmentId,
+    repairMessageFilesInputRef,
+    verificationMessageFilesInputRef,
+    createRepairMessageMutation,
+    deleteRepairMessageMutation,
+    updateRepairMessageMutation,
+    createVerificationMessageMutation,
+    deleteVerificationMessageMutation,
+    updateVerificationMessageMutation,
+  } = useProcessMessages({ equipmentId: parsedEquipmentId, token });
 
   const {
     equipmentQuery,
@@ -501,106 +523,11 @@ export function EquipmentDetailsPage() {
     },
   });
 
-  const createRepairMessageMutation = useMutation({
-    mutationFn: () =>
-      createEquipmentRepairMessage(token ?? "", parsedEquipmentId, {
-        text: repairMessageDraft,
-        isPrivate: repairMessageDraftIsPrivate,
-        files: repairMessageFiles,
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-repair-messages", parsedEquipmentId] });
-      setRepairActionError(null);
-      setRepairMessageDraft("");
-      setRepairMessageDraftIsPrivate(false);
-      setRepairMessageFiles([]);
-      if (repairMessageFilesInputRef.current) {
-        repairMessageFilesInputRef.current.value = "";
-      }
-    },
-  });
 
-  const createVerificationMessageMutation = useMutation({
-    mutationFn: () =>
-      createEquipmentVerificationMessage(token ?? "", parsedEquipmentId, {
-        text: verificationMessageDraft,
-        isPrivate: verificationMessageDraftIsPrivate,
-        files: verificationMessageFiles,
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({
-        queryKey: ["equipment-verification-messages", parsedEquipmentId],
-      });
-      setVerificationActionError(null);
-      setVerificationMessageDraft("");
-      setVerificationMessageDraftIsPrivate(false);
-      setVerificationMessageFiles([]);
-      if (verificationMessageFilesInputRef.current) {
-        verificationMessageFilesInputRef.current.value = "";
-      }
-    },
-  });
 
-  const deleteVerificationMessageMutation = useMutation({
-    mutationFn: (messageId: number) =>
-      deleteEquipmentVerificationMessage(token ?? "", parsedEquipmentId, messageId),
-    onSuccess: async () => {
-      setVerificationActionError(null);
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({
-        queryKey: ["equipment-verification-messages", parsedEquipmentId],
-      });
-    },
-  });
 
-  const deleteRepairMessageMutation = useMutation({
-    mutationFn: (messageId: number) =>
-      deleteEquipmentRepairMessage(token ?? "", parsedEquipmentId, messageId),
-    onSuccess: async () => {
-      setRepairActionError(null);
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-repair-messages", parsedEquipmentId] });
-    },
-  });
 
-  const updateRepairMessageMutation = useMutation({
-    mutationFn: ({
-      messageId,
-      text,
-    }: {
-      messageId: number;
-      text: string;
-    }) => updateEquipmentRepairMessage(token ?? "", parsedEquipmentId, messageId, { text }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({ queryKey: ["equipment-repair-messages", parsedEquipmentId] });
-      setEditingRepairMessageId(null);
-      setRepairMessageEditDraft("");
-      setRepairActionError(null);
-    },
-  });
 
-  const updateVerificationMessageMutation = useMutation({
-    mutationFn: ({
-      messageId,
-      text,
-    }: {
-      messageId: number;
-      text: string;
-    }) =>
-      updateEquipmentVerificationMessage(token ?? "", parsedEquipmentId, messageId, { text }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["equipment-details", parsedEquipmentId] });
-      await queryClient.invalidateQueries({
-        queryKey: ["equipment-verification-messages", parsedEquipmentId],
-      });
-      setEditingVerificationMessageId(null);
-      setVerificationMessageEditDraft("");
-      setVerificationActionError(null);
-    },
-  });
 
 
   const deleteEquipmentMutation = useMutation({

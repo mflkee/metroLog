@@ -2,6 +2,44 @@
 @config "../../tailwind.config.ts";
 
 /*
+ * Adopted shadcn/metro-ui primitives expect the library's variable names. Map them onto our
+ * tokens here (per theme, since the tokens switch with `data-theme`), so no component carries a
+ * hardcoded palette and all 10 themes keep working. `inline` makes the generated utilities
+ * reference the token directly.
+ */
+@theme inline {
+  --color-background: var(--bg-layer-1);
+  --color-foreground: var(--text-primary);
+  --color-card: var(--panel-bg);
+  --color-card-foreground: var(--text-primary);
+  --color-popover: var(--panel-bg);
+  --color-popover-foreground: var(--text-primary);
+  --color-primary: var(--button-primary-bg);
+  --color-primary-foreground: var(--button-primary-text);
+  --color-secondary: var(--panel-hover);
+  --color-secondary-foreground: var(--text-primary);
+  --color-muted: var(--panel-ghost);
+  --color-muted-foreground: var(--text-muted);
+  --color-accent: var(--accent-soft);
+  --color-accent-foreground: var(--text-primary);
+  --color-destructive: var(--danger);
+  --color-destructive-foreground: var(--button-primary-text);
+  --color-border: var(--border-color);
+  --color-input: var(--input-bg);
+  --color-ring: var(--accent);
+  --color-info: var(--info);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+}
+
+/*
+ * metroLog themes through `data-theme`, never through `.dark`, so scope the `dark:` variant to a
+ * `.dark` ancestor (which is never set). Without this, `dark:` would follow `prefers-color-scheme`
+ * and leak the OS dark palette into a light metroLog theme.
+ */
+@custom-variant dark (&:is(.dark *));
+
+/*
  * Tailwind v4 changed two preflight defaults that this UI relies on, so they are restored
  * here from the shared tokens instead of a hardcoded palette:
  *  - the default border colour (v4 uses `currentColor`);

@@ -19,8 +19,10 @@ import {
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { Modal } from "@/components/Modal";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
+import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
 import { resizeTextareaToContent } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
 
@@ -132,7 +134,7 @@ export function TasksPage() {
       <PageHeader
         title="Задачи"
         description="Постановка задач, ответственные и исполнители, сроки, доска и чек-листы."
-        action={
+        actions={
           <button
             className="btn-primary btn-sm"
             onClick={() => setCreateOpen(true)}
@@ -243,9 +245,9 @@ export function TasksPage() {
                 }
               }}
             >
-              <div className="flex items-center justify-between gap-2 rounded-xl bg-[var(--accent-soft)] px-3 py-2 text-xs font-semibold uppercase tracking-wide text-steel">
-                <span>{TASK_STATUS_LABELS[status]}</span>
-                <span className="text-steel/70">
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-[var(--accent-soft)] px-3 py-2">
+                <StatusBadge tone={TASK_STATUS_TONES[status]}>{TASK_STATUS_LABELS[status]}</StatusBadge>
+                <span className="text-xs font-semibold text-steel/70">
                   {tasks.filter((task) => task.status === status).length}
                 </span>
               </div>
@@ -282,7 +284,11 @@ export function TasksPage() {
                     </Link>
                   </td>
                   <td className="px-3 py-2 text-steel">{task.folderName ?? "—"}</td>
-                  <td className="px-3 py-2 text-steel">{TASK_STATUS_LABELS[task.status]}</td>
+                  <td className="px-3 py-2">
+                    <StatusBadge tone={TASK_STATUS_TONES[task.status]}>
+                      {TASK_STATUS_LABELS[task.status]}
+                    </StatusBadge>
+                  </td>
                   <td className={`px-3 py-2 ${PRIORITY_TONE[task.priority]}`}>
                     {TASK_PRIORITY_LABELS[task.priority]}
                   </td>

@@ -18,7 +18,7 @@
 ## 4. Verification
 
 - [x] 4.1 Run `npm run check`: tsc, eslint, 27 frontend tests, 141 backend tests and the production build. Done: ruff clean, 141 backend tests, 27 frontend tests, eslint 0 errors, production build ok.
-- [ ] 4.2 Push to `main`, confirm the CI run and Stage deploy succeed, and record the CSS bundle-size delta from the build output.
+- [x] 4.2 Push to `main`, confirm the CI run and Stage deploy succeed, and record the CSS bundle-size delta from the build output. Done: CI run #69 green - checks, build-images (docker frontend build with `@config`) and deploy-staging all passed. CSS delta: 81,155 -> 104,202 bytes raw, 14,865 -> 16,569 gzipped.
 - [ ] 4.3 Verify on Stage that the shells, the equipment card, the registry and the task pages render unchanged and that a theme switch still restyles the app without a reload.
 
 ## 5. Docs

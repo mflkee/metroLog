@@ -37,7 +37,8 @@ import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
 import { TaskEquipmentModal } from "@/components/TaskEquipmentModal";
 import { TaskParticipantsModal } from "@/components/TaskParticipantsModal";
-import { PageHeader } from "@/components/layout/PageHeader";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
 import {
   appendPendingFiles,
@@ -51,6 +52,7 @@ import {
   resizeTextareaToContent,
 } from "@/lib/textarea";
 import { hasOperatorAccess } from "@/lib/roles";
+import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
 import { useAuthStore } from "@/store/auth";
 
 const paperclipIcon = (
@@ -239,7 +241,7 @@ export function TaskDetailsPage() {
       <PageHeader
         title={task.title}
         description={`${task.folderName ?? "Без папки"} · приоритет ${TASK_PRIORITY_LABELS[task.priority].toLowerCase()} · автор ${task.createdByDisplayName}`}
-        action={
+        actions={
           <div className="flex items-center gap-2">
             <button
               className="btn-secondary btn-sm"
@@ -278,6 +280,9 @@ export function TaskDetailsPage() {
                   </option>
                 ))}
               </select>
+              <StatusBadge tone={TASK_STATUS_TONES[task.status]}>
+                {TASK_STATUS_LABELS[task.status]}
+              </StatusBadge>
               <span className={task.isOverdue ? "text-sm text-[color:var(--danger)]" : "text-sm text-steel"}>
                 Срок: {task.dueDate ?? "не задан"}
               </span>

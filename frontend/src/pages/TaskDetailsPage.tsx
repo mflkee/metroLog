@@ -26,6 +26,7 @@ import {
   type TaskStatus,
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
+import { Modal } from "@/components/Modal";
 import { MentionTextarea } from "@/components/MentionTextarea";
 import { TaskEquipmentModal } from "@/components/TaskEquipmentModal";
 import { TaskParticipantsModal } from "@/components/TaskParticipantsModal";
@@ -93,6 +94,9 @@ export function TaskDetailsPage() {
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
+  const [preview, setPreview] = useState<{ url: string; name: string; mime: string | null } | null>(
+    null,
+  );
 
   const taskQuery = useQuery({
     queryKey: ["task", taskId],
@@ -178,6 +182,30 @@ export function TaskDetailsPage() {
     mutationFn: () => deleteTask(token, taskId),
     onSuccess: () => navigate("/tasks"),
   });
+
+  async function openPreview(attachment: TaskAttachment) {
+    const response = await fetch(`${apiBaseUrl}/tasks/${taskId}/attachments/${attachment.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) {
+      return;
+    }
+    const blob = await response.blob();
+    setPreview({
+      url: URL.createObjectURL(blob),
+      name: attachment.fileName,
+      mime: attachment.fileMimeType,
+    });
+  }
+
+  function closePreview() {
+    setPreview((current) => {
+      if (current) {
+        URL.revokeObjectURL(current.url);
+      }
+      return null;
+    });
+  }
 
   if (taskQuery.isLoading) {
     return <p className="text-sm text-steel">Загрузка задачи…</p>;
@@ -460,6 +488,13 @@ export function TaskDetailsPage() {
                   </button>
                   <span className="text-xs text-steel">{Math.round(attachment.fileSize / 1024)} КБ</span>
                   <button
+                    className="text-xs text-steel underline"
+                    onClick={() => void openPreview(attachment)}
+                    type="button"
+                  >
+                    просмотр
+                  </button>
+                  <button
                     className="ml-auto text-xs text-[color:var(--danger)]"
                     onClick={() => attachmentDelete.mutate(attachment.id)}
                     type="button"
@@ -513,6 +548,17 @@ export function TaskDetailsPage() {
             refreshTask();
           }}
         />
+      ) : null}
+      {preview ? (
+        <Modal title={preview.name} open onClose={closePreview}>
+          {preview.mime?.startsWith("image/") ? (
+            <img alt={preview.name} className="max-h-[70vh] w-full object-contain" src={preview.url} />
+          ) : preview.mime === "application/pdf" ? (
+            <iframe className="h-[70vh] w-full" src={preview.url} title={preview.name} />
+          ) : (
+            <p className="text-sm text-steel">Предпросмотр недоступен — используйте скачивание.</p>
+          )}
+        </Modal>
       ) : null}
     </section>
   );

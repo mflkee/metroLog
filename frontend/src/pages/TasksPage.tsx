@@ -3,7 +3,7 @@ import { type FormEvent, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { fetchEquipmentFolders } from "@/api/equipment";
+import { fetchEquipmentFolders, fetchEquipmentPage } from "@/api/equipment";
 import {
   TASK_PRIORITY_LABELS,
   TASK_STATUSES,
@@ -320,7 +320,6 @@ function CreateTaskModal({
     queryFn: () => fetchMentionUsers(token),
     enabled: open && Boolean(token),
   });
-
   const [folderId, setFolderId] = useState<string>(defaultFolderId ? String(defaultFolderId) : "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -329,7 +328,14 @@ function CreateTaskModal({
   const [dueDate, setDueDate] = useState("");
   const [assigneeIds, setAssigneeIds] = useState<number[]>([]);
   const [observerIds, setObserverIds] = useState<number[]>([]);
+  const [equipmentIds, setEquipmentIds] = useState<number[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const equipmentQuery = useQuery({
+    queryKey: ["equipment-picker", "create", folderId],
+    queryFn: () => fetchEquipmentPage(token, { folderId: Number(folderId), limit: 50, offset: 0 }),
+    enabled: open && Boolean(token) && Boolean(folderId),
+  });
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -342,6 +348,7 @@ function CreateTaskModal({
         responsibleUserId: Number(responsibleUserId),
         assigneeUserIds: assigneeIds,
         observerUserIds: observerIds,
+        equipmentIds,
       }),
     onSuccess: () => {
       setTitle("");
@@ -349,6 +356,7 @@ function CreateTaskModal({
       setDueDate("");
       setAssigneeIds([]);
       setObserverIds([]);
+      setEquipmentIds([]);
       onCreated();
     },
     onError: (mutationError: unknown) => {
@@ -469,6 +477,33 @@ function CreateTaskModal({
             </select>
           </label>
         </div>
+        {folderId ? (
+          <label className="block space-y-1">
+            <span className="text-xs uppercase tracking-wide text-steel">Приборы</span>
+            <div className="max-h-40 space-y-1 overflow-y-auto rounded-xl border border-line p-2">
+              {(equipmentQuery.data?.items ?? []).map((item) => (
+                <label key={item.id} className="flex items-center gap-2 text-sm text-ink">
+                  <input
+                    checked={equipmentIds.includes(item.id)}
+                    onChange={() =>
+                      setEquipmentIds((current) =>
+                        current.includes(item.id)
+                          ? current.filter((value) => value !== item.id)
+                          : [...current, item.id],
+                      )
+                    }
+                    type="checkbox"
+                  />
+                  <span className="min-w-0 truncate">
+                    {item.name}
+                    {item.serialNumber ? ` · зав. № ${item.serialNumber}` : ""}
+                  </span>
+                </label>
+              ))}
+              {equipmentQuery.isLoading ? <p className="text-sm text-steel">Загрузка…</p> : null}
+            </div>
+          </label>
+        ) : null}
         {error ? <p className="text-sm text-[color:var(--danger)]">{error}</p> : null}
         <div className="flex justify-end gap-2">
           <button className="rounded-xl border border-line px-3 py-2 text-sm text-steel" onClick={onClose} type="button">

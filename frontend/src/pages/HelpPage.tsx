@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 
 import { PageHeader } from "@/components/layout/PageHeader";
+import { WhatsNewModal } from "@/components/WhatsNewModal";
 
 import userGuideMarkdown from "@/content/user-guide.ru.txt?raw";
 
@@ -308,6 +309,7 @@ export function HelpPage() {
   const blocks = useMemo(() => parseMarkdown(userGuideMarkdown), []);
   const { title, chapters, chapterIdByHeadingId } = useMemo(() => buildDocumentModel(blocks), [blocks]);
   const [selectedChapterId, setSelectedChapterId] = useState<string>(chapters[0]?.id ?? "");
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
 
   const selectedChapter =
     chapters.find((chapter) => chapter.id === selectedChapterId) ?? chapters[0] ?? null;
@@ -385,7 +387,17 @@ export function HelpPage() {
       <PageHeader
         title="Документация"
         description="Справка в формате читалки: разбивка по страницам, быстрое переключение разделов и последовательное чтение без длинного монолита."
+        action={
+          <button
+            className="rounded-xl border border-line px-3 py-2 text-sm text-steel"
+            onClick={() => setWhatsNewOpen(true)}
+            type="button"
+          >
+            Что нового
+          </button>
+        }
       />
+      <WhatsNewModal open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
 
       <div className="grid gap-6 xl:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="space-y-4 xl:sticky xl:top-24 xl:self-start">

@@ -2,16 +2,20 @@ import { APP_STAGE, APP_VERSION } from "@/lib/appVersion";
 
 type AppVersionBadgeProps = {
   className?: string;
+  onClick?: () => void;
 };
 
-export function AppVersionBadge({ className }: AppVersionBadgeProps) {
+export function AppVersionBadge({ className, onClick }: AppVersionBadgeProps) {
   return (
-    <span
+    <button
       className={[
         "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-steel",
+        onClick ? "transition hover:border-signal-info" : "",
         className ?? "",
       ].join(" ")}
-      title={`metroLog ${APP_VERSION} (${APP_STAGE})`}
+      onClick={onClick}
+      title={`metroLog ${APP_VERSION} (${APP_STAGE}) — что нового`}
+      type="button"
     >
       <span className="whitespace-nowrap normal-case">v{APP_VERSION}</span>
       <span
@@ -20,6 +24,6 @@ export function AppVersionBadge({ className }: AppVersionBadgeProps) {
       >
         {APP_STAGE}
       </span>
-    </span>
+    </button>
   );
 }

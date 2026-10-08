@@ -19,6 +19,6 @@
 
 ## 4. "What's new" changelog view
 
-- [ ] 4.1 Add a "Что нового" view that renders a static changelog (e.g. `CHANGELOG.md` / `src/content/changelog.ru.txt`); verify it lists at least the current version's entries.
-- [ ] 4.2 Open the view by clicking the version badge in the topbar, and link it from the Help page; verify both entry points render the same content.
-- [ ] 4.3 Document the changelog convention (add an entry per release) in `AGENTS.md`.
+- [x] 4.1 Add a "Что нового" view that renders the static `CHANGELOG.md` (`WhatsNewModal`); it lists the current version's entries.
+- [x] 4.2 Open the view by clicking the version badge in the topbar and from the Help page; both entry points render the same content.
+- [x] 4.3 Document the changelog convention (add an entry per release) in `AGENTS.md`.

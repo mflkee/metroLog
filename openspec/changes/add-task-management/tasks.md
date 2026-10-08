@@ -62,6 +62,6 @@
 - [x] 10.2 Equipment linker in the task card: search equipment (within the task's folder) and attach/detach links via `equipment_ids` (`TaskEquipmentModal`).
 - [x] 10.3 `@` mention autocomplete in the discussion composer using `fetchMentionUsers`, inserting the correct mention key (`MentionTextarea`).
 - [x] 10.4 Message attachments: download endpoint added on the backend and download links in the discussion; inline preview still to do.
-- [ ] 10.5 Task attachments in the card: verify and fix download, and add inline preview (image/PDF) consistent with the equipment attachment preview component.
-- [ ] 10.6 Allow choosing assignees, observers and equipment already at creation time in the create-task modal (assignees/observers done; equipment picker still to add).
-- [ ] 10.7 Update the documentation (`src/content/user-guide.ru.txt` and `AGENTS.md`) for tasks once the UI follow-ups land: participants, equipment linking, attachments and mentions.
+- [x] 10.5 Task attachments in the card: download and an inline preview modal (image/PDF) via an authenticated blob fetch.
+- [x] 10.6 Allow choosing assignees, observers and equipment at creation time in the create-task modal (folder-scoped equipment picker).
+- [x] 10.7 Update the documentation (`src/content/user-guide.ru.txt`) for tasks: participants, equipment linking, attachments and mentions.

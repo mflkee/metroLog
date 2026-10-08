@@ -6,6 +6,7 @@ import { Link, useLocation } from "react-router-dom";
 import { fetchArshinStatus } from "@/api/arshin";
 import { AccountMenu } from "@/components/layout/AccountMenu";
 import { AppVersionBadge } from "@/components/layout/AppVersionBadge";
+import { WhatsNewModal } from "@/components/WhatsNewModal";
 import { useAuthStore } from "@/store/auth";
 
 const routeLabels: Array<{ match: RegExp; label: string }> = [
@@ -35,6 +36,7 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
   const mustChangePassword = useAuthStore((state) => state.user?.mustChangePassword);
   const currentSection = routeLabels.find((item) => item.match.test(location.pathname))?.label ?? "Рабочая область";
   const [isArshinProbeSlow, setIsArshinProbeSlow] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const arshinStatusQuery = useQuery({
     queryKey: ["arshin-status"],
     queryFn: () => fetchArshinStatus(token ?? ""),
@@ -110,7 +112,7 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
           <Link className="shrink-0 text-sm font-semibold text-ink sm:text-base" to="/dashboard">
             metroLog
           </Link>
-          <AppVersionBadge />
+          <AppVersionBadge onClick={() => setWhatsNewOpen(true)} />
           <div
             aria-label={arshinStatusIndicator.title}
             className={[
@@ -138,6 +140,7 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
           Временный пароль еще активен. Продолжение работы доступно только после смены пароля в профиле.
         </div>
       ) : null}
+      <WhatsNewModal open={whatsNewOpen} onClose={() => setWhatsNewOpen(false)} />
     </header>
   );
 }

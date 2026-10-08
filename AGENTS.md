@@ -251,7 +251,7 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 1. собрать всё, что уехало с прошлого релиза (OpenSpec change'ы, коммиты, merge в `main`);
 2. определить тип бампа по правилу выше;
 3. поднять `version` в `frontend/package.json` и в корневом `package.json`;
-4. добавить запись в `CHANGELOG.md` (формат Keep a Changelog: `Added` / `Changed` / `Fixed`);
+4. добавить пользовательскую запись в `CHANGELOG.md` (версия + дата + тезисно «что нового»; без внутренних деталей);
 5. коммит `chore(release): vX.Y.Z` и git-тег `vX.Y.Z`;
 6. выкатить на прод: `git push origin main:release/<name>` (или `gh workflow run promote.yml -f tag=staging`).
 

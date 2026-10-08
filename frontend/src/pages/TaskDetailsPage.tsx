@@ -50,6 +50,7 @@ import {
   insertEmojiAtCursor,
   resizeTextareaToContent,
 } from "@/lib/textarea";
+import { hasOperatorAccess } from "@/lib/roles";
 import { useAuthStore } from "@/store/auth";
 
 const paperclipIcon = (
@@ -76,8 +77,10 @@ export function TaskDetailsPage() {
   const { taskId: taskIdParam } = useParams();
   const taskId = Number(taskIdParam);
   const token = useAuthStore((state) => state.token) ?? "";
+  const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const canUsePrivateNotes = hasOperatorAccess(currentUser?.role);
 
   const [checklistLabel, setChecklistLabel] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -418,11 +421,13 @@ export function TaskDetailsPage() {
                 </p>
               ) : null}
               <div className="flex justify-end gap-2">
-                <PrivateNoteToggleButton
-                  active={messagePrivate}
-                  disabled={messageCreate.isPending}
-                  onClick={() => setMessagePrivate((current) => !current)}
-                />
+                {canUsePrivateNotes ? (
+                  <PrivateNoteToggleButton
+                    active={messagePrivate}
+                    disabled={messageCreate.isPending}
+                    onClick={() => setMessagePrivate((current) => !current)}
+                  />
+                ) : null}
                 <EmojiPickerButton
                   disabled={messageCreate.isPending}
                   onPick={(emoji) =>

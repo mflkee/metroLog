@@ -77,3 +77,6 @@
 - [x] 11.7 Highlight the Kanban column headers with the same accent tone as the list table header.
 - [x] 11.8 Top bar: drop the user name/role block; render the theme selector as a button styled like `Профиль`/`Выйти` (no `Тема` label), aligned with them.
 - [x] 11.9 Kanban: remove the outer column border (keep only the card borders) for a flatter, more minimal board.
+- [x] 11.10 Top bar: drop the duplicated per-page section title (the page already shows it).
+- [x] 11.11 CHANGELOG is user-facing only: version + date + terse highlights, no internal/infra details (also reflected in `AGENTS.md`).
+- [x] 11.12 Equipment picker: pick the folder and the object (objects from the user's accessible folder) instead of a flat list; hide the private-note toggle from non-operators (customers), matching the backend rule already covered by `test_task_messages_private_visibility`.

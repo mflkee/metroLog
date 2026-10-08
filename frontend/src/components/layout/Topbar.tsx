@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { useQuery } from "@tanstack/react-query";
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import { fetchArshinStatus } from "@/api/arshin";
 import { AccountMenu } from "@/components/layout/AccountMenu";
@@ -9,32 +9,14 @@ import { AppVersionBadge } from "@/components/layout/AppVersionBadge";
 import { WhatsNewModal } from "@/components/WhatsNewModal";
 import { useAuthStore } from "@/store/auth";
 
-const routeLabels: Array<{ match: RegExp; label: string }> = [
-  { match: /^\/dashboard$/, label: "Главная" },
-  { match: /^\/equipment$/, label: "Оборудование" },
-  { match: /^\/equipment\/\d+$/, label: "Карточка прибора" },
-  { match: /^\/arshin$/, label: "Сервис Аршин" },
-  { match: /^\/verification\/si$/, label: "Поверка СИ" },
-  { match: /^\/repairs$/, label: "Ремонты" },
-  { match: /^\/events$/, label: "Журнал событий" },
-  { match: /^\/settings$/, label: "Настройки" },
-  { match: /^\/profile$/, label: "Профиль" },
-  { match: /^\/help$/, label: "Документация" },
-  { match: /^\/developer$/, label: "Мониторинг" },
-  { match: /^\/admin\/users$/, label: "Пользователи" },
-  { match: /^\/admin\/users\/\d+$/, label: "Карточка пользователя" },
-];
-
 type TopbarProps = {
   mobileNavigationOpen: boolean;
   onToggleMobileNavigation: () => void;
 };
 
 export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: TopbarProps) {
-  const location = useLocation();
   const token = useAuthStore((state) => state.token);
   const mustChangePassword = useAuthStore((state) => state.user?.mustChangePassword);
-  const currentSection = routeLabels.find((item) => item.match.test(location.pathname))?.label ?? "Рабочая область";
   const [isArshinProbeSlow, setIsArshinProbeSlow] = useState(false);
   const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const arshinStatusQuery = useQuery({
@@ -106,9 +88,6 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
               </svg>
             )}
           </button>
-          <div className="hidden min-w-0 truncate text-[11px] uppercase tracking-[0.18em] text-steel sm:block sm:text-xs sm:tracking-[0.22em]">
-            {currentSection}
-          </div>
           <Link className="shrink-0 text-sm font-semibold text-ink sm:text-base" to="/dashboard">
             metroLog
           </Link>

@@ -1,6 +1,9 @@
+
+
 import { useEquipmentRegistryQueries } from "@/hooks/useEquipmentRegistryQueries";
 import { useFolderRefresh } from "@/hooks/useFolderRefresh";
-import { ActiveModal, DeleteTarget, ESIInternalModuleFormState, EquipmentFormState, EquipmentSortState, FolderFormState, RepairBatchFormState, SIImportFormState, SISearchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getArshinSearchResultManufactureYear, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
+import { useSiImportExport } from "@/hooks/useSiImportExport";
+import { ActiveModal, DeleteTarget, EquipmentFormState, EquipmentSortState, FolderFormState, RepairBatchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
 import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -8,12 +11,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
-  fetchArshinEsiDetail,
-  fetchArshinVriDetail,
   getArshinErrorMessage,
-  searchArshin,
-  type ArshinSearchResult,
-  type ArshinVriDetail,
 } from "@/api/arshin";
 import {
   canChangeEquipmentTypeAfterCreation,
@@ -26,14 +24,12 @@ import {
   deleteEquipmentBatch,
   deleteEquipment,
   deleteEquipmentFolder,
-  exportEquipmentRegistryXlsx,
   equipmentStatusLabels,
   equipmentTypeSelectionLabels,
   getEditableEquipmentTypeOptions,
   getEquipmentComplianceDateLabel,
   getEquipmentCompliancePeriodLabel,
   isArshinEquipmentType,
-  importSIEquipmentExcel,
   supportsVerification,
   updateEquipment,
   updateEquipmentFolder,
@@ -41,7 +37,6 @@ import {
   type EquipmentFolder,
   type EquipmentFolderRefreshRowStatus,
   type EquipmentPageResult,
-  type EquipmentSIBulkImportResult,
   type EquipmentSortKey,
   type EquipmentStatus,
   type EquipmentType,
@@ -61,7 +56,6 @@ import { PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { appendPendingFiles, openFilePicker, removePendingFile } from "@/lib/attachments";
 import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
-import { extractEsiInternalModuleCandidates } from "@/lib/esiModules";
 import {
   getProcessFormatButtonClass,
   getProcessVariantById,
@@ -103,20 +97,12 @@ export function EquipmentPage() {
   const [typeFilter, setTypeFilter] = useState<EquipmentType | "ALL">("ALL");
   const [folderForm, setFolderForm] = useState<FolderFormState>(defaultFolderForm);
   const [equipmentForm, setEquipmentForm] = useState<EquipmentFormState>(defaultEquipmentForm);
-  const [siSearchForm, setSiSearchForm] = useState<SISearchFormState>(defaultSISearchForm);
-  const [siSearchResults, setSiSearchResults] = useState<ArshinSearchResult[]>([]);
-  const [selectedSiResult, setSelectedSiResult] = useState<ArshinSearchResult | null>(null);
-  const [selectedSiDetail, setSelectedSiDetail] = useState<ArshinVriDetail | null>(null);
-  const [esiInternalModules, setEsiInternalModules] = useState<ESIInternalModuleFormState[]>([]);
-  const [siImportForm, setSiImportForm] = useState<SIImportFormState>(defaultSIImportForm);
   const [verificationBatchForm, setVerificationBatchForm] = useState<VerificationBatchFormState>(
     defaultVerificationBatchForm,
   );
   const [repairBatchForm, setRepairBatchForm] = useState<RepairBatchFormState>(
     defaultRepairBatchForm,
   );
-  const [siImportResult, setSiImportResult] = useState<EquipmentSIBulkImportResult | null>(null);
-  const [exportError, setExportError] = useState<string | null>(null);
   const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
   const [folderSubscriptionModalOpen, setFolderSubscriptionModalOpen] = useState(false);
@@ -302,55 +288,7 @@ export function EquipmentPage() {
 
   const folderRefreshTask = folderRefreshTaskQuery.data?.task ?? startFolderRefreshMutation.data ?? null;
 
-  const siSearchMutation = useMutation({
-    mutationFn: ({ documentNumber, equipmentType }: { documentNumber: string; equipmentType: EquipmentType }) =>
-      searchArshin(token ?? "", {
-        registryKind: equipmentType === "ESI" ? "ESI" : "SI",
-        ...(equipmentType === "ESI"
-          ? { certificateNumber: documentNumber }
-          : { resultDocnum: documentNumber }),
-      }),
-    onSuccess: (results) => {
-      setSiSearchResults(results);
-      setSelectedSiResult(null);
-      setSelectedSiDetail(null);
-      setEsiInternalModules([]);
-      if (results.length === 1) {
-        handleSelectSiResult(results[0]);
-      }
-    },
-  });
 
-  const siDetailMutation = useMutation({
-    mutationFn: ({
-      equipmentType,
-      result,
-    }: {
-      equipmentType: EquipmentType;
-      result: ArshinSearchResult;
-    }) =>
-      equipmentType === "ESI"
-        ? fetchArshinEsiDetail(token ?? "", result)
-        : fetchArshinVriDetail(token ?? "", result.vriId),
-    onSuccess: (detail) => {
-      setSelectedSiDetail(detail);
-      setEsiInternalModules(
-        equipmentForm.equipmentType === "ESI"
-          ? extractEsiInternalModuleCandidates(detail).map((item) => ({
-              ...item,
-              measurementLimit: "",
-            }))
-          : [],
-      );
-      setEquipmentForm((current) => ({
-        ...current,
-        name: detail.typeName ?? current.name,
-        modification: detail.modification ?? "",
-        serialNumber: detail.serialNumber ?? "",
-        manufactureYear: detail.manufactureYear ? String(detail.manufactureYear) : "",
-      }));
-    },
-  });
 
   const createEquipmentMutation = useMutation({
     mutationFn: () =>
@@ -414,45 +352,7 @@ export function EquipmentPage() {
     },
   });
 
-  const importSIExcelMutation = useMutation({
-    mutationFn: () => {
-      if (!selectedFolderId) {
-        throw new Error("Сначала выбери папку для импорта.");
-      }
-      if (!siImportForm.file) {
-        throw new Error("Выбери Excel-файл для импорта.");
-      }
-      return importSIEquipmentExcel(token ?? "", {
-        folderId: selectedFolderId,
-        objectName: siImportForm.objectName,
-        status: siImportForm.status,
-        currentLocationManual: siImportForm.currentLocationManual,
-        file: siImportForm.file,
-      });
-    },
-    onSuccess: async (result) => {
-      setSiImportResult(result);
-      await invalidateEquipmentRegistryQueries();
-    },
-  });
 
-  const exportEquipmentMutation = useMutation({
-    mutationFn: () =>
-      exportEquipmentRegistryXlsx(
-        token ?? "",
-        selectedEquipmentIds.length > 0
-          ? {
-              folderId: selectedFolderId,
-              equipmentIds: selectedEquipmentIds,
-            }
-          : {
-              folderId: selectedFolderId,
-              query: deferredSearchQuery,
-              status: statusFilter === "ALL" ? null : statusFilter,
-              equipmentType: typeFilter === "ALL" ? null : typeFilter,
-            },
-      ),
-  });
 
   const createVerificationBatchMutation = useMutation<unknown, Error, void>({
     mutationFn: () => {
@@ -578,6 +478,39 @@ export function EquipmentPage() {
     () => equipmentPageQuery.data ?? null,
     [equipmentPageQuery.data],
   );
+  const {
+    siSearchForm,
+    setSiSearchForm,
+    siSearchResults,
+    setSiSearchResults,
+    selectedSiResult,
+    setSelectedSiResult,
+    selectedSiDetail,
+    setSelectedSiDetail,
+    esiInternalModules,
+    setEsiInternalModules,
+    siImportForm,
+    setSiImportForm,
+    siImportResult,
+    setSiImportResult,
+    exportError,
+    setExportError,
+    siSearchMutation,
+    siDetailMutation,
+    importSIExcelMutation,
+    exportEquipmentMutation,
+    handleSelectSiResult,
+  } = useSiImportExport({
+    token,
+    folderId: selectedFolderId,
+    equipmentForm,
+    setEquipmentForm,
+    selectedEquipmentIds,
+    query: deferredSearchQuery,
+    status: statusFilter,
+    equipmentType: typeFilter,
+  });
+
   const equipmentItems = useMemo(() => paginatedEquipmentPage?.items ?? [], [paginatedEquipmentPage?.items]);
   const equipmentTotalCount = useMemo(() => paginatedEquipmentPage?.total ?? 0, [paginatedEquipmentPage?.total]);
   const equipmentTotalPages = useMemo(
@@ -1289,22 +1222,6 @@ export function EquipmentPage() {
     ) {
       resetSiSearchState();
     }
-  }
-
-  function handleSelectSiResult(result: ArshinSearchResult) {
-    const nextType = equipmentForm.equipmentType;
-    setSelectedSiResult(result);
-    setSelectedSiDetail(null);
-    setEsiInternalModules([]);
-    setEquipmentForm((current) => ({
-      ...current,
-      equipmentType: nextType,
-      name: result.mitTitle ?? current.name,
-      modification: result.miModification ?? "",
-      serialNumber: result.miNumber ?? "",
-      manufactureYear: getArshinSearchResultManufactureYear(result) ?? current.manufactureYear,
-    }));
-    void siDetailMutation.mutateAsync({ equipmentType: nextType, result });
   }
 
   async function handleFolderSubmit(event: FormEvent<HTMLFormElement>) {

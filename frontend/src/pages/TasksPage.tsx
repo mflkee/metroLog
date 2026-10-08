@@ -1,5 +1,18 @@
 import { type FormEvent, useMemo, useState } from "react";
 
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCorners,
+  useDraggable,
+  useDroppable,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from "@dnd-kit/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
@@ -24,6 +37,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
 import { useSearchHistory } from "@/lib/searchHistory";
+import { resolveBoardDrop } from "@/lib/taskBoard";
 import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
 import { resizeTextareaToContent } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
@@ -47,14 +61,7 @@ function formatDate(value: string | null): string {
 
 function TaskCard({ task }: { task: TaskListItem }) {
   return (
-    <div
-      className="w-full cursor-pointer rounded-2xl border border-line p-3 text-left transition hover:border-[color:var(--accent)]"
-      draggable
-      onDragStart={(event) => {
-        event.dataTransfer.setData("text/plain", String(task.id));
-        event.dataTransfer.effectAllowed = "move";
-      }}
-    >
+    <div className="w-full cursor-pointer rounded-2xl border border-line p-3 text-left transition hover:border-[color:var(--accent)]">
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-ink">{task.title}</span>
         <span className={`shrink-0 text-[11px] font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
@@ -78,6 +85,60 @@ function TaskCard({ task }: { task: TaskListItem }) {
   );
 }
 
+function DraggableTaskCard({ task }: { task: TaskListItem }) {
+  const { attributes, isDragging, listeners, setNodeRef } = useDraggable({ id: task.id });
+
+  return (
+    <div
+      className={["touch-pan-y", isDragging ? "opacity-40" : ""].filter(Boolean).join(" ")}
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+    >
+      <Link className="block" draggable={false} to={`/tasks/${task.id}`}>
+        <TaskCard task={task} />
+      </Link>
+    </div>
+  );
+}
+
+function BoardColumn({
+  count,
+  status,
+  tasks,
+}: {
+  count: number;
+  status: TaskStatus;
+  tasks: TaskListItem[];
+}) {
+  const { isOver, setNodeRef } = useDroppable({ id: status });
+
+  return (
+    <div
+      className={[
+        "flex min-h-[120px] flex-col gap-2 rounded-2xl transition",
+        isOver ? "bg-[var(--accent-soft)]" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      ref={setNodeRef}
+    >
+      <StatusBadge
+        className="w-full justify-between rounded-t-2xl rounded-b-md px-3 py-2 text-sm"
+        tone={TASK_STATUS_TONES[status]}
+      >
+        <span>{TASK_STATUS_LABELS[status]}</span>
+        <span className="text-xs font-semibold opacity-70">{count}</span>
+      </StatusBadge>
+      <div className="space-y-2 px-1">
+        {tasks.map((task) => (
+          <DraggableTaskCard key={task.id} task={task} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function TasksPage() {
   const token = useAuthStore((state) => state.token) ?? "";
   const currentUser = useAuthStore((state) => state.user);
@@ -91,6 +152,7 @@ export function TasksPage() {
   const [mine, setMine] = useState(false);
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
 
   const foldersQuery = useQuery({
     queryKey: ["equipment-folders"],
@@ -124,6 +186,24 @@ export function TasksPage() {
   });
 
   const tasks = tasksQuery.data?.items ?? [];
+  const activeTask = tasks.find((task) => task.id === activeTaskId) ?? null;
+  const sensors = useSensors(
+    // A small distance keeps a plain click on the card navigating to it.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor),
+  );
+
+  function handleDragStart(event: DragStartEvent) {
+    setActiveTaskId(Number(event.active.id));
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setActiveTaskId(null);
+    const drop = resolveBoardDrop(event.active.id, event.over?.id, tasks);
+    if (drop) {
+      statusMutation.mutate(drop);
+    }
+  }
 
   function toggleStatus(status: TaskStatus) {
     setStatuses((current) =>
@@ -232,39 +312,30 @@ export function TasksPage() {
       ) : null}
 
       {view === "board" ? (
-        <div className="grid gap-3 lg:grid-cols-5">
-          {BOARD_STATUSES.map((status) => (
-            <div
-              key={status}
-              className="min-h-[120px] space-y-2 rounded-2xl p-1"
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={(event) => {
-                event.preventDefault();
-                const taskId = Number(event.dataTransfer.getData("text/plain"));
-                const task = tasks.find((item) => item.id === taskId);
-                if (taskId && task && task.status !== status) {
-                  statusMutation.mutate({ id: taskId, status });
-                }
-              }}
-            >
-              <div className="flex items-center justify-between gap-2">
-                <StatusBadge className="px-3 py-1 text-sm" tone={TASK_STATUS_TONES[status]}>
-                  {TASK_STATUS_LABELS[status]}
-                </StatusBadge>
-                <span className="text-xs font-semibold text-steel/70">
-                  {tasks.filter((task) => task.status === status).length}
-                </span>
-              </div>
-              {tasks
-                .filter((task) => task.status === status)
-                .map((task) => (
-                  <Link key={task.id} className="block" draggable={false} to={`/tasks/${task.id}`}>
-                    <TaskCard task={task} />
-                  </Link>
-                ))}
-            </div>
-          ))}
-        </div>
+        <DndContext
+          collisionDetection={closestCorners}
+          sensors={sensors}
+          onDragCancel={() => setActiveTaskId(null)}
+          onDragEnd={handleDragEnd}
+          onDragStart={handleDragStart}
+        >
+          <div className="grid gap-3 lg:grid-cols-5">
+            {BOARD_STATUSES.map((status) => {
+              const columnTasks = tasks.filter((task) => task.status === status);
+              return (
+                <BoardColumn
+                  count={columnTasks.length}
+                  key={status}
+                  status={status}
+                  tasks={columnTasks}
+                />
+              );
+            })}
+          </div>
+          <DragOverlay dropAnimation={{ duration: 220, easing: "cubic-bezier(0.2, 0, 0, 1)" }}>
+            {activeTask ? <TaskCard task={activeTask} /> : null}
+          </DragOverlay>
+        </DndContext>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-line">
           <table className="w-full text-sm">

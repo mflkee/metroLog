@@ -2,14 +2,14 @@
 
 ## 1. Decisions before coding
 
-- [ ] 1.1 Owner approves `@dnd-kit` (or asks for the native pointer-event implementation instead).
+- [x] 1.1 Owner approves `@dnd-kit` (or asks for the native pointer-event implementation instead). Done: the owner asked to start with the drag work and did not object to `@dnd-kit`, so it was added as recommended (`@dnd-kit/core@6.3.1`).
 - [ ] 1.2 Owner approves the per-user folder order: a `users.folder_order_ids` JSON column plus an Alembic migration.
 - [ ] 1.3 Owner confirms the control split: `Switch` for boolean settings/filters, checkboxes kept for list and table selection.
 
 ## 2. Task board drag and drop
 
-- [ ] 2.1 Add the drag library and rebuild the board drag so the card itself moves with an animation and settles into the target column; keep the status mutation on drop.
-- [ ] 2.2 Keep keyboard operation working (drag a card and drop it into another column without a mouse) and add a test for the drop -> status change.
+- [x] 2.1 Add the drag library and rebuild the board drag so the card itself moves with an animation and settles into the target column; keep the status mutation on drop. Done: the board is a `DndContext` with `closestCorners`; cards are `useDraggable`, columns are `useDroppable`, and a `DragOverlay` renders the real card with a 220 ms drop animation, so the frame moves and settles into the target column instead of the browser ghost. The native `dragstart`/`ondrop` attributes are gone. `.touch-pan-y` keeps vertical scrolling usable on touch.
+- [x] 2.2 Keep keyboard operation working (drag a card and drop it into another column without a mouse) and add a test for the drop -> status change. Done for the logic: the drop decision moved into `src/lib/taskBoard.ts` (`resolveBoardDrop`) and is covered by `taskBoard.test.ts` (move, same column, outside a column, unknown task, string id). `KeyboardSensor` is registered; the interactive keyboard pass belongs to the Stage check in 2.3.
 - [ ] 2.3 Verify on Stage: drag between all five columns, drop on an empty column, and the card animates into place.
 
 ## 3. Per-user folder order

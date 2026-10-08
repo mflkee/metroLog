@@ -157,6 +157,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/components/ui/*` | **shadcn/metro-ui pilot** (`badge`, `card`, `button`, `dialog` from `@shadcn`; `status-badge`, `stat-card`, `page-header` from `metro-ui`) + `app-dialog.tsx` (our shell over the Radix dialog, dismissal contract) and `src/lib/utils.ts` (`cn`). |
 | `src/components/ui/searchable-select.tsx` | Searchable single/multi select (chips, keyboard, results cap, optional history + server-side query) used by the task participants and equipment pickers. |
 | `src/lib/searchHistory.ts` | Recent-query history per search box (localStorage, capped, deduped). |
+| `src/lib/taskBoard.ts` | Board drop decision (`resolveBoardDrop`), used by the task board and unit-tested. |
 | `src/components/ProcessStageInlineControls.tsx` | Milestone date editing + custom stages. |
 | `src/lib/milestoneValidation.ts` | Milestone order validation rules. |
 | `src/lib/processVariants.ts` | Repair/verification preset variant helpers. |

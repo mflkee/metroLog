@@ -1,4 +1,4 @@
-import { type MouseEvent, type ReactNode, useEffect } from "react";
+import { type ReactNode, useEffect } from "react";
 import { createPortal } from "react-dom";
 
 import { IconActionButton } from "@/components/IconActionButton";
@@ -53,18 +53,11 @@ export function Modal({
     return null;
   }
 
-  function handleBackdropClick(event: MouseEvent<HTMLDivElement>) {
-    if (event.target === event.currentTarget) {
-      onClose();
-    }
-  }
-
   return createPortal(
     <div
       aria-modal="true"
       className="fixed inset-0 z-[260] flex items-end justify-center overflow-y-auto overscroll-contain bg-[rgba(11,20,27,0.42)] px-2 py-2 sm:items-center sm:px-4 sm:py-8"
       role="dialog"
-      onClick={handleBackdropClick}
     >
       <div
         className={[

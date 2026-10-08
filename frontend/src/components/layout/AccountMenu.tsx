@@ -20,52 +20,47 @@ export function AccountMenu() {
 
   return (
     <>
-      <div className="flex min-w-0 items-center justify-end gap-2 sm:gap-3">
-        <div className="hidden 2xl:flex">
+      <div className="flex min-w-0 items-center justify-end gap-2">
+        <div className="hidden md:flex">
           <ThemeSwitcher />
         </div>
         {user ? (
-          <div className="hidden min-w-0 items-center gap-2 text-sm 2xl:flex">
-            <span className="truncate font-semibold text-ink">{user.fullName}</span>
+          <div className="hidden min-w-0 items-center gap-2 rounded-full border border-line px-3 py-1 text-xs lg:flex">
+            <span className="max-w-[16rem] truncate font-semibold text-ink">{user.fullName}</span>
             <span className="text-steel">{roleLabels[user.role]}</span>
             {user.mustChangePassword ? (
-              <span className="text-xs uppercase tracking-[0.14em] text-signal-info">смена пароля</span>
+              <span className="text-[10px] uppercase tracking-[0.14em] text-signal-info">смена пароля</span>
             ) : null}
           </div>
         ) : null}
-        <Link className="btn-secondary btn-sm hidden shrink-0 2xl:inline-flex" to="/profile">
+        <Link className="btn-secondary btn-sm hidden shrink-0 xl:inline-flex" to="/profile">
           Профиль
         </Link>
         {user ? (
           <button
-            className="btn-danger btn-sm hidden shrink-0 2xl:inline-flex"
+            className="btn-danger btn-sm hidden shrink-0 xl:inline-flex"
             type="button"
             onClick={() => setLogoutConfirmOpen(true)}
           >
             Выйти
           </button>
         ) : (
-          <Link className="btn-primary btn-sm hidden shrink-0 2xl:inline-flex" to="/login">
+          <Link className="btn-primary btn-sm hidden shrink-0 xl:inline-flex" to="/login">
             Войти
           </Link>
         )}
         {user ? (
           <button
-            className="btn-secondary btn-sm shrink-0 2xl:hidden"
+            className="btn-secondary btn-sm shrink-0 xl:hidden"
             type="button"
             onClick={() => setMobileAccountOpen(true)}
           >
             Аккаунт
           </button>
         ) : (
-          <Link className="btn-primary btn-sm shrink-0 2xl:hidden" to="/login">
+          <Link className="btn-primary btn-sm shrink-0 xl:hidden" to="/login">
             Войти
           </Link>
-        )}
-        {!user ? null : (
-          <div className="hidden min-w-0 text-xs text-steel xl:block 2xl:hidden">
-            {roleLabels[user.role]}
-          </div>
         )}
       </div>
       <Modal

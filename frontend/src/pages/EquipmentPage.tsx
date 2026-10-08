@@ -91,6 +91,7 @@ import {
 } from "@/lib/processVariants";
 import { hasOperatorAccess, roleLabels } from "@/lib/roles";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
+import { insertEmojiAtCursor } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
 
 const equipmentTypeOptions: EquipmentType[] = ["SI", "ESI", "IO", "VO", "OTHER"];
@@ -4563,26 +4564,4 @@ function getVerificationStartDateLabel(flowMode: VerificationFlowMode): string {
     return "Подготовка к поверке";
   }
   return "Демонтаж / подготовка к поверке";
-}
-
-function insertEmojiAtCursor(
-  textarea: HTMLTextAreaElement | null,
-  value: string,
-  emoji: string,
-): string {
-  if (!textarea) {
-    return `${value}${emoji}`;
-  }
-
-  const selectionStart = textarea.selectionStart ?? value.length;
-  const selectionEnd = textarea.selectionEnd ?? value.length;
-  const nextValue = `${value.slice(0, selectionStart)}${emoji}${value.slice(selectionEnd)}`;
-
-  requestAnimationFrame(() => {
-    const caretPosition = selectionStart + emoji.length;
-    textarea.focus();
-    textarea.setSelectionRange(caretPosition, caretPosition);
-  });
-
-  return nextValue;
 }

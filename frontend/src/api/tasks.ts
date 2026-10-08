@@ -1,4 +1,4 @@
-import { apiRequest } from "@/api/client";
+import { apiBaseUrl, ApiError, apiRequest } from "@/api/client";
 
 export type TaskStatus = "NEW" | "IN_PROGRESS" | "ON_HOLD" | "DONE" | "CANCELLED" | "ARCHIVED";
 export type TaskPriority = "LOW" | "NORMAL" | "HIGH" | "CRITICAL";
@@ -591,8 +591,32 @@ export async function deleteTaskAttachment(
   });
 }
 
-export function taskAttachmentDownloadUrl(taskId: number, attachmentId: number): string {
-  return `/api/v1/tasks/${taskId}/attachments/${attachmentId}`;
+export async function fetchTaskAttachmentBlob(
+  token: string,
+  taskId: number,
+  attachmentId: number,
+): Promise<Blob> {
+  return fetchTaskBlob(`${apiBaseUrl}/tasks/${taskId}/attachments/${attachmentId}`, token);
+}
+
+export async function fetchTaskMessageAttachmentBlob(
+  token: string,
+  taskId: number,
+  messageId: number,
+  attachmentId: number,
+): Promise<Blob> {
+  return fetchTaskBlob(
+    `${apiBaseUrl}/tasks/${taskId}/messages/${messageId}/attachments/${attachmentId}`,
+    token,
+  );
+}
+
+async function fetchTaskBlob(url: string, token: string): Promise<Blob> {
+  const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!response.ok) {
+    throw new ApiError(response.status, "Не удалось загрузить файл.");
+  }
+  return response.blob();
 }
 
 export async function fetchTaskSubscription(

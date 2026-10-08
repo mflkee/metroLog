@@ -87,7 +87,7 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
 
   return (
     <header className="shell-topbar z-20 border-b border-line px-3 py-2 backdrop-blur sm:px-4 sm:py-2.5 lg:sticky lg:top-0 lg:px-8 lg:py-3">
-      <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-2 sm:gap-x-3">
+      <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-4">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <button
             aria-expanded={mobileNavigationOpen}
@@ -112,28 +112,25 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
           <Link className="shrink-0 text-sm font-semibold text-ink sm:text-base" to="/dashboard">
             metroLog
           </Link>
-          <AppVersionBadge onClick={() => setWhatsNewOpen(true)} />
-          <div
-            aria-label={arshinStatusIndicator.title}
-            className={[
-              "hidden shrink-0 items-center gap-2 text-xs font-medium sm:inline-flex",
-              arshinStatusIndicator.toneClassName,
-            ].join(" ")}
-            title={arshinStatusIndicator.title}
-          >
-            <span
-              aria-hidden="true"
+          <div className="flex shrink-0 items-center gap-2">
+            <AppVersionBadge onClick={() => setWhatsNewOpen(true)} />
+            <div
+              aria-label={arshinStatusIndicator.title}
               className={[
-                "h-2.5 w-2.5 rounded-full",
-                arshinStatusIndicator.dotClassName,
+                "hidden h-7 shrink-0 items-center gap-2 rounded-full border border-line px-3 text-xs font-medium sm:inline-flex",
+                arshinStatusIndicator.toneClassName,
               ].join(" ")}
-            />
-            <span className="whitespace-nowrap">Аршин</span>
+              title={arshinStatusIndicator.title}
+            >
+              <span
+                aria-hidden="true"
+                className={["h-2 w-2 rounded-full", arshinStatusIndicator.dotClassName].join(" ")}
+              />
+              <span className="whitespace-nowrap">Аршин</span>
+            </div>
           </div>
         </div>
-        <div className="justify-self-end">
-          <AccountMenu />
-        </div>
+        <AccountMenu />
       </div>
       {mustChangePassword ? (
         <div className="shell-status-banner mt-2 rounded-2xl border border-signal-info px-4 py-2.5 text-sm text-ink">

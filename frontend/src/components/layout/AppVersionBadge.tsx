@@ -9,7 +9,7 @@ export function AppVersionBadge({ className, onClick }: AppVersionBadgeProps) {
   return (
     <button
       className={[
-        "inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-steel",
+        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-steel",
         onClick ? "transition hover:border-signal-info" : "",
         className ?? "",
       ].join(" ")}

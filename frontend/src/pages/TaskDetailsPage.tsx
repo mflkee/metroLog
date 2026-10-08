@@ -1,9 +1,8 @@
-import { type ChangeEvent, type FormEvent, useState } from "react";
+import { type ChangeEvent, type FormEvent, useMemo, useRef, useState } from "react";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useParams } from "react-router-dom";
 
-import { apiBaseUrl } from "@/api/client";
 import {
   TASK_PRIORITY_LABELS,
   TASK_STATUSES,
@@ -15,7 +14,9 @@ import {
   deleteTaskAttachment,
   deleteTaskMessage,
   fetchTask,
+  fetchTaskAttachmentBlob,
   fetchTaskAttachments,
+  fetchTaskMessageAttachmentBlob,
   fetchTaskMessages,
   fetchTaskSubscription,
   setTaskSubscription,
@@ -23,61 +24,52 @@ import {
   updateTask,
   uploadTaskAttachments,
   type TaskAttachment,
+  type TaskMessageAttachment,
   type TaskStatus,
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
-import { Modal } from "@/components/Modal";
-import { MentionTextarea } from "@/components/MentionTextarea";
+import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
+import { EmojiPickerButton } from "@/components/EmojiPickerButton";
+import { Icon } from "@/components/Icon";
+import { IconActionButton } from "@/components/IconActionButton";
+import { PendingAttachmentList } from "@/components/PendingAttachmentList";
+import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
 import { TaskEquipmentModal } from "@/components/TaskEquipmentModal";
 import { TaskParticipantsModal } from "@/components/TaskParticipantsModal";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
+import {
+  appendPendingFiles,
+  downloadBlob,
+  openFilePicker,
+  removePendingFile,
+} from "@/lib/attachments";
+import {
+  handleTextareaSubmitShortcut,
+  insertEmojiAtCursor,
+  resizeTextareaToContent,
+} from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
+
+const paperclipIcon = (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.9">
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      d="M21.44 11.05 12.25 20.25a6 6 0 0 1-8.49-8.49l9.9-9.9a4.5 4.5 0 1 1 6.36 6.36l-9.2 9.19a3 3 0 0 1-4.24-4.24l8.49-8.49"
+    />
+  </svg>
+);
+
+const sendIcon = (
+  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3 21l18-9L3 3l3 9Zm0 0h7.5" />
+  </svg>
+);
 
 function formatDateTime(value: string): string {
   return value.slice(0, 16).replace("T", " ");
-}
-
-async function downloadAttachment(token: string, taskId: number, attachment: TaskAttachment) {
-  const response = await fetch(`${apiBaseUrl}/tasks/${taskId}/attachments/${attachment.id}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  if (!response.ok) {
-    return;
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = attachment.fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
-}
-
-async function downloadMessageAttachment(
-  token: string,
-  taskId: number,
-  messageId: number,
-  attachmentId: number,
-  fileName: string,
-) {
-  const response = await fetch(
-    `${apiBaseUrl}/tasks/${taskId}/messages/${messageId}/attachments/${attachmentId}`,
-    { headers: { Authorization: `Bearer ${token}` } },
-  );
-  if (!response.ok) {
-    return;
-  }
-  const blob = await response.blob();
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  URL.revokeObjectURL(url);
 }
 
 export function TaskDetailsPage() {
@@ -94,9 +86,10 @@ export function TaskDetailsPage() {
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
-  const [preview, setPreview] = useState<{ url: string; name: string; mime: string | null } | null>(
-    null,
-  );
+
+  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageFilesInputRef = useRef<HTMLInputElement | null>(null);
+  const attachmentFilesInputRef = useRef<HTMLInputElement | null>(null);
 
   const taskQuery = useQuery({
     queryKey: ["task", taskId],
@@ -123,6 +116,11 @@ export function TaskDetailsPage() {
     queryFn: () => fetchMentionUsers(token),
     enabled: Boolean(token),
   });
+
+  const mentionSuggestions = useMemo(
+    () => buildMentionSuggestionOptions(usersQuery.data ?? []),
+    [usersQuery.data],
+  );
 
   const refreshTask = () => {
     queryClient.invalidateQueries({ queryKey: ["task", taskId] });
@@ -183,28 +181,29 @@ export function TaskDetailsPage() {
     onSuccess: () => navigate("/tasks"),
   });
 
-  async function openPreview(attachment: TaskAttachment) {
-    const response = await fetch(`${apiBaseUrl}/tasks/${taskId}/attachments/${attachment.id}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) {
-      return;
-    }
-    const blob = await response.blob();
-    setPreview({
-      url: URL.createObjectURL(blob),
-      name: attachment.fileName,
-      mime: attachment.fileMimeType,
-    });
+  async function downloadTaskAttachment(attachment: TaskAttachment) {
+    const blob = await fetchTaskAttachmentBlob(token, taskId, attachment.id);
+    downloadBlob(blob, attachment.fileName);
   }
 
-  function closePreview() {
-    setPreview((current) => {
-      if (current) {
-        URL.revokeObjectURL(current.url);
-      }
-      return null;
-    });
+  async function downloadTaskMessageAttachment(
+    messageId: number,
+    attachment: TaskMessageAttachment,
+  ) {
+    const blob = await fetchTaskMessageAttachmentBlob(token, taskId, messageId, attachment.id);
+    downloadBlob(blob, attachment.fileName);
+  }
+
+  function pickMessageFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    setMessageFiles((current) => appendPendingFiles(current, files));
+    event.target.value = "";
+  }
+
+  function pickAttachmentFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    setAttachmentFiles((current) => appendPendingFiles(current, files));
+    event.target.value = "";
   }
 
   if (taskQuery.isLoading) {
@@ -225,6 +224,9 @@ export function TaskDetailsPage() {
   const responsible = task.participants.filter((participant) => participant.role === "RESPONSIBLE");
   const assignees = task.participants.filter((participant) => participant.role === "ASSIGNEE");
   const observers = task.participants.filter((participant) => participant.role === "OBSERVER");
+  const messages = messagesQuery.data ?? [];
+  const attachments = attachmentsQuery.data ?? [];
+  const canSubmitMessage = messageText.trim().length > 0 || messageFiles.length > 0;
 
   return (
     <section className="space-y-4">
@@ -237,14 +239,14 @@ export function TaskDetailsPage() {
         action={
           <div className="flex items-center gap-2">
             <button
-              className="rounded-xl border border-line px-3 py-2 text-sm text-steel"
+              className="btn-secondary btn-sm"
               onClick={() => subscriptionMutation.mutate(!(subscriptionQuery.data?.isSubscribed ?? false))}
               type="button"
             >
               {subscriptionQuery.data?.isSubscribed ? "Отписаться" : "Подписаться"}
             </button>
             <button
-              className="rounded-xl border border-[color:var(--danger)] px-3 py-2 text-sm text-[color:var(--danger)]"
+              className="btn-danger btn-sm"
               onClick={() => {
                 if (window.confirm("Удалить задачу?")) {
                   deleteMutation.mutate();
@@ -260,7 +262,7 @@ export function TaskDetailsPage() {
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
-          <article className="space-y-3 rounded-2xl border border-line p-4">
+          <article className="tone-parent space-y-3 rounded-3xl border border-line p-4 shadow-panel">
             <div className="flex flex-wrap items-center gap-3">
               <select
                 className="form-input form-input--compact"
@@ -287,7 +289,7 @@ export function TaskDetailsPage() {
             )}
           </article>
 
-          <article className="space-y-3 rounded-2xl border border-line p-4">
+          <article className="tone-parent space-y-3 rounded-3xl border border-line p-4 shadow-panel">
             <h3 className="text-sm font-semibold text-ink">
               Чек-лист {task.checklistTotal > 0 ? `(${task.checklistDone}/${task.checklistTotal})` : ""}
             </h3>
@@ -327,99 +329,127 @@ export function TaskDetailsPage() {
                 value={checklistLabel}
                 onChange={(event) => setChecklistLabel(event.target.value)}
               />
-              <button className="rounded-xl border border-line px-3 py-1 text-sm text-steel" type="submit">
+              <button className="btn-secondary btn-sm" type="submit">
                 Добавить
               </button>
             </form>
           </article>
 
-          <article className="space-y-3 rounded-2xl border border-line p-4">
-            <h3 className="text-sm font-semibold text-ink">Обсуждение</h3>
-            <ul className="space-y-3">
-              {(messagesQuery.data ?? []).map((message) => (
-                <li key={message.id} className="rounded-xl border border-line p-3 text-sm">
-                  <div className="flex items-center justify-between gap-2 text-xs text-steel">
-                    <span>
-                      {message.authorDisplayName}
-                      {message.isPrivate ? " · приватно" : ""} · {formatDateTime(message.createdAt)}
-                    </span>
-                    <button
-                      className="text-[color:var(--danger)]"
+          <article className="tone-parent space-y-3 rounded-3xl border border-line p-4 shadow-panel">
+            <h3 className="text-lg font-semibold text-ink">Обсуждение</h3>
+
+            <div className="space-y-3">
+              {messages.map((message) => (
+                <article key={message.id} className="tone-child rounded-2xl border border-line px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-steel">
+                        {message.authorDisplayName} · {formatDateTime(message.createdAt)}
+                      </span>
+                      {message.isPrivate ? <PrivateNoteBadge /> : null}
+                    </div>
+                    <IconActionButton
+                      className="icon-action-button--danger"
+                      icon={<Icon className="h-4 w-4" name="delete" />}
+                      label="Удалить сообщение"
+                      size="tiny"
                       onClick={() => messageDelete.mutate(message.id)}
-                      type="button"
-                    >
-                      удалить
-                    </button>
+                    />
                   </div>
-                  {message.text ? <p className="mt-1 whitespace-pre-wrap text-ink">{message.text}</p> : null}
-                  {message.attachments.length > 0 ? (
-                    <ul className="mt-1 space-y-1 text-xs">
-                      {message.attachments.map((attachment) => (
-                        <li key={attachment.id}>
-                          <button
-                            className="text-left text-steel underline"
-                            onClick={() =>
-                              void downloadMessageAttachment(
-                                token,
-                                taskId,
-                                message.id,
-                                attachment.id,
-                                attachment.fileName,
-                              )
-                            }
-                            type="button"
-                          >
-                            {attachment.fileName}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                  {message.text ? (
+                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
+                      {message.text}
+                    </p>
                   ) : null}
-                </li>
+                  <AttachmentPreviewList
+                    attachments={message.attachments}
+                    className="mt-3"
+                    loadPreview={(attachment) =>
+                      fetchTaskMessageAttachmentBlob(token, taskId, message.id, attachment.id)
+                    }
+                    onDownload={(attachment) => void downloadTaskMessageAttachment(message.id, attachment)}
+                    previewVariant="compact"
+                  />
+                </article>
               ))}
-            </ul>
+              {!messages.length ? (
+                <p className="text-sm text-steel">Сообщений пока нет — начни обсуждение.</p>
+              ) : null}
+            </div>
+
             <form
-              className="space-y-2"
+              className="space-y-2 border-t border-line pt-4"
               onSubmit={(event: FormEvent) => {
                 event.preventDefault();
-                if (messageText.trim() || messageFiles.length > 0) {
+                if (canSubmitMessage) {
                   messageCreate.mutate();
                 }
               }}
             >
-              <MentionTextarea
-                users={usersQuery.data ?? []}
+              <AutocompleteTextarea
+                ref={messageInputRef}
+                className="form-input min-h-[56px] overflow-hidden py-3 resize-none"
+                maxLength={4000}
                 placeholder="Сообщение, @упоминание…"
                 rows={2}
+                suggestions={mentionSuggestions}
                 value={messageText}
                 onChange={setMessageText}
+                onKeyDown={handleTextareaSubmitShortcut}
+                onInput={(event) => resizeTextareaToContent(event.currentTarget)}
               />
-              <div className="flex flex-wrap items-center gap-3 text-xs text-steel">
-                <label className="flex items-center gap-1">
-                  <input
-                    checked={messagePrivate}
-                    onChange={(event) => setMessagePrivate(event.target.checked)}
-                    type="checkbox"
-                  />
-                  Приватно
-                </label>
-                <input
-                  onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                    setMessageFiles(Array.from(event.target.files ?? []))
-                  }
-                  type="file"
-                  multiple
+              <input
+                ref={messageFilesInputRef}
+                className="sr-only"
+                multiple
+                type="file"
+                onChange={pickMessageFiles}
+              />
+              <PendingAttachmentList
+                disableRemove={messageCreate.isPending}
+                files={messageFiles}
+                onRemove={(file) => setMessageFiles((current) => removePendingFile(current, file))}
+              />
+              {messageCreate.isError ? (
+                <p className="text-sm text-[color:var(--danger)]">
+                  {messageCreate.error instanceof Error
+                    ? messageCreate.error.message
+                    : "Не удалось отправить сообщение."}
+                </p>
+              ) : null}
+              <div className="flex justify-end gap-2">
+                <PrivateNoteToggleButton
+                  active={messagePrivate}
+                  disabled={messageCreate.isPending}
+                  onClick={() => setMessagePrivate((current) => !current)}
                 />
-                <button className="ml-auto rounded-xl border border-line px-3 py-1 text-ink" type="submit">
-                  Отправить
-                </button>
+                <EmojiPickerButton
+                  disabled={messageCreate.isPending}
+                  onPick={(emoji) =>
+                    setMessageText((current) => insertEmojiAtCursor(messageInputRef.current, current, emoji))
+                  }
+                />
+                <IconActionButton
+                  className="icon-action-button--info h-10 w-10"
+                  disabled={messageCreate.isPending}
+                  icon={paperclipIcon}
+                  label="Прикрепить файлы к сообщению"
+                  onClick={() => openFilePicker(messageFilesInputRef.current)}
+                />
+                <IconActionButton
+                  className="icon-action-button--accent h-10 w-10"
+                  disabled={messageCreate.isPending || !canSubmitMessage}
+                  icon={messageCreate.isPending ? <span className="text-sm leading-none">…</span> : sendIcon}
+                  label="Отправить сообщение"
+                  type="submit"
+                />
               </div>
             </form>
           </article>
         </div>
 
         <aside className="space-y-4">
-          <article className="space-y-2 rounded-2xl border border-line p-4 text-sm">
+          <article className="tone-parent space-y-2 rounded-3xl border border-line p-4 text-sm shadow-panel">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-ink">Участники</h3>
               <button
@@ -447,7 +477,7 @@ export function TaskDetailsPage() {
             </p>
           </article>
 
-          <article className="space-y-2 rounded-2xl border border-line p-4 text-sm">
+          <article className="tone-parent space-y-2 rounded-3xl border border-line p-4 text-sm shadow-panel">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-ink">Оборудование</h3>
               <button
@@ -474,52 +504,61 @@ export function TaskDetailsPage() {
             )}
           </article>
 
-          <article className="space-y-2 rounded-2xl border border-line p-4 text-sm">
-            <h3 className="text-sm font-semibold text-ink">Вложения</h3>
-            <ul className="space-y-1">
-              {(attachmentsQuery.data ?? []).map((attachment) => (
-                <li key={attachment.id} className="flex items-center gap-2">
-                  <button
-                    className="text-left text-ink hover:underline"
-                    onClick={() => void downloadAttachment(token, taskId, attachment)}
-                    type="button"
-                  >
-                    {attachment.fileName}
-                  </button>
-                  <span className="text-xs text-steel">{Math.round(attachment.fileSize / 1024)} КБ</span>
-                  <button
-                    className="text-xs text-steel underline"
-                    onClick={() => void openPreview(attachment)}
-                    type="button"
-                  >
-                    просмотр
-                  </button>
-                  <button
-                    className="ml-auto text-xs text-[color:var(--danger)]"
-                    onClick={() => attachmentDelete.mutate(attachment.id)}
-                    type="button"
-                  >
-                    удалить
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div className="flex items-center gap-2">
-              <input
-                onChange={(event: ChangeEvent<HTMLInputElement>) =>
-                  setAttachmentFiles(Array.from(event.target.files ?? []))
-                }
-                type="file"
-                multiple
+          <article className="tone-parent space-y-3 rounded-3xl border border-line p-4 shadow-panel">
+            <div className="flex items-start justify-between gap-3">
+              <h3 className="text-lg font-semibold text-ink">Вложения</h3>
+              <IconActionButton
+                className="icon-action-button--accent shrink-0"
+                icon={<Icon className="h-5 w-5" name="plus" />}
+                label="Добавить вложение"
+                onClick={() => openFilePicker(attachmentFilesInputRef.current)}
               />
-              <button
-                className="rounded-xl border border-line px-3 py-1 text-ink disabled:opacity-50"
-                disabled={attachmentFiles.length === 0}
-                onClick={() => attachmentUpload.mutate()}
-                type="button"
-              >
-                Загрузить
-              </button>
+            </div>
+            <input
+              ref={attachmentFilesInputRef}
+              className="sr-only"
+              multiple
+              type="file"
+              onChange={pickAttachmentFiles}
+            />
+            <div className="space-y-2">
+              <PendingAttachmentList
+                disableRemove={attachmentUpload.isPending}
+                files={attachmentFiles}
+                onRemove={(file) => setAttachmentFiles((current) => removePendingFile(current, file))}
+              />
+              {attachmentFiles.length > 0 ? (
+                <button
+                  className="btn-primary btn-sm w-full justify-center"
+                  disabled={attachmentUpload.isPending}
+                  onClick={() => attachmentUpload.mutate()}
+                  type="button"
+                >
+                  {attachmentUpload.isPending
+                    ? "Загружаем…"
+                    : `Загрузить (${attachmentFiles.length})`}
+                </button>
+              ) : null}
+              {attachmentUpload.isError ? (
+                <p className="text-sm text-[color:var(--danger)]">
+                  {attachmentUpload.error instanceof Error
+                    ? attachmentUpload.error.message
+                    : "Не удалось загрузить вложения."}
+                </p>
+              ) : null}
+              {!attachments.length && !attachmentFiles.length ? (
+                <p className="text-sm text-steel">Пока пусто.</p>
+              ) : null}
+              <AttachmentPreviewList
+                attachments={attachments}
+                className="mt-2"
+                columns="single"
+                deletingId={attachmentDelete.isPending ? attachmentDelete.variables ?? null : null}
+                loadPreview={(attachment) => fetchTaskAttachmentBlob(token, taskId, attachment.id)}
+                onDelete={(attachment) => attachmentDelete.mutate(attachment.id)}
+                onDownload={(attachment) => void downloadTaskAttachment(attachment)}
+                previewVariant="a4"
+              />
             </div>
           </article>
         </aside>
@@ -548,17 +587,6 @@ export function TaskDetailsPage() {
             refreshTask();
           }}
         />
-      ) : null}
-      {preview ? (
-        <Modal title={preview.name} open onClose={closePreview}>
-          {preview.mime?.startsWith("image/") ? (
-            <img alt={preview.name} className="max-h-[70vh] w-full object-contain" src={preview.url} />
-          ) : preview.mime === "application/pdf" ? (
-            <iframe className="h-[70vh] w-full" src={preview.url} title={preview.name} />
-          ) : (
-            <p className="text-sm text-steel">Предпросмотр недоступен — используйте скачивание.</p>
-          )}
-        </Modal>
       ) : null}
     </section>
   );

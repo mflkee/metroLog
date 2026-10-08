@@ -60,8 +60,15 @@
 
 - [x] 10.1 Participant editor on the task card: set/change the responsible and add/remove assignees and observers via the `responsible_user_id` / `assignee_user_ids` / `observer_user_ids` fields (`TaskParticipantsModal`).
 - [x] 10.2 Equipment linker in the task card: search equipment (within the task's folder) and attach/detach links via `equipment_ids` (`TaskEquipmentModal`).
-- [x] 10.3 `@` mention autocomplete in the discussion composer using `fetchMentionUsers`, inserting the correct mention key (`MentionTextarea`).
-- [x] 10.4 Message attachments: download endpoint added on the backend and download links in the discussion; inline preview still to do.
+- [x] 10.3 `@` mention autocomplete in the discussion composer using `fetchMentionUsers` + the shared `AutocompleteTextarea` (same component as the equipment card), inserting the correct mention key.
+- [x] 10.4 Message attachments: backend download endpoint plus inline preview/download in the discussion via the shared `AttachmentPreviewList`.
 - [x] 10.5 Task attachments in the card: download and an inline preview modal (image/PDF) via an authenticated blob fetch.
 - [x] 10.6 Allow choosing assignees, observers and equipment at creation time in the create-task modal (folder-scoped equipment picker).
 - [x] 10.7 Update the documentation (`src/content/user-guide.ru.txt`) for tasks: participants, equipment linking, attachments and mentions.
+
+## 11. UX polish (from Stage review, 2026-10-08)
+
+- [x] 11.1 Stop modals from closing on an accidental backdrop click: the shared `Modal` keeps an explicit close button (and Escape), and no longer closes when clicking outside.
+- [x] 11.2 Reuse the equipment-card composer in the task card instead of bespoke code: `AutocompleteTextarea` with Enter-to-send (`Shift+Enter` newline), `PendingAttachmentList`, `AttachmentPreviewList`, `EmojiPickerButton` and `PrivateNoteToggleButton`; the ad-hoc `MentionTextarea` was deleted.
+- [x] 11.3 Extract the duplicated composer helpers (`handleTextareaSubmitShortcut`, `insertEmojiAtCursor`, textarea auto-grow) into `src/lib/textarea.ts` and reuse them across `EquipmentDetailsPage`, `EquipmentPage`, `RepairsPage`, `VerificationPage` and the task views.
+- [x] 11.4 Unify the top bar: version badge and the Arshin status as equal-height bordered chips on the left; theme, user name/role and account actions consistently visible on the right.

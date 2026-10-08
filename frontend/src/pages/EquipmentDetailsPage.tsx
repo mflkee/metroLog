@@ -106,6 +106,11 @@ import {
 } from "@/lib/attachments";
 import { buildMentionSuggestionOptions, sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import {
+  handleTextareaSubmitShortcut,
+  insertEmojiAtCursor,
+  resizeTextareaToContent as resizeCommentInput,
+} from "@/lib/textarea";
+import {
   getProcessFormatButtonClass,
   getProcessVariantById,
   getRepairPresetVariants,
@@ -6126,20 +6131,6 @@ function formatProcessRouteSummary({
   return [routeCity, routeDestination].filter(Boolean).join(" · ");
 }
 
-function resizeCommentInput(textarea: HTMLTextAreaElement): void {
-  textarea.style.height = "0px";
-  textarea.style.height = `${Math.max(textarea.scrollHeight, 64)}px`;
-}
-
-function handleTextareaSubmitShortcut(event: KeyboardEvent<HTMLTextAreaElement>): void {
-  if (event.key !== "Enter" || event.shiftKey) {
-    return;
-  }
-
-  event.preventDefault();
-  event.currentTarget.form?.requestSubmit();
-}
-
 function handleExpandableToggleKeyDown(
   event: KeyboardEvent<HTMLElement>,
   onToggle: () => void,
@@ -6150,26 +6141,4 @@ function handleExpandableToggleKeyDown(
 
   event.preventDefault();
   onToggle();
-}
-
-function insertEmojiAtCursor(
-  textarea: HTMLTextAreaElement | null,
-  value: string,
-  emoji: string,
-): string {
-  if (!textarea) {
-    return `${value}${emoji}`;
-  }
-
-  const selectionStart = textarea.selectionStart ?? value.length;
-  const selectionEnd = textarea.selectionEnd ?? value.length;
-  const nextValue = `${value.slice(0, selectionStart)}${emoji}${value.slice(selectionEnd)}`;
-
-  requestAnimationFrame(() => {
-    const caretPosition = selectionStart + emoji.length;
-    textarea.focus();
-    textarea.setSelectionRange(caretPosition, caretPosition);
-  });
-
-  return nextValue;
 }

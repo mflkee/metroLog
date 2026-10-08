@@ -2,7 +2,6 @@ import {
   type ChangeEvent,
   Fragment,
   type FormEvent,
-  type KeyboardEvent,
   useDeferredValue,
   useEffect,
   useMemo,
@@ -77,6 +76,7 @@ import { getDashboardFolderIds } from "@/lib/dashboard";
 import { hasOperatorAccess } from "@/lib/roles";
 import { validateVerificationMilestoneOrder } from "@/lib/milestoneValidation";
 import { useQueuedAutoSave } from "@/lib/useQueuedAutoSave";
+import { handleTextareaSubmitShortcut, insertEmojiAtCursor } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
 
 type VerificationTab = "active" | "archived";
@@ -3702,15 +3702,6 @@ function emptyToNull(value: string | null | undefined): string | null {
   return normalized ? normalized : null;
 }
 
-function handleTextareaSubmitShortcut(event: KeyboardEvent<HTMLTextAreaElement>): void {
-  if (event.key !== "Enter" || event.shiftKey) {
-    return;
-  }
-
-  event.preventDefault();
-  event.currentTarget.form?.requestSubmit();
-}
-
 function resizeTextarea(element: HTMLTextAreaElement) {
   element.style.height = "0px";
   element.style.height = `${element.scrollHeight}px`;
@@ -3721,25 +3712,6 @@ function formatVerificationMessageMeta(message: VerificationMessage): string {
     dateStyle: "short",
     timeStyle: "short",
   }).format(new Date(message.createdAt))}`;
-}
-
-function insertEmojiAtCursor(
-  input: HTMLTextAreaElement | null,
-  currentValue: string,
-  emoji: string,
-): string {
-  if (!input) {
-    return `${currentValue}${emoji}`;
-  }
-  const start = input.selectionStart ?? currentValue.length;
-  const end = input.selectionEnd ?? currentValue.length;
-  const nextValue = `${currentValue.slice(0, start)}${emoji}${currentValue.slice(end)}`;
-  queueMicrotask(() => {
-    const caret = start + emoji.length;
-    input.focus();
-    input.setSelectionRange(caret, caret);
-  });
-  return nextValue;
 }
 
 function parseFolderSearchParam(value: string | null): number | null {

@@ -17,8 +17,11 @@ import {
   type TaskStatus,
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
+import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
+import { resizeTextareaToContent } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
 
 const BOARD_STATUSES: TaskStatus[] = ["NEW", "IN_PROGRESS", "ON_HOLD", "DONE", "CANCELLED"];
@@ -337,6 +340,11 @@ function CreateTaskModal({
     enabled: open && Boolean(token) && Boolean(folderId),
   });
 
+  const mentionSuggestions = useMemo(
+    () => buildMentionSuggestionOptions(usersQuery.data ?? []),
+    [usersQuery.data],
+  );
+
   const mutation = useMutation({
     mutationFn: () =>
       createTask(token, {
@@ -394,11 +402,14 @@ function CreateTaskModal({
         </label>
         <label className="block space-y-1">
           <span className="text-xs uppercase tracking-wide text-steel">Описание</span>
-          <textarea
-            className="form-input"
+          <AutocompleteTextarea
+            className="form-input min-h-[92px] resize-none py-3"
+            placeholder="Опиши задачу, можно упомянуть коллег через @"
             rows={3}
+            suggestions={mentionSuggestions}
             value={description}
-            onChange={(event) => setDescription(event.target.value)}
+            onChange={setDescription}
+            onInput={(event) => resizeTextareaToContent(event.currentTarget, 92)}
           />
         </label>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -506,14 +517,10 @@ function CreateTaskModal({
         ) : null}
         {error ? <p className="text-sm text-[color:var(--danger)]">{error}</p> : null}
         <div className="flex justify-end gap-2">
-          <button className="rounded-xl border border-line px-3 py-2 text-sm text-steel" onClick={onClose} type="button">
+          <button className="btn-secondary btn-sm" onClick={onClose} type="button">
             Отмена
           </button>
-          <button
-            className="rounded-xl border border-[color:var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-ink"
-            disabled={mutation.isPending}
-            type="submit"
-          >
+          <button className="btn-primary btn-sm" disabled={mutation.isPending} type="submit">
             {mutation.isPending ? "Создаём…" : "Создать"}
           </button>
         </div>

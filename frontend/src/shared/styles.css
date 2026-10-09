@@ -202,7 +202,7 @@
   --info: #7dcfff;
   --chart-work: #7aa2f7;
   --chart-repair: #ff9e64;
-  --chart-verification: #73daca;
+  --chart-verification: #7dcfff;
   --chart-both: #bb9af7;
   --chart-archived: #565f89;
   --status-verification: #7aa2f7;
@@ -238,7 +238,7 @@
   --info: #89b4fa;
   --chart-work: #89b4fa;
   --chart-repair: #fab387;
-  --chart-verification: #94e2d5;
+  --chart-verification: #89dceb;
   --chart-both: #cba6f7;
   --chart-archived: #7f849c;
   --status-verification: #89b4fa;
@@ -308,7 +308,7 @@
   --accent-soft: rgba(136, 192, 208, 0.14);
   --success: #a3be8c;
   --info: #81a1c1;
-  --chart-work: #88c0d0;
+  --chart-work: #81a1c1;
   --chart-repair: #d08770;
   --chart-verification: #8fbcbb;
   --chart-both: #b48ead;
@@ -346,7 +346,7 @@
   --info: #8be9fd;
   --chart-work: #8be9fd;
   --chart-repair: #ffb86c;
-  --chart-verification: #50fa7b;
+  --chart-verification: #bd93f9;
   --chart-both: #ff79c6;
   --chart-archived: #7f8496;
   --status-verification: #6272a4;

@@ -87,7 +87,11 @@ function TaskCard({ task }: { task: TaskListItem }) {
 }
 
 function DraggableTaskCard({ task }: { task: TaskListItem }) {
-  const { attributes, isDragging, listeners, setNodeRef, transform } = useDraggable({ id: task.id });
+  // Dragging changes the status, so it stays disabled on cards the API marks read-only.
+  const { attributes, isDragging, listeners, setNodeRef, transform } = useDraggable({
+    id: task.id,
+    disabled: !task.canMutate,
+  });
   const style = transform
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
@@ -185,10 +189,28 @@ export function TasksPage() {
     enabled: Boolean(token),
   });
 
+  const [boardError, setBoardError] = useState<string | null>(null);
+
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: number; status: TaskStatus }) =>
       updateTask(token, id, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["tasks"] }),
+    onError: (error, variables) => {
+      // The card has to return to its column: the server never accepted the new status.
+      setOptimisticStatus((current) => {
+        const next = { ...current };
+        delete next[variables.id];
+        return next;
+      });
+      setBoardError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Не удалось изменить статус задачи.",
+      );
+    },
+    onSuccess: () => {
+      setBoardError(null);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
   });
 
   const tasks = useMemo(() => tasksQuery.data?.items ?? [], [tasksQuery.data?.items]);
@@ -333,6 +355,7 @@ export function TasksPage() {
         </div>
       </div>
 
+      {boardError ? <p className="text-sm text-[color:var(--danger)]">{boardError}</p> : null}
       {tasksQuery.isLoading ? <p className="text-sm text-steel">Загрузка…</p> : null}
       {tasksQuery.isError ? <p className="text-sm text-[color:var(--danger)]">Не удалось загрузить задачи.</p> : null}
       {!tasksQuery.isLoading && tasks.length === 0 ? (

@@ -46,6 +46,8 @@ export type Task = {
   createdAt: string;
   updatedAt: string;
   isOverdue: boolean;
+  /** Mirrors the API rule: operators, the author and RESPONSIBLE/ASSIGNEE may change the task. */
+  canMutate: boolean;
   participants: TaskParticipant[];
   equipment: TaskEquipmentLink[];
   checklist: TaskChecklistItem[];
@@ -73,6 +75,7 @@ export type TaskListItem = {
   createdAt: string;
   updatedAt: string;
   isOverdue: boolean;
+  canMutate: boolean;
 };
 
 export type TaskPage = {
@@ -107,6 +110,7 @@ export type TaskAttachment = {
   fileName: string;
   fileMimeType: string | null;
   fileSize: number;
+  uploadedByUserId: number | null;
   uploadedByDisplayName: string;
   createdAt: string;
 };
@@ -219,6 +223,7 @@ type RawTask = {
   created_at: string;
   updated_at: string;
   is_overdue: boolean;
+  can_mutate: boolean;
   participants: RawParticipant[];
   equipment: RawEquipmentLink[];
   checklist: RawChecklistItem[];
@@ -246,6 +251,7 @@ type RawTaskListItem = {
   created_at: string;
   updated_at: string;
   is_overdue: boolean;
+  can_mutate: boolean;
 };
 
 type RawTaskPage = {
@@ -280,6 +286,7 @@ type RawAttachment = {
   file_name: string;
   file_mime_type: string | null;
   file_size: number;
+  uploaded_by_user_id: number | null;
   uploaded_by_display_name: string;
   created_at: string;
 };
@@ -328,6 +335,7 @@ export function mapTask(raw: RawTask): Task {
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     isOverdue: raw.is_overdue,
+    canMutate: raw.can_mutate ?? false,
     participants: raw.participants.map(mapParticipant),
     equipment: raw.equipment.map(mapEquipmentLink),
     checklist: raw.checklist.map(mapChecklistItem),
@@ -357,6 +365,7 @@ function mapTaskListItem(raw: RawTaskListItem): TaskListItem {
     createdAt: raw.created_at,
     updatedAt: raw.updated_at,
     isOverdue: raw.is_overdue,
+    canMutate: raw.can_mutate ?? false,
   };
 }
 
@@ -386,6 +395,7 @@ function mapAttachment(raw: RawAttachment): TaskAttachment {
     fileName: raw.file_name,
     fileMimeType: raw.file_mime_type,
     fileSize: raw.file_size,
+    uploadedByUserId: raw.uploaded_by_user_id ?? null,
     uploadedByDisplayName: raw.uploaded_by_display_name,
     createdAt: raw.created_at,
   };

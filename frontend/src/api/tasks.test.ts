@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { TASK_STATUSES, TASK_STATUS_LABELS, mapTask, updateTask } from "@/api/tasks";
+import { TASK_STATUSES, TASK_STATUS_LABELS, fetchTasks, mapTask, updateTask } from "@/api/tasks";
 
 describe("mapTask", () => {
   it("maps raw task fields to the camelCase model", () => {
@@ -21,6 +21,7 @@ describe("mapTask", () => {
       created_at: "2026-10-01T00:00:00Z",
       updated_at: "2026-10-02T00:00:00Z",
       is_overdue: false,
+      can_mutate: true,
       participants: [{ user_id: 5, role: "RESPONSIBLE", display_name: "Иванов И.И.", email: "i@x" }],
       equipment: [
         {
@@ -46,6 +47,54 @@ describe("mapTask", () => {
     expect(task.equipment[0].equipmentId).toBe(9);
     expect(task.checklist[0].isDone).toBe(true);
     expect(task.checklistDone).toBe(1);
+    expect(task.canMutate).toBe(true);
+  });
+});
+
+describe("mapTaskListItem", () => {
+  it("carries the read-only flag through from the API, which is what hides the controls", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            items: [
+              {
+                id: 3,
+                folder_id: 1,
+                folder_name: "Папка",
+                title: "Задача",
+                status: "NEW",
+                priority: "NORMAL",
+                kind: null,
+                tags: [],
+                due_date: null,
+                responsible_display_name: "Иванов И.И.",
+                assignee_count: 0,
+                observer_count: 2,
+                equipment_count: 0,
+                checklist_done: 0,
+                checklist_total: 0,
+                completed_at: null,
+                created_at: "2026-10-01T00:00:00Z",
+                updated_at: "2026-10-02T00:00:00Z",
+                is_overdue: false,
+                can_mutate: false,
+              },
+            ],
+            total: 1,
+            limit: 20,
+            offset: 0,
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      ),
+    );
+
+    const page = await fetchTasks("token");
+
+    expect(page.items[0].canMutate).toBe(false);
+    vi.unstubAllGlobals();
   });
 });
 
@@ -75,6 +124,7 @@ const RAW_TASK = {
   created_at: "2026-10-01T00:00:00Z",
   updated_at: "2026-10-02T00:00:00Z",
   is_overdue: false,
+  can_mutate: false,
   participants: [],
   equipment: [],
   checklist: [],

@@ -86,7 +86,10 @@ export function TaskDetailsPage() {
   const currentUser = useAuthStore((state) => state.user);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const canUsePrivateNotes = hasOperatorAccess(currentUser?.role);
+  const isOperator = hasOperatorAccess(currentUser?.role);
+  const canUsePrivateNotes = isOperator;
+  const currentUserId = currentUser?.id ?? null;
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [checklistLabel, setChecklistLabel] = useState("");
   const [messageText, setMessageText] = useState("");
@@ -131,26 +134,35 @@ export function TaskDetailsPage() {
     [usersQuery.data],
   );
 
+  function reportError(fallback: string, error: unknown) {
+    setActionError(error instanceof Error && error.message ? error.message : fallback);
+  }
+
   const refreshTask = () => {
+    setActionError(null);
     queryClient.invalidateQueries({ queryKey: ["task", taskId] });
     queryClient.invalidateQueries({ queryKey: ["tasks"] });
   };
 
   const statusMutation = useMutation({
     mutationFn: (status: TaskStatus) => updateTask(token, taskId, { status }),
+    onError: (error) => reportError("Не удалось изменить статус.", error),
     onSuccess: refreshTask,
   });
   const priorityMutation = useMutation({
     mutationFn: (priority: TaskPriority) => updateTask(token, taskId, { priority }),
+    onError: (error) => reportError("Не удалось изменить приоритет.", error),
     onSuccess: refreshTask,
   });
   const dueDateMutation = useMutation({
     // DateInput reports an empty string for a cleared field; the API wants null there.
     mutationFn: (dueDate: string | null) => updateTask(token, taskId, { dueDate }),
+    onError: (error) => reportError("Не удалось изменить срок.", error),
     onSuccess: refreshTask,
   });
   const checklistAdd = useMutation({
     mutationFn: () => addChecklistItem(token, taskId, checklistLabel.trim()),
+    onError: (error) => reportError("Не удалось добавить пункт чек-листа.", error),
     onSuccess: () => {
       setChecklistLabel("");
       refreshTask();
@@ -159,10 +171,12 @@ export function TaskDetailsPage() {
   const checklistToggle = useMutation({
     mutationFn: ({ itemId, isDone }: { itemId: number; isDone: boolean }) =>
       updateChecklistItem(token, taskId, itemId, { isDone }),
+    onError: (error) => reportError("Не удалось отметить пункт чек-листа.", error),
     onSuccess: refreshTask,
   });
   const checklistDelete = useMutation({
     mutationFn: (itemId: number) => deleteChecklistItem(token, taskId, itemId),
+    onError: (error) => reportError("Не удалось удалить пункт чек-листа.", error),
     onSuccess: refreshTask,
   });
   // The checklist reflects a tick immediately; the override is dropped once the server agrees.
@@ -200,6 +214,7 @@ export function TaskDetailsPage() {
   });
   const messageDelete = useMutation({
     mutationFn: (messageId: number) => deleteTaskMessage(token, taskId, messageId),
+    onError: (error) => reportError("Не удалось удалить сообщение.", error),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] }),
   });
   const attachmentUpload = useMutation({
@@ -211,14 +226,17 @@ export function TaskDetailsPage() {
   });
   const attachmentDelete = useMutation({
     mutationFn: (attachmentId: number) => deleteTaskAttachment(token, taskId, attachmentId),
+    onError: (error) => reportError("Не удалось удалить вложение.", error),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-attachments", taskId] }),
   });
   const subscriptionMutation = useMutation({
     mutationFn: (subscribed: boolean) => setTaskSubscription(token, taskId, subscribed),
+    onError: (error) => reportError("Не удалось изменить подписку.", error),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-subscription", taskId] }),
   });
   const deleteMutation = useMutation({
     mutationFn: () => deleteTask(token, taskId),
+    onError: (error) => reportError("Не удалось удалить задачу.", error),
     onSuccess: () => navigate("/tasks"),
   });
 
@@ -262,6 +280,16 @@ export function TaskDetailsPage() {
   }
 
   const task = taskQuery.data;
+  /*
+   * Same rule the API enforces (`_assert_can_mutate`): operators (MKAIR and above), the author and
+   * the RESPONSIBLE/ASSIGNEE participants may change a task, observers only read it. The screens
+   * have to agree with that, otherwise a click fails with 403 behind an apparently active control.
+   */
+  // The API already decided this (`_can_mutate`), so the screen never guesses at the rule.
+  const canMutate = task.canMutate;
+  const canDeleteAttachment = (attachment: TaskAttachment): boolean =>
+    isOperator
+    || (attachment.uploadedByUserId !== null && attachment.uploadedByUserId === currentUserId);
 
   function checklistItemDone(item: TaskChecklistItem): boolean {
     const override = checklistOverride[item.id];
@@ -293,20 +321,31 @@ export function TaskDetailsPage() {
             >
               {subscriptionQuery.data?.isSubscribed ? "Отписаться" : "Подписаться"}
             </button>
-            <button
-              className="btn-danger btn-sm"
-              onClick={() => {
-                if (window.confirm("Удалить задачу?")) {
-                  deleteMutation.mutate();
-                }
-              }}
-              type="button"
-            >
-              Удалить
-            </button>
+            {canMutate ? (
+              <button
+                className="btn-danger btn-sm"
+                onClick={() => {
+                  if (window.confirm("Удалить задачу?")) {
+                    deleteMutation.mutate();
+                  }
+                }}
+                type="button"
+              >
+                Удалить
+              </button>
+            ) : null}
           </div>
         }
       />
+
+      {actionError ? (
+        <p className="text-sm text-[color:var(--danger)]">{actionError}</p>
+      ) : null}
+      {canMutate ? null : (
+        <p className="text-sm text-steel">
+          Только просмотр: менять задачу могут автор, ответственный, исполнители и операторы.
+        </p>
+      )}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="space-y-4 lg:col-span-2">
@@ -314,6 +353,7 @@ export function TaskDetailsPage() {
             <div className="flex flex-wrap items-center gap-3">
               <select
                 className="form-input form-input--compact"
+                disabled={!canMutate}
                 value={task.status}
                 onChange={(event) => statusMutation.mutate(event.target.value as TaskStatus)}
               >
@@ -329,6 +369,7 @@ export function TaskDetailsPage() {
               <select
                 aria-label="Приоритет"
                 className="form-input form-input--compact"
+                disabled={!canMutate}
                 value={task.priority}
                 onChange={(event) => priorityMutation.mutate(event.target.value as TaskPriority)}
               >
@@ -343,11 +384,12 @@ export function TaskDetailsPage() {
                 <DateInput
                   aria-label="Срок"
                   className="form-input form-input--compact"
+                  disabled={!canMutate}
                   value={task.dueDate}
                   onChange={(value) => dueDateMutation.mutate(value || null)}
                 />
               </label>
-              {task.dueDate ? (
+              {canMutate && task.dueDate ? (
                 <button
                   className="text-xs text-steel underline"
                   onClick={() => dueDateMutation.mutate(null)}
@@ -379,6 +421,7 @@ export function TaskDetailsPage() {
                 <li key={item.id} className="flex items-center gap-2 text-sm">
                   <Switch
                     checked={checklistItemDone(item)}
+                    disabled={!canMutate}
                     id={`checklist-item-${item.id}`}
                     onCheckedChange={(checked) => {
                       setChecklistOverride((current) => ({ ...current, [item.id]: checked }));
@@ -391,35 +434,39 @@ export function TaskDetailsPage() {
                   >
                     {item.label}
                   </label>
-                  <button
-                    className="ml-auto text-xs text-[color:var(--danger)]"
-                    onClick={() => checklistDelete.mutate(item.id)}
-                    type="button"
-                  >
-                    удалить
-                  </button>
+                  {canMutate ? (
+                    <button
+                      className="ml-auto text-xs text-[color:var(--danger)]"
+                      onClick={() => checklistDelete.mutate(item.id)}
+                      type="button"
+                    >
+                      удалить
+                    </button>
+                  ) : null}
                 </li>
               ))}
             </ul>
-            <form
-              className="flex gap-2"
-              onSubmit={(event: FormEvent) => {
-                event.preventDefault();
-                if (checklistLabel.trim()) {
-                  checklistAdd.mutate();
-                }
-              }}
-            >
-              <input
-                className="form-input form-input--compact"
-                placeholder="Новый пункт"
-                value={checklistLabel}
-                onChange={(event) => setChecklistLabel(event.target.value)}
-              />
-              <button className="btn-secondary btn-sm" type="submit">
-                Добавить
-              </button>
-            </form>
+            {canMutate ? (
+              <form
+                className="flex gap-2"
+                onSubmit={(event: FormEvent) => {
+                  event.preventDefault();
+                  if (checklistLabel.trim()) {
+                    checklistAdd.mutate();
+                  }
+                }}
+              >
+                <input
+                  className="form-input form-input--compact"
+                  placeholder="Новый пункт"
+                  value={checklistLabel}
+                  onChange={(event) => setChecklistLabel(event.target.value)}
+                />
+                <button className="btn-secondary btn-sm" type="submit">
+                  Добавить
+                </button>
+              </form>
+            ) : null}
           </article>
 
           <article className="tone-parent space-y-3 rounded-3xl border border-line p-4 shadow-panel">
@@ -435,13 +482,15 @@ export function TaskDetailsPage() {
                       </span>
                       {message.isPrivate ? <PrivateNoteBadge /> : null}
                     </div>
-                    <IconActionButton
-                      className="icon-action-button--danger"
-                      icon={<Icon className="h-4 w-4" name="delete" />}
-                      label="Удалить сообщение"
-                      size="tiny"
-                      onClick={() => messageDelete.mutate(message.id)}
-                    />
+                    {isOperator || message.authorUserId === currentUserId ? (
+                      <IconActionButton
+                        className="icon-action-button--danger"
+                        icon={<Icon className="h-4 w-4" name="delete" />}
+                        label="Удалить сообщение"
+                        size="tiny"
+                        onClick={() => messageDelete.mutate(message.id)}
+                      />
+                    ) : null}
                   </div>
                   {message.text ? (
                     <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
@@ -541,13 +590,15 @@ export function TaskDetailsPage() {
           <article className="tone-parent space-y-2 rounded-3xl border border-line p-4 text-sm shadow-panel">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-ink">Участники</h3>
-              <button
-                className="text-xs text-steel underline"
-                onClick={() => setParticipantsOpen(true)}
-                type="button"
-              >
-                изменить
-              </button>
+              {canMutate ? (
+                <button
+                  className="text-xs text-steel underline"
+                  onClick={() => setParticipantsOpen(true)}
+                  type="button"
+                >
+                  изменить
+                </button>
+              ) : null}
             </div>
             <p className="text-steel">
               Ответственный: <span className="text-ink">{responsible[0]?.displayName ?? "—"}</span>
@@ -569,13 +620,15 @@ export function TaskDetailsPage() {
           <article className="tone-parent space-y-2 rounded-3xl border border-line p-4 text-sm shadow-panel">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-ink">Оборудование</h3>
-              <button
-                className="text-xs text-steel underline"
-                onClick={() => setEquipmentOpen(true)}
-                type="button"
-              >
-                изменить
-              </button>
+              {canMutate ? (
+                <button
+                  className="text-xs text-steel underline"
+                  onClick={() => setEquipmentOpen(true)}
+                  type="button"
+                >
+                  изменить
+                </button>
+              ) : null}
             </div>
             {task.equipment.length === 0 ? (
               <p className="text-steel">Приборы не привязаны.</p>
@@ -640,6 +693,7 @@ export function TaskDetailsPage() {
               ) : null}
               <AttachmentPreviewList
                 attachments={attachments}
+                canDelete={canDeleteAttachment}
                 className="mt-2"
                 columns="single"
                 deletingId={attachmentDelete.isPending ? attachmentDelete.variables ?? null : null}

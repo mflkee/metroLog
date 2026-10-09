@@ -133,12 +133,24 @@ class TaskService:
         self._assert_folder_access(task.folder_id)
         return task
 
-    def _assert_can_mutate(self, task: Task, user: User) -> None:
+    def _can_mutate(self, task: Task, user: User | None) -> bool:
+        """Operators (MKAIR and above), the author and the RESPONSIBLE/ASSIGNEE participants.
+
+        Observers are deliberately read-only; the serialisers expose this flag so the screens can
+        hide the controls instead of letting a click bounce off a 403.
+        """
+        if user is None:
+            return False
         if has_operator_access(user.role) or task.created_by_user_id == user.id:
+            return True
+        return any(
+            participant.user_id == user.id and participant.role in MUTABLE_ROLES
+            for participant in task.participants
+        )
+
+    def _assert_can_mutate(self, task: Task, user: User) -> None:
+        if self._can_mutate(task, user):
             return
-        for participant in task.participants:
-            if participant.user_id == user.id and participant.role in MUTABLE_ROLES:
-                return
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Недостаточно прав для изменения задачи.",
@@ -278,6 +290,7 @@ class TaskService:
             created_at=task.created_at,
             updated_at=task.updated_at,
             is_overdue=_is_overdue(task, today=today),
+            can_mutate=self._can_mutate(task, self.access_user),
             participants=self._participant_reads(task),
             equipment=self._equipment_reads(task),
             checklist=checklist,
@@ -314,6 +327,7 @@ class TaskService:
                 1 for item in participants if item.role == TaskParticipantRole.OBSERVER
             ),
             equipment_count=len(task.equipment_links),
+            can_mutate=self._can_mutate(task, self.access_user),
             checklist_done=sum(1 for item in checklist if item.is_done),
             checklist_total=len(checklist),
             completed_at=task.completed_at,

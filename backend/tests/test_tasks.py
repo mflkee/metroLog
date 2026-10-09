@@ -234,6 +234,7 @@ async def test_observer_cannot_mutate_but_assignee_can(client: AsyncClient, db_e
         },
     )
     assert created.status_code == 201, created.text
+    assert created.json()["can_mutate"] is True  # the admin is an operator
     task_id = created.json()["id"]
 
     denied = await client.patch(
@@ -250,6 +251,29 @@ async def test_observer_cannot_mutate_but_assignee_can(client: AsyncClient, db_e
     )
     assert allowed.status_code == 200, allowed.text
     assert allowed.json()["status"] == "IN_PROGRESS"
+
+    # The screens hide the controls from the very same flag, so it has to travel with the payload.
+    observer_view = await client.get(
+        f"/api/v1/tasks/{task_id}",
+        headers={"Authorization": f"Bearer {observer_login['access_token']}"},
+    )
+    assert observer_view.status_code == 200, observer_view.text
+    assert observer_view.json()["can_mutate"] is False
+
+    assignee_view = await client.get(
+        f"/api/v1/tasks/{task_id}",
+        headers={"Authorization": f"Bearer {assignee_login['access_token']}"},
+    )
+    assert assignee_view.status_code == 200, assignee_view.text
+    assert assignee_view.json()["can_mutate"] is True
+
+    # The board reads the flag per card to decide whether a card may be dragged.
+    observer_list = await client.get(
+        "/api/v1/tasks",
+        headers={"Authorization": f"Bearer {observer_login['access_token']}"},
+    )
+    assert observer_list.status_code == 200, observer_list.text
+    assert observer_list.json()["items"][0]["can_mutate"] is False
 
 
 @pytest.mark.anyio

@@ -182,6 +182,7 @@ class TaskRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_overdue: bool
+    can_mutate: bool = False
     participants: list[TaskParticipantRead] = Field(default_factory=list)
     equipment: list[TaskEquipmentRead] = Field(default_factory=list)
     checklist: list[TaskChecklistItemRead] = Field(default_factory=list)
@@ -209,6 +210,7 @@ class TaskListItemRead(BaseModel):
     created_at: datetime
     updated_at: datetime
     is_overdue: bool
+    can_mutate: bool = False
 
 
 class TaskPageRead(BaseModel):
@@ -273,6 +275,7 @@ class TaskAttachmentRead(BaseModel):
     file_name: str
     file_mime_type: str | None = None
     file_size: int
+    uploaded_by_user_id: int | None = None
     uploaded_by_display_name: str
     created_at: datetime
 

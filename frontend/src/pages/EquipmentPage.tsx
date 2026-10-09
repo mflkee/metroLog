@@ -7,6 +7,7 @@ import { useSiImportExport } from "@/hooks/useSiImportExport";
 import { useFolderActions } from "@/hooks/useFolderActions";
 import { ActiveModal, DeleteTarget, EquipmentFormState, EquipmentSortState, RepairBatchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
 import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
+import { Select } from "@/components/ui/select";
 import { useDragReorder } from "@/lib/useDragReorder";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
@@ -1910,35 +1911,31 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                 </label>
                 <label className="block text-sm text-steel">
                   Статус
-                  <select
-                    className="form-input"
+                  <Select<EquipmentStatus | "ALL">
+                    onChange={(next) => setStatusFilter(next)}
+                    options={[
+                      { value: "ALL", label: "Все статусы" },
+                      ...equipmentStatusOptions.map((status) => ({
+                        value: status,
+                        label: equipmentStatusLabels[status],
+                      })),
+                    ]}
                     value={statusFilter}
-                    onChange={(event) =>
-                      setStatusFilter(event.target.value as EquipmentStatus | "ALL")
-                    }
-                  >
-                    <option value="ALL">Все статусы</option>
-                    {equipmentStatusOptions.map((status) => (
-                      <option key={status} value={status}>
-                        {equipmentStatusLabels[status]}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
                 <label className="block text-sm text-steel">
                   Категория
-                  <select
-                    className="form-input"
+                  <Select<EquipmentType | "ALL">
+                    onChange={(next) => setTypeFilter(next)}
+                    options={[
+                      { value: "ALL", label: "Все категории" },
+                      ...equipmentTypeOptions.map((type) => ({
+                        value: type,
+                        label: equipmentTypeSelectionLabels[type],
+                      })),
+                    ]}
                     value={typeFilter}
-                    onChange={(event) => setTypeFilter(event.target.value as EquipmentType | "ALL")}
-                  >
-                    <option value="ALL">Все категории</option>
-                    {equipmentTypeOptions.map((type) => (
-                      <option key={type} value={type}>
-                        {equipmentTypeSelectionLabels[type]}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
               </div>
 
@@ -2109,30 +2106,33 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           </label>
           <label className="block text-sm text-steel">
             Пресет дедлайнов
-            <select
-              className="form-input"
-              value={folderForm.deadlinePresetId ?? ""}
-              onChange={(event) =>
+            <Select
+              onChange={(next) =>
                 setFolderForm((current) => ({
                   ...current,
-                  deadlinePresetId: event.target.value ? Number(event.target.value) : null,
+                  deadlinePresetId: next ? Number(next) : null,
                 }))
               }
-            >
-              {!folderDeadlinePresetOptions.length ? (
-                <option value="">
-                  {deadlinePresetsQuery.isLoading
-                    ? "Загружаем пресеты..."
-                    : "Нет доступных пресетов"}
-                </option>
-              ) : null}
-              {folderDeadlinePresetOptions.map((preset) => (
-                <option key={preset.id} value={preset.id}>
-                  {preset.name}
-                  {preset.isActive ? "" : " (неактивен)"}
-                </option>
-              ))}
-            </select>
+              options={
+                folderDeadlinePresetOptions.length
+                  ? folderDeadlinePresetOptions.map((preset) => ({
+                      value: String(preset.id),
+                      label: `${preset.name}${preset.isActive ? "" : " (неактивен)"}`,
+                    }))
+                  : [
+                      {
+                        value: "",
+                        label: deadlinePresetsQuery.isLoading
+                          ? "Загружаем пресеты..."
+                          : "Нет доступных пресетов",
+                      },
+                    ]
+              }
+              placeholder="— выберите пресет —"
+              value={
+                folderForm.deadlinePresetId === null ? "" : String(folderForm.deadlinePresetId)
+              }
+            />
           </label>
           {deadlinePresetsQuery.isError ? (
             <p className="text-sm text-[#b04c43]">
@@ -2300,22 +2300,19 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block text-sm text-steel">
               Статус
-              <select
-                className="form-input"
-                value={siImportForm.status}
-                onChange={(event) =>
+              <Select<EquipmentStatus>
+                onChange={(next) =>
                   setSiImportForm((current) => ({
                     ...current,
-                    status: event.target.value as EquipmentStatus,
+                    status: next,
                   }))
                 }
-              >
-                {equipmentStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {equipmentStatusLabels[status]}
-                  </option>
-                ))}
-              </select>
+                options={equipmentStatusOptions.map((status) => ({
+                  value: status,
+                  label: equipmentStatusLabels[status],
+                }))}
+                value={siImportForm.status}
+              />
             </label>
             <label className="block text-sm text-steel">
               Текущее местоположение
@@ -2705,22 +2702,19 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                     {equipmentForm.equipmentType === "SI" && equipmentForm.manualVerificationIntervalMonths ? (
                       <label className="block text-sm text-steel md:col-span-2">
                         Межповерочный интервал
-                        <select
-                          className="form-input"
-                          value={equipmentForm.manualVerificationIntervalMonths}
-                          onChange={(event) =>
+                        <Select
+                          onChange={(next) =>
                             setEquipmentForm((current) => ({
                               ...current,
-                              manualVerificationIntervalMonths: event.target.value,
+                              manualVerificationIntervalMonths: next,
                             }))
                           }
-                        >
-                          {complianceIntervalOptions.map((option) => (
-                            <option key={option.value} value={option.value}>
-                              {option.label}
-                            </option>
-                          ))}
-                        </select>
+                          options={complianceIntervalOptions.map((option) => ({
+                            value: option.value,
+                            label: option.label,
+                          }))}
+                          value={equipmentForm.manualVerificationIntervalMonths}
+                        />
                       </label>
                     ) : (
                       <label className="block text-sm text-steel">
@@ -2787,22 +2781,19 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
               {equipmentForm.manualVerificationIntervalMonths ? (
                 <label className="block text-sm text-steel">
                   Межповерочный интервал
-                  <select
-                    className="form-input"
-                    value={equipmentForm.manualVerificationIntervalMonths}
-                    onChange={(event) =>
+                  <Select
+                    onChange={(next) =>
                       setEquipmentForm((current) => ({
                         ...current,
-                        manualVerificationIntervalMonths: event.target.value,
+                        manualVerificationIntervalMonths: next,
                       }))
                     }
-                  >
-                    {complianceIntervalOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={complianceIntervalOptions.map((option) => ({
+                      value: option.value,
+                      label: option.label,
+                    }))}
+                    value={equipmentForm.manualVerificationIntervalMonths}
+                  />
                 </label>
               ) : null}
             </section>
@@ -2811,18 +2802,15 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block text-sm text-steel">
               Категория
-              <select
-                className="form-input"
+              <Select<EquipmentType>
                 disabled={!canEditEquipmentTypeInModal}
+                onChange={(next) => handleEquipmentTypeChange(next)}
+                options={editableEquipmentTypeOptions.map((type) => ({
+                  value: type,
+                  label: equipmentTypeSelectionLabels[type],
+                }))}
                 value={equipmentForm.equipmentType}
-                onChange={(event) => handleEquipmentTypeChange(event.target.value as EquipmentType)}
-                >
-                  {editableEquipmentTypeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {equipmentTypeSelectionLabels[type]}
-                    </option>
-                  ))}
-                </select>
+              />
             </label>
             {isEquipmentEditFlow ? (
               <p className="text-xs text-steel md:col-span-2">
@@ -2880,22 +2868,19 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
             </label>
             <label className="block text-sm text-steel">
               Статус
-              <select
-                className="form-input"
-                value={equipmentForm.status}
-                onChange={(event) =>
+              <Select<EquipmentStatus>
+                onChange={(next) =>
                   setEquipmentForm((current) => ({
                     ...current,
-                    status: event.target.value as EquipmentStatus,
+                    status: next,
                   }))
                 }
-              >
-                {equipmentStatusOptions.map((status) => (
-                  <option key={status} value={status}>
-                    {equipmentStatusLabels[status]}
-                  </option>
-                ))}
-              </select>
+                options={equipmentStatusOptions.map((status) => ({
+                  value: status,
+                  label: equipmentStatusLabels[status],
+                }))}
+                value={equipmentForm.status}
+              />
             </label>
             <label className="block text-sm text-steel">
               Год выпуска
@@ -3040,22 +3025,19 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
               </label>
               <label className="block text-sm text-steel">
                 {getEquipmentCompliancePeriodLabel(equipmentForm.equipmentType)}
-                <select
-                  className="form-input"
-                  value={equipmentForm.complianceIntervalMonths}
-                  onChange={(event) =>
+                <Select
+                  onChange={(next) =>
                     setEquipmentForm((current) => ({
                       ...current,
-                      complianceIntervalMonths: event.target.value,
+                      complianceIntervalMonths: next,
                     }))
                   }
-                >
-                  {complianceIntervalOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+                  options={complianceIntervalOptions.map((option) => ({
+                    value: option.value,
+                    label: option.label,
+                  }))}
+                  value={equipmentForm.complianceIntervalMonths}
+                />
               </label>
             </div>
           ) : null}

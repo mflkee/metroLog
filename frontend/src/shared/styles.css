@@ -78,9 +78,13 @@
   --accent: #1f2937;
   --accent-soft: rgba(31, 41, 55, 0.1);
   --success: #29493d;
-  --danger: #a03a34;
-  --warning: #a16207;
-  --info: #456a9b;
+  /*
+   * These three are read as text (priority labels, «просрочено», links), so they have to clear
+   * WCAG AA on the panel: the old values sat at 3.0–4.1 and were hard to read on the grey panel.
+   */
+  --danger: #8b231d;
+  --warning: #7c4a03;
+  --info: #2f5079;
   --button-primary-bg: #111827;
   --button-primary-text: #ffffff;
   --input-bg: #aab2bd;
@@ -146,18 +150,23 @@
   --danger: oklch(0.704 0.191 22.216);
   --warning: oklch(0.8 0.14 75);
   --info: oklch(0.72 0.14 250);
-  --chart-work: oklch(0.72 0.14 250);
-  --chart-repair: color-mix(in oklab, oklch(0.8 0.14 75) 78%, var(--panel-bg));
-  --chart-verification: oklch(0.72 0.12 190);
-  --chart-both: oklch(0.7 0.19 300);
+  /*
+   * The chart palette keeps every slice apart by hue *and* lightness: a blue and a teal at the same
+   * lightness read as one colour on a dark panel, which is what made «В работе» and «В поверке»
+   * indistinguishable. Lightness now descends from the teal through the blue to the purple.
+   */
+  --chart-work: oklch(0.68 0.15 255);
+  --chart-repair: color-mix(in oklab, oklch(0.8 0.15 70) 78%, var(--panel-bg));
+  --chart-verification: oklch(0.84 0.11 190);
+  --chart-both: oklch(0.7 0.2 305);
   --chart-archived: color-mix(in oklab, var(--text-muted) 72%, var(--panel-bg));
   --status-verification: oklch(0.72 0.14 250);
   --status-repair: oklch(0.8 0.14 75);
   --status-repaired: oklch(0.7 0.15 150);
   --status-not-repairable: oklch(0.704 0.191 22.216);
   --status-archived: oklch(0.556 0 0);
-  --chart-repaired: oklch(0.7 0.15 150);
-  --chart-not-repairable: oklch(0.704 0.191 22.216);
+  --chart-repaired: oklch(0.74 0.15 145);
+  --chart-not-repairable: oklch(0.7 0.2 25);
   --timeline-progress: oklch(0.72 0.14 250);
   --timeline-current-outline: var(--panel-bg);
   --button-primary-bg: oklch(0.922 0 0);
@@ -501,6 +510,48 @@ textarea.form-input {
   min-height: var(--control-height-sm);
   height: var(--control-height-sm);
   padding: 0 var(--control-padding-x-sm);
+}
+
+/*
+ * The trigger of the app's own select. It mirrors `form-input` (a bespoke class, so the layout
+ * cannot come from a Tailwind utility: an unlayered rule beats a utility here), because the list it
+ * opens is drawn by the app instead of the OS.
+ */
+.select-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-input);
+  background: var(--input-bg);
+  min-height: var(--control-height);
+  padding: 0 var(--control-padding-x);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25;
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.select-trigger--compact {
+  margin-top: 0;
+  min-height: var(--control-height-sm);
+  height: var(--control-height-sm);
+  padding: 0 var(--control-padding-x-sm);
+}
+
+.select-trigger:focus-visible {
+  border-color: var(--accent);
+  outline: none;
+}
+
+.select-trigger:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
 }
 
 .autocomplete-input {

@@ -42,6 +42,7 @@ import {
 } from "@/api/equipment";
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
+import { Select } from "@/components/ui/select";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
@@ -427,20 +428,20 @@ export function RepairsPage() {
           <label className="sr-only" htmlFor="repairs-folder-filter">
             Фильтр по папке
           </label>
-          <select
-            className="form-input toolbar-select"
+          <Select
+            className="toolbar-select"
             disabled={foldersQuery.isLoading || foldersQuery.isError}
             id="repairs-folder-filter"
+            onChange={(next) => handleFolderFilterChange(next)}
+            options={[
+              { value: "", label: "Все папки" },
+              ...(foldersQuery.data ?? []).map((folder) => ({
+                value: String(folder.id),
+                label: folder.name,
+              })),
+            ]}
             value={selectedFolderId ? String(selectedFolderId) : ""}
-            onChange={(event) => handleFolderFilterChange(event.target.value)}
-          >
-            <option value="">Все папки</option>
-            {(foldersQuery.data ?? []).map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
+          />
           <label className="toolbar-search">
             <span className="sr-only">Поиск по ремонтам</span>
             <svg className="toolbar-search__icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.8">

@@ -34,6 +34,7 @@ import { IconActionLink } from "@/components/IconActionLink";
 import { Modal } from "@/components/Modal";
 import { PaginationControls } from "@/components/PaginationControls";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { Select } from "@/components/ui/select";
 import { sortAutocompleteSuggestions } from "@/lib/autocomplete";
 import { extractEsiInternalModuleCandidates, type ESIInternalModuleCandidate } from "@/lib/esiModules";
 import { hasOperatorAccess } from "@/lib/roles";
@@ -709,17 +710,11 @@ export function ArshinPage() {
                 ) : null}
                 <label className="block text-sm text-steel">
                   {registryKind === "ESI" ? "Год выпуска СИ" : "Год"}
-                  <select
-                    className="form-input"
+                  <Select
+                    onChange={(next) => setSearchForm((current) => ({ ...current, year: next }))}
+                    options={ARSHIN_YEAR_OPTIONS.map((year) => ({ value: year, label: year }))}
                     value={searchForm.year}
-                    onChange={(event) => setSearchForm((current) => ({ ...current, year: event.target.value }))}
-                  >
-                    {ARSHIN_YEAR_OPTIONS.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
+                  />
                 </label>
               </div>
             </section>
@@ -830,20 +825,20 @@ export function ArshinPage() {
                 ) : null}
                 <label className="block text-sm text-steel">
                   Пригодность
-                  <select
-                    className="form-input"
-                    value={searchForm.applicability}
-                    onChange={(event) =>
+                  <Select<SearchFormState["applicability"]>
+                    onChange={(next) =>
                       setSearchForm((current) => ({
                         ...current,
-                        applicability: event.target.value as SearchFormState["applicability"],
+                        applicability: next,
                       }))
                     }
-                  >
-                    <option value="ANY">Любая</option>
-                    <option value="TRUE">Только пригодные</option>
-                    <option value="FALSE">Только непригодные</option>
-                  </select>
+                    options={[
+                      { value: "ANY", label: "Любая" },
+                      { value: "TRUE", label: "Только пригодные" },
+                      { value: "FALSE", label: "Только непригодные" },
+                    ]}
+                    value={searchForm.applicability}
+                  />
                 </label>
               </div>
             </section>
@@ -1035,18 +1030,17 @@ export function ArshinPage() {
         <form className="space-y-4" onSubmit={(event) => void handleAddToFolderSubmit(event)}>
           <label className="block text-sm text-steel">
             Папка
-            <select
-              className="form-input"
+            <Select
+              onChange={(next) => handleFolderChange(next)}
+              options={[
+                { value: "", label: "Выбери папку" },
+                ...selectableFolderOptions.map((folder: EquipmentFolder) => ({
+                  value: String(folder.id),
+                  label: folder.name,
+                })),
+              ]}
               value={addForm.folderId}
-              onChange={(event) => handleFolderChange(event.target.value)}
-            >
-              <option value="">Выбери папку</option>
-              {selectableFolderOptions.map((folder: EquipmentFolder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
-              ))}
-            </select>
+            />
           </label>
 
           <div className="grid gap-3 md:grid-cols-2">
@@ -1062,22 +1056,19 @@ export function ArshinPage() {
             </label>
             <label className="block text-sm text-steel">
               Статус
-              <select
-                className="form-input"
-                value={addForm.status}
-                onChange={(event) =>
+              <Select<EquipmentStatus>
+                onChange={(next) =>
                   setAddForm((current) => ({
                     ...current,
-                    status: event.target.value as EquipmentStatus,
+                    status: next,
                   }))
                 }
-              >
-                {(Object.keys(equipmentStatusLabels) as EquipmentStatus[]).map((status) => (
-                  <option key={status} value={status}>
-                    {equipmentStatusLabels[status]}
-                  </option>
-                ))}
-              </select>
+                options={(Object.keys(equipmentStatusLabels) as EquipmentStatus[]).map((status) => ({
+                  value: status,
+                  label: equipmentStatusLabels[status],
+                }))}
+                value={addForm.status}
+              />
             </label>
           </div>
 

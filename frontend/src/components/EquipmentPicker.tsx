@@ -8,6 +8,7 @@ import {
   fetchEquipmentPage,
 } from "@/api/equipment";
 import { equipmentTypeLabels, getEquipmentStatusLabel } from "@/api/equipment/registry";
+import { Select } from "@/components/ui/select";
 
 const PAGE_SIZE = 50;
 
@@ -109,39 +110,36 @@ export function EquipmentPicker({
       <div className="grid gap-2 sm:grid-cols-3">
         <label className="block text-sm text-steel">
           Папка
-          <select
-            className="form-input form-input--compact"
-            value={folderId ?? ""}
-            onChange={(event) => {
-              setFolderId(Number(event.target.value));
+          <Select
+            ariaLabel="Папка"
+            compact
+            onChange={(next) => {
+              setFolderId(next);
               setObjectName("");
               setVisibleCount(PAGE_SIZE);
             }}
-          >
-            {folders.map((folder) => (
-              <option key={folder.id} value={folder.id}>
-                {folder.name}
-              </option>
-            ))}
-          </select>
+            options={folders.map((folder) => ({ value: folder.id, label: folder.name }))}
+            value={folderId ?? 0}
+          />
         </label>
         <label className="block text-sm text-steel">
           Объект
-          <select
-            className="form-input form-input--compact"
-            value={objectName}
-            onChange={(event) => {
-              setObjectName(event.target.value);
+          <Select
+            ariaLabel="Объект"
+            compact
+            onChange={(next) => {
+              setObjectName(next);
               setVisibleCount(PAGE_SIZE);
             }}
-          >
-            <option value="">Все объекты</option>
-            {(suggestionsQuery.data?.objectNames ?? []).map((name) => (
-              <option key={name} value={name}>
-                {name}
-              </option>
-            ))}
-          </select>
+            options={[
+              { value: "", label: "Все объекты" },
+              ...(suggestionsQuery.data?.objectNames ?? []).map((name) => ({
+                value: name,
+                label: name,
+              })),
+            ]}
+            value={objectName}
+          />
         </label>
         <label className="block text-sm text-steel">
           Поиск

@@ -46,3 +46,10 @@
 - [x] 8.2 Version and channel as part of the wordmark: `AppVersionBadge` is plain text on the wordmark's baseline (no chip, no border, `beta` without a background), and the top bar lays out as three parts with the Arshin status centred (`Topbar.tsx`).
 - [x] 8.3 Slim the shell: the top bar's own controls are `--control-height-topbar` (30px) with `py-1.5` padding (~58px → ~42px tall), and the collapsed rail is 78px → 68px with matching paddings (`AppShell.tsx`, `Sidebar.tsx`, `styles.css`).
 - [ ] 8.4 Verify on Stage that the bar and the rail look right in both themes, that the wordmark reads `metroLog vX.Y.Z beta`, that the Arshin status is centred and that signing out works from the account menu.
+
+## 9. Colours and choice lists (owner request)
+
+- [x] 9.1 Dark theme chart palette: `--chart-*` now separates the slices by hue *and* lightness (work `oklch(0.68 0.15 255)` vs verification `oklch(0.84 0.11 190)`), because two colours of the same lightness read as one on a dark panel — «В работе» and «В поверке» were indistinguishable (`styles.css`).
+- [x] 9.2 Light theme contrast: `--danger`/`--warning`/`--info` were 3.0–4.1 on the panel (used as text: priorities, «просрочено», links), now `#8b231d`/`#7c4a03`/`#2f5079` (5.5/4.6/5.1, WCAG AA). The surfaces are still grey-on-grey (panel vs page 1.57, input vs panel 1.32) — the proposal to move to a light canvas + white cards + a coloured accent is waiting for the owner's decision.
+- [x] 9.3 No native `<select>` anywhere: a new `src/components/ui/select.tsx` (`.select-trigger` + the shared floating menu, keyboard + ARIA) replaced all **30** native selects across 11 files. Verified by `select.test.tsx`.
+- [ ] 9.4 Verify on Stage: a choice list opens as an app-drawn list (including inside the preset/route editor and the equipment picker), the dark chart slices are distinguishable, and the light theme's status colours read.

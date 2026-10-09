@@ -33,6 +33,7 @@ import {
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import { Select } from "@/components/ui/select";
 import { DateInput } from "@/components/DateInput";
 import { EquipmentPicker, type PickedEquipment } from "@/components/EquipmentPicker";
 import { AppDialog } from "@/components/ui/app-dialog";
@@ -454,33 +455,31 @@ export function TasksPage() {
           </label>
           <label className="block text-sm text-steel">
             Папка
-            <select
-              className="form-input"
-              value={folderId ?? ""}
-              onChange={(event) => setFolderId(event.target.value ? Number(event.target.value) : null)}
-            >
-              <option value="">Все папки</option>
-              {(foldersQuery.data ?? []).map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
-              ))}
-            </select>
+            <Select
+              onChange={(next) => setFolderId(next ? Number(next) : null)}
+              options={[
+                { value: "", label: "Все папки" },
+                ...(foldersQuery.data ?? []).map((folder) => ({
+                  value: String(folder.id),
+                  label: folder.name,
+                })),
+              ]}
+              value={folderId === null ? "" : String(folderId)}
+            />
           </label>
           <label className="block text-sm text-steel">
             Приоритет
-            <select
-              className="form-input"
+            <Select<TaskPriority | "">
+              onChange={(next) => setPriority(next)}
+              options={[
+                { value: "", label: "Любой приоритет" },
+                ...Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => ({
+                  value: value as TaskPriority,
+                  label,
+                })),
+              ]}
               value={priority}
-              onChange={(event) => setPriority(event.target.value as TaskPriority | "")}
-            >
-              <option value="">Любой приоритет</option>
-              {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
-            </select>
+            />
           </label>
         </div>
         <div className="flex flex-wrap items-center gap-2">

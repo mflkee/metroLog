@@ -57,3 +57,31 @@ legible and reachable.
 
 - **WHEN** the user collapses the navigation
 - **THEN** the rail is narrower than before and the icons stay centred and clickable
+
+### Requirement: Choice lists are drawn by the app
+
+A list of choices SHALL be rendered by the application, never by a native `<select>` whose popup is
+drawn by the operating system, and the list SHALL be rendered outside the layout so that a modal
+cannot clip it.
+
+#### Scenario: Opening a choice list
+
+- **WHEN** the user opens a list of choices, including one inside a modal
+- **THEN** the list is drawn by the app in the shared floating menu and can be operated from the
+  keyboard
+
+### Requirement: Readable, distinguishable palettes
+
+A colour that carries meaning SHALL stay readable and distinguishable: chart slices SHALL differ in
+hue and in lightness, and a status colour used as text SHALL meet WCAG AA on the surface it is drawn
+on.
+
+#### Scenario: Two chart slices side by side
+
+- **WHEN** two chart slices are shown next to each other on a dark theme
+- **THEN** they differ in hue and in lightness, so they do not read as one colour
+
+#### Scenario: A status colour used as text
+
+- **WHEN** a status colour is used for text (a priority label, «просрочено»)
+- **THEN** it has a contrast ratio of at least 4.5 against the surface behind it

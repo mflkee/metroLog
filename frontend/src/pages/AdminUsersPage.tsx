@@ -7,6 +7,7 @@ import type { UserRole } from "@/api/auth";
 import { fetchEquipmentFolders } from "@/api/equipment";
 import { createUser, deleteUser, fetchUsers, resetUserPassword, updateUser } from "@/api/users";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
+import { Select } from "@/components/ui/select";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { Switch } from "@/components/ui/switch";
 import { isDeveloperRole, roleLabels } from "@/lib/roles";
@@ -335,17 +336,14 @@ export function AdminUsersPage() {
 
             <label className="block text-sm text-steel">
               Роль
-              <select
-                className="form-input"
+              <Select<UserRole>
+                onChange={(next) => setRole(next)}
+                options={assignableRoles.map((roleOption) => ({
+                  value: roleOption,
+                  label: roleLabels[roleOption],
+                }))}
                 value={role}
-                onChange={(event) => setRole(event.target.value as UserRole)}
-              >
-                {assignableRoles.map((roleOption) => (
-                  <option key={roleOption} value={roleOption}>
-                    {roleLabels[roleOption]}
-                  </option>
-                ))}
-              </select>
+              />
             </label>
 
             <div className="flex flex-col justify-end gap-3">

@@ -29,6 +29,7 @@ import {
   type DashboardWidgetKey,
 } from "@/lib/dashboard";
 import { hasAdminAccess } from "@/lib/roles";
+import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/auth";
 import {
@@ -1544,39 +1545,41 @@ function PresetVariantCard({
       {group === "verification" ? (
         <label className="mt-3 block text-sm text-steel">
           Формат поверки
-          <select
-            className="form-input form-input--compact"
-            value={variant.flowMode ?? getVerificationFlowModeForRoute(variant.routeKind)}
-            onChange={(event) => {
-              const flowMode = event.target.value as VerificationFlowMode;
+          <Select<VerificationFlowMode>
+            ariaLabel="Формат поверки"
+            compact
+            onChange={(flowMode) => {
               onUpdateVariant(group, variantIndex, {
                 routeKind: flowMode === "OFFSITE_WITH_DEMOLITION" ? "offsite" : "on_site",
                 flowMode,
               });
             }}
-          >
-            <option value="OFFSITE_WITH_DEMOLITION">С отправкой / демонтаж</option>
-            <option value="ONSITE_WITH_DEMOLITION">По месту + демонтаж</option>
-            <option value="ONSITE_WITHOUT_DEMOLITION">По месту без демонтажа</option>
-          </select>
+            options={[
+              { value: "OFFSITE_WITH_DEMOLITION", label: "С отправкой / демонтаж" },
+              { value: "ONSITE_WITH_DEMOLITION", label: "По месту + демонтаж" },
+              { value: "ONSITE_WITHOUT_DEMOLITION", label: "По месту без демонтажа" },
+            ]}
+            value={variant.flowMode ?? getVerificationFlowModeForRoute(variant.routeKind)}
+          />
         </label>
       ) : (
         <label className="mt-3 block text-sm text-steel">
           Маршрут
-          <select
-            className="form-input form-input--compact"
-            value={variant.routeKind}
-            onChange={(event) => {
-              const routeKind = event.target.value as ProcessStageTemplateRouteKind;
+          <Select<ProcessStageTemplateRouteKind>
+            ariaLabel="Маршрут"
+            compact
+            onChange={(routeKind) => {
               onUpdateVariant(group, variantIndex, {
                 routeKind,
                 flowMode: null,
               });
             }}
-          >
-            <option value="offsite">С отправкой</option>
-            <option value="on_site">По месту</option>
-          </select>
+            options={[
+              { value: "offsite", label: "С отправкой" },
+              { value: "on_site", label: "По месту" },
+            ]}
+            value={variant.routeKind}
+          />
         </label>
       )}
       <div className="mt-4 space-y-2">

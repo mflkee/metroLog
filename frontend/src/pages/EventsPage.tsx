@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { AutocompleteInput } from "@/components/AutocompleteInput";
+import { Select } from "@/components/ui/select";
 import { DateInput } from "@/components/DateInput";
 import { EquipmentReferenceLink } from "@/components/EquipmentReferenceLink";
 import { Icon } from "@/components/Icon";
@@ -114,18 +115,16 @@ export function EventsPage() {
         </label>
 
         <label className="sr-only" htmlFor="events-category-filter">Категория события</label>
-        <select
-          className="form-input toolbar-select"
+        <Select<EventCategory | "ALL">
+          className="toolbar-select"
           id="events-category-filter"
+          onChange={(next) => setCategory(next)}
+          options={categoryOptions.map((option) => ({
+            value: option.value,
+            label: option.label,
+          }))}
           value={category}
-          onChange={(event) => setCategory(event.target.value as EventCategory | "ALL")}
-        >
-          {categoryOptions.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        />
 
         <div className="flex items-center gap-2">
           <DateInput

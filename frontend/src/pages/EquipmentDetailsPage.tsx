@@ -50,6 +50,7 @@ import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { DateInput } from "@/components/DateInput";
+import { Select } from "@/components/ui/select";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
@@ -3875,64 +3876,49 @@ export function EquipmentDetailsPage() {
             <div className="grid gap-3 md:grid-cols-2">
               <label className="block text-sm text-steel">
                 Папка
-                <select
-                  className="form-input"
-                  value={form.folderId}
-                  onChange={(event) =>
-                    setForm((current) =>
-                      current ? { ...current, folderId: event.target.value } : current,
-                    )
+                <Select
+                  onChange={(next) =>
+                    setForm((current) => (current ? { ...current, folderId: next } : current))
                   }
-                >
-                  <option value="">Выбери папку</option>
-                  {folders.map((folder) => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </option>
-                  ))}
-                </select>
+                  options={[
+                    { value: "", label: "Выбери папку" },
+                    ...folders.map((folder) => ({ value: String(folder.id), label: folder.name })),
+                  ]}
+                  value={form.folderId}
+                />
               </label>
               <label className="block text-sm text-steel">
                 Категория
-                <select
-                  className="form-input"
+                <Select<EquipmentType>
                   disabled={!canEditEquipmentType}
-                  value={form.equipmentType}
-                  onChange={(event) =>
+                  onChange={(next) =>
                     setForm((current) =>
                       current
                         ? {
                             ...current,
-                            equipmentType: event.target.value as EquipmentType,
+                            equipmentType: next,
                             measurementRangeStart:
-                              event.target.value === "SI" ? current.measurementRangeStart : "",
-                            measurementRangeEnd:
-                              event.target.value === "SI" ? current.measurementRangeEnd : "",
-                            measurementUnit:
-                              event.target.value === "SI" ? current.measurementUnit : "",
+                              next === "SI" ? current.measurementRangeStart : "",
+                            measurementRangeEnd: next === "SI" ? current.measurementRangeEnd : "",
+                            measurementUnit: next === "SI" ? current.measurementUnit : "",
                             complianceDate:
-                              event.target.value === "IO" || event.target.value === "VO"
-                                ? current.complianceDate
-                                : "",
+                              next === "IO" || next === "VO" ? current.complianceDate : "",
                             complianceIntervalMonths:
-                              event.target.value === "IO" || event.target.value === "VO"
+                              next === "IO" || next === "VO"
                                 ? current.complianceIntervalMonths || "12"
                                 : "",
                             manualVerificationIntervalMonths:
-                              event.target.value === "SI"
-                                ? current.manualVerificationIntervalMonths
-                                : "",
+                              next === "SI" ? current.manualVerificationIntervalMonths : "",
                           }
                         : current,
                     )
                   }
-                >
-                  {editableEquipmentTypeOptions.map((type) => (
-                    <option key={type} value={type}>
-                      {equipmentTypeSelectionLabels[type]}
-                    </option>
-                  ))}
-                </select>
+                  options={editableEquipmentTypeOptions.map((type) => ({
+                    value: type,
+                    label: equipmentTypeSelectionLabels[type],
+                  }))}
+                  value={form.equipmentType}
+                />
                 <span className="mt-1 block text-xs text-steel">
                   {canEditEquipmentType
                     ? "Для импортированных приборов можно менять категорию только из Др. в СИ, ИО или ВО."
@@ -3941,23 +3927,16 @@ export function EquipmentDetailsPage() {
               </label>
               <label className="block text-sm text-steel">
                 Статус
-                <select
-                  className="form-input"
-                  value={form.status}
-                  onChange={(event) =>
-                    setForm((current) =>
-                      current
-                        ? { ...current, status: event.target.value as EquipmentStatus }
-                        : current,
-                    )
+                <Select<EquipmentStatus>
+                  onChange={(next) =>
+                    setForm((current) => (current ? { ...current, status: next } : current))
                   }
-                >
-                  {equipmentStatusOptions.map((status) => (
-                    <option key={status} value={status}>
-                      {equipmentStatusLabels[status]}
-                    </option>
-                  ))}
-                </select>
+                  options={equipmentStatusOptions.map((status) => ({
+                    value: status,
+                    label: equipmentStatusLabels[status],
+                  }))}
+                  value={form.status}
+                />
               </label>
               <label className="block text-sm text-steel">
                 Объект
@@ -4099,23 +4078,18 @@ export function EquipmentDetailsPage() {
                 {form.manualVerificationIntervalMonths ? (
                   <label className="block text-sm text-steel">
                     Межповерочный интервал
-                    <select
-                      className="form-input"
-                      value={form.manualVerificationIntervalMonths}
-                      onChange={(event) =>
+                    <Select
+                      onChange={(next) =>
                         setForm((current) =>
-                          current
-                            ? { ...current, manualVerificationIntervalMonths: event.target.value }
-                            : current,
+                          current ? { ...current, manualVerificationIntervalMonths: next } : current,
                         )
                       }
-                    >
-                      {complianceIntervalOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
+                      options={complianceIntervalOptions.map((option) => ({
+                        value: option.value,
+                        label: option.label,
+                      }))}
+                      value={form.manualVerificationIntervalMonths}
+                    />
                   </label>
                 ) : null}
               </div>
@@ -4136,24 +4110,21 @@ export function EquipmentDetailsPage() {
                 </label>
                 <label className="block text-sm text-steel">
                   {getEquipmentCompliancePeriodLabel(form.equipmentType)}
-                  <select
-                    className="form-input"
-                    value={form.complianceIntervalMonths}
-                    onChange={(event) =>
+                  <Select
+                    onChange={(next) =>
                       setForm((current) =>
-                        current
-                          ? { ...current, complianceIntervalMonths: event.target.value }
-                          : current,
+                        current ? { ...current, complianceIntervalMonths: next } : current,
                       )
                     }
-                  >
-                    <option value="">Не задан</option>
-                    {complianceIntervalOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: "", label: "Не задан" },
+                      ...complianceIntervalOptions.map((option) => ({
+                        value: option.value,
+                        label: option.label,
+                      })),
+                    ]}
+                    value={form.complianceIntervalMonths}
+                  />
                 </label>
               </div>
             ) : null}

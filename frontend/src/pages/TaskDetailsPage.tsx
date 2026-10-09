@@ -31,6 +31,7 @@ import {
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import { Select } from "@/components/ui/select";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { DateInput } from "@/components/DateInput";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
@@ -356,34 +357,30 @@ export function TaskDetailsPage() {
         <div className="space-y-4 lg:col-span-2">
           <article className="tone-parent space-y-3 rounded-3xl border border-line p-4 shadow-panel">
             <div className="flex flex-wrap items-center gap-3">
-              <select
-                className="form-input form-input--compact"
+              <Select<TaskStatus>
+                compact
                 disabled={!canMutate}
+                onChange={(next) => statusMutation.mutate(next)}
+                options={TASK_STATUSES.map((status) => ({
+                  value: status,
+                  label: TASK_STATUS_LABELS[status],
+                }))}
                 value={task.status}
-                onChange={(event) => statusMutation.mutate(event.target.value as TaskStatus)}
-              >
-                {TASK_STATUSES.map((status) => (
-                  <option key={status} value={status}>
-                    {TASK_STATUS_LABELS[status]}
-                  </option>
-                ))}
-              </select>
+              />
               <StatusBadge tone={TASK_STATUS_TONES[task.status]}>
                 {TASK_STATUS_LABELS[task.status]}
               </StatusBadge>
-              <select
-                aria-label="Приоритет"
-                className="form-input form-input--compact"
+              <Select<TaskPriority>
+                ariaLabel="Приоритет"
+                compact
                 disabled={!canMutate}
+                onChange={(next) => priorityMutation.mutate(next)}
+                options={Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => ({
+                  value: value as TaskPriority,
+                  label,
+                }))}
                 value={task.priority}
-                onChange={(event) => priorityMutation.mutate(event.target.value as TaskPriority)}
-              >
-                {Object.entries(TASK_PRIORITY_LABELS).map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
+              />
               <label className="flex items-center gap-2 text-sm text-steel">
                 Срок
                 <DateInput

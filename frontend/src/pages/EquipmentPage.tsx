@@ -759,6 +759,14 @@ export function EquipmentPage() {
     () => allFolders.find((folder) => folder.id === selectedFolderId) ?? null,
     [allFolders, selectedFolderId],
   );
+  /*
+   * Reviewing a rescan is about the task's folder, not the one being browsed: the panel survives
+   * navigation, so the user may well be looking at another folder (or none) when they come back.
+   */
+  const folderRefreshFolder = useMemo(
+    () => allFolders.find((folder) => folder.id === folderRefreshDockFolderId) ?? null,
+    [allFolders, folderRefreshDockFolderId],
+  );
   const selectedFolderCurrentDeadlinePreset = useMemo(
     () =>
       (deadlinePresetsQuery.data ?? []).find(
@@ -1335,7 +1343,11 @@ export function EquipmentPage() {
 
   async function handleFolderRefreshApplySubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!selectedFolderId || !folderRefreshTaskId || applicableSelectedFolderRefreshRowIds.length === 0) {
+    if (
+      (folderRefreshDockFolderId ?? selectedFolderId) === null
+      || !folderRefreshTaskId
+      || applicableSelectedFolderRefreshRowIds.length === 0
+    ) {
       return;
     }
     await applyFolderRefreshMutation.mutateAsync(applicableSelectedFolderRefreshRowIds);
@@ -3500,8 +3512,10 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
 
       <Modal
         description={
-          selectedFolder
-            ? `Поиск возможных обновлений для ${folderRefreshScopeDescriptionLabel} «${selectedFolder.name}». Обновления применяются только вручную по отмеченным строкам.`
+          folderRefreshFolder ?? selectedFolder
+            ? `Поиск возможных обновлений для ${folderRefreshScopeDescriptionLabel} «${
+                (folderRefreshFolder ?? selectedFolder)?.name
+              }». Обновления применяются только вручную по отмеченным строкам.`
             : "Сначала выбери папку."
         }
         footer={
@@ -3519,6 +3533,15 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
             <button className={subtleButtonClass} type="button" onClick={minimizeFolderRefreshModal}>
               Свернуть
             </button>
+            {isFolderRefreshProcessing ? (
+              <span className="text-xs text-steel">
+                Применение станет доступно, когда поиск завершится.
+              </span>
+            ) : applicableSelectedFolderRefreshRowIds.length === 0 ? (
+              <span className="text-xs text-steel">
+                Отметь строки со статусом «Обновить» или «Обновить?».
+              </span>
+            ) : null}
             <button
               className="btn-primary disabled:opacity-60"
               disabled={

@@ -65,6 +65,13 @@ export function useFolderRefresh({
   const applyFolderRefreshMutation = useMutation({
     mutationFn: (rowIds: number[]) =>
       applyFolderRefreshRows(token ?? "", reviewedFolderId ?? 0, folderRefreshTaskId ?? 0, rowIds),
+    onError: (error) => {
+      setFolderRefreshActionMessage(
+        error instanceof Error && error.message
+          ? `Не удалось применить: ${error.message}`
+          : "Не удалось применить выбранные обновления.",
+      );
+    },
     onSuccess: async (result) => {
       setFolderRefreshApplyResult(result);
       setSelectedFolderRefreshRowIds([]);
@@ -100,6 +107,13 @@ export function useFolderRefresh({
         throw new Error("Не удалось исключить выбранные приборы из следующих проверок.");
       }
       return { updatedCount, failedCount };
+    },
+    onError: (error) => {
+      setFolderRefreshActionMessage(
+        error instanceof Error && error.message
+          ? `Не удалось исключить приборы: ${error.message}`
+          : "Не удалось исключить выбранные приборы из следующих проверок.",
+      );
     },
     onSuccess: async ({ updatedCount, failedCount }) => {
       setFolderRefreshApplyResult(null);

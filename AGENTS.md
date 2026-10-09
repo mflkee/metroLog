@@ -365,6 +365,7 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 ## 6. Database Schema (Key Entities)
 
 **Users & Auth**
+- ⚠️ **Два разных регистра в одной строке:** `users.theme_preference` — это `Enum(UserThemePreference, native_enum=False)` **без** `values_callable`, поэтому SQLAlchemy пишет **имя** члена (`LIGHT`, `GRAY`, …), а `users.enabled_theme_options` — обычный JSON-список **значений** (`light`, `gray`, …). CHECK-constraint на колонке нет, поэтому запись «не тем» регистром проходит молча, а потом падает при чтении энума. Миграции, переписывающие темы, обязаны писать в `theme_preference` имя (см. `0059_retire_gray_theme.py`).
 - `users` — id, first/last/patronymic, email (unique), password_hash, role (`DEVELOPER`/`ADMINISTRATOR`/`MKAIR`/`CUSTOMER`), `allowed_folder_ids` (JSON), `dashboard_folder_ids` (JSON), `hidden_equipment_folder_ids` (JSON), `dashboard_widget_options` (JSON, which widgets are shown), `dashboard_layout` (JSON, ordered `{key, size, collapsed}` entries — order, width preset and collapsed state; `null` = the default arrangement), theme prefs, last_login/seen.
 
 **Equipment Registry**

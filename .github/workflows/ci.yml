@@ -197,8 +197,11 @@ jobs:
     needs: [checks, version-guard, build-images, runner-preflight]
     runs-on: [self-hosted, mkair]
     environment: production
+    # `permissions` at job level *replaces* the workflow-level block, so both have to be listed:
+    # `contents: write` deletes the one-shot release branch, `packages: read` pulls the images.
     permissions:
       contents: write
+      packages: read
     steps:
       - name: Pull repo code
         run: |

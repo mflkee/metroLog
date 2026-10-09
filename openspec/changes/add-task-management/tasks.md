@@ -80,3 +80,9 @@
 - [x] 11.10 Top bar: drop the duplicated per-page section title (the page already shows it).
 - [x] 11.11 CHANGELOG is user-facing only: version + date + terse highlights, no internal/infra details (also reflected in `AGENTS.md`).
 - [x] 11.12 Equipment picker: pick the folder and the object (objects from the user's accessible folder) instead of a flat list; hide the private-note toggle from non-operators (customers), matching the backend rule already covered by `test_task_messages_private_visibility`.
+
+## 12. Board column order (owner request)
+
+- [x] 12.1 Store the place of a task in its column: `tasks.board_order` (nullable, shared), migration `0058`, `sort=board` in the task repository (explicitly placed first, then the default order). Verified by `test_operator_can_reorder_a_board_column`.
+- [x] 12.2 Add `POST /tasks/board/reorder` (the column's ids top to bottom; operator-only, one column, tasks visible to the caller) and clear the order when a task changes column. Verified by `test_board_reorder_rejects_a_mixed_column` and `test_customer_cannot_reorder_the_board`.
+- [x] 12.3 Drag a card inside a column with the shared live-reorder engine (the column is the subset), a dashed placeholder for the landing place and a floating copy; `Alt`+arrows from the keyboard. Verified by `sortableOrder.test.ts` (`applySubsetOrder`) and the Stage check.

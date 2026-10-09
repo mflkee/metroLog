@@ -165,7 +165,20 @@ class TaskRepository:
             return [Task.updated_at.desc(), Task.id.desc()]
         if sort == "created":
             return [Task.created_at.desc(), Task.id.desc()]
+        if sort == "board":
+            # The board's own order: the tasks a user placed come first, in that order, and the rest
+            # follow by the default order, so a new task lands at the end of its column.
+            return [
+                Task.board_order.is_(None).asc(),
+                Task.board_order.asc(),
+                Task.due_date.asc().nulls_last(),
+                Task.id.desc(),
+            ]
         return [Task.due_date.asc().nulls_last(), priority_weight.asc(), Task.id.desc()]
+
+    def list_by_ids(self, *, task_ids: list[int]) -> list[Task]:
+        """Loads tasks by id, for a caller that validates visibility itself."""
+        return self._list_by_ids(task_ids)
 
     def _list_by_ids(self, task_ids: list[int]) -> list[Task]:
         if not task_ids:

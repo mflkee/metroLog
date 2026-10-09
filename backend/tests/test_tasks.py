@@ -912,3 +912,113 @@ async def test_invited_participant_sees_the_task_without_folder_access(
     ).status_code == 404
     outsider_list = await client.get("/api/v1/tasks", headers=outsider_headers)
     assert all(item["id"] != task_id for item in outsider_list.json()["items"])
+
+
+async def _create_simple_task(
+    client: AsyncClient,
+    *,
+    token: str,
+    responsible_user_id: int,
+    title: str,
+) -> dict:
+    response = await client.post(
+        "/api/v1/tasks",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"title": title, "responsible_user_id": responsible_user_id},
+    )
+    assert response.status_code == 201, response.text
+    return response.json()
+
+
+@pytest.mark.anyio
+async def test_operator_can_reorder_a_board_column(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    token = str(admin["access_token"])
+    headers = {"Authorization": f"Bearer {token}"}
+    admin_id = (await current_user(client, token))["id"]
+
+    first = await _create_simple_task(
+        client, token=token, responsible_user_id=admin_id, title="Первая"
+    )
+    second = await _create_simple_task(
+        client, token=token, responsible_user_id=admin_id, title="Вторая"
+    )
+    third = await _create_simple_task(
+        client, token=token, responsible_user_id=admin_id, title="Третья"
+    )
+
+    response = await client.post(
+        "/api/v1/tasks/board/reorder",
+        headers=headers,
+        json={"task_ids": [third["id"], first["id"], second["id"]]},
+    )
+    assert response.status_code == 204, response.text
+
+    listing = await client.get("/api/v1/tasks?sort=board", headers=headers)
+    assert listing.status_code == 200, listing.text
+    new_column = [item["id"] for item in listing.json()["items"] if item["status"] == "NEW"]
+    assert new_column == [third["id"], first["id"], second["id"]]
+
+
+@pytest.mark.anyio
+async def test_board_reorder_rejects_a_mixed_column(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    token = str(admin["access_token"])
+    headers = {"Authorization": f"Bearer {token}"}
+    admin_id = (await current_user(client, token))["id"]
+
+    first = await _create_simple_task(
+        client, token=token, responsible_user_id=admin_id, title="Новая"
+    )
+    second = await _create_simple_task(
+        client, token=token, responsible_user_id=admin_id, title="Завершённая"
+    )
+    moved = await client.patch(
+        f"/api/v1/tasks/{second['id']}",
+        headers=headers,
+        json={"status": "DONE"},
+    )
+    assert moved.status_code == 200, moved.text
+
+    response = await client.post(
+        "/api/v1/tasks/board/reorder",
+        headers=headers,
+        json={"task_ids": [first["id"], second["id"]]},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.anyio
+async def test_customer_cannot_reorder_the_board(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    token = str(admin["access_token"])
+    admin_id = (await current_user(client, token))["id"]
+
+    customer = await create_user(
+        client,
+        admin_token=token,
+        email="board-customer@example.com",
+        role="CUSTOMER",
+    )
+    customer_headers = {
+        "Authorization": f"Bearer {customer['temporary_password']}",
+    }
+    customer_login = await login_user(
+        client, email="board-customer@example.com", password=str(customer["temporary_password"])
+    )
+    customer_token = str(customer_login["access_token"])
+    customer_headers = {"Authorization": f"Bearer {customer_token}"}
+
+    task = await _create_simple_task(
+        client, token=token, responsible_user_id=admin_id, title="Общая"
+    )
+
+    response = await client.post(
+        "/api/v1/tasks/board/reorder",
+        headers=customer_headers,
+        json={"task_ids": [task["id"]]},
+    )
+    assert response.status_code == 403

@@ -214,6 +214,12 @@ class TaskListItemRead(BaseModel):
     can_mutate: bool = False
 
 
+class TaskBoardReorderRequest(BaseModel):
+    """The new order of one board column, top to bottom."""
+
+    task_ids: list[int]
+
+
 class TaskPageRead(BaseModel):
     items: list[TaskListItemRead]
     total: int

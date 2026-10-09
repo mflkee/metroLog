@@ -14,6 +14,7 @@ from app.models.task import TaskPriority, TaskStatus
 from app.models.user import User
 from app.schemas.task import (
     TaskAttachmentRead,
+    TaskBoardReorderRequest,
     TaskChecklistItemCreateRequest,
     TaskChecklistItemUpdateRequest,
     TaskCreateRequest,
@@ -127,6 +128,19 @@ async def create_task(
     payload: TaskCreateRequest,
 ) -> TaskRead:
     return _service(db, current_user).create_task(payload=payload, current_user=current_user)
+
+
+@router.post("/board/reorder", status_code=status.HTTP_204_NO_CONTENT)
+async def reorder_board(
+    db: DbSession,
+    current_user: CurrentUser,
+    payload: TaskBoardReorderRequest,
+) -> None:
+    """Stores the new order of one board column.
+
+    Declared before `/{task_id}` so the path is not read as a task id.
+    """
+    _service(db, current_user).reorder_board(payload=payload, current_user=current_user)
 
 
 @router.get("/{task_id}", response_model=TaskRead)

@@ -1,4 +1,9 @@
-import { resolveInsertionSlot, moveItemToSlot, type DragRect } from "@/lib/sortableOrder";
+import {
+  applySubsetOrder,
+  moveItemToSlot,
+  resolveInsertionSlot,
+  type DragRect,
+} from "@/lib/sortableOrder";
 
 const grid: DragRect[] = [
   // Row 1: two halves.
@@ -68,5 +73,15 @@ describe("moveItemToSlot", () => {
 
   it("ignores an item that is not in the order", () => {
     expect(moveItemToSlot(order, "nope", 2)).toBe(order);
+  });
+});
+
+describe("applySubsetOrder", () => {
+  it("reorders a subset in place and leaves everything else alone", () => {
+    expect(applySubsetOrder([1, 2, 3, 4, 5], [4, 2], (id) => id)).toEqual([1, 4, 3, 2, 5]);
+  });
+
+  it("keeps the list when the subset order names an unknown key", () => {
+    expect(applySubsetOrder(["a", "b"], ["b", "zzz"], (key) => key)).toEqual(["a", "b"]);
   });
 });

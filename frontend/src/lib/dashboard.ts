@@ -1,4 +1,5 @@
 import { getEquipmentNextDueDate, type EquipmentItem } from "@/api/equipment/registry";
+import { applySubsetOrder } from "@/lib/sortableOrder";
 
 export const dashboardWidgetOptions = [
   {
@@ -232,12 +233,7 @@ export function applyVisibleOrder(
   layout: DashboardLayoutEntry[],
   visibleOrder: DashboardWidgetKey[],
 ): DashboardLayoutEntry[] {
-  const visible = new Set(visibleOrder);
-  const queue = visibleOrder.flatMap(
-    (key) => layout.find((entry) => entry.key === key) ?? [],
-  );
-  let index = 0;
-  return layout.map((entry) => (visible.has(entry.key) ? (queue[index++] ?? entry) : entry));
+  return applySubsetOrder(layout, visibleOrder, (entry) => entry.key);
 }
 
 export function getDashboardFolderIds(

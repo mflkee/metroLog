@@ -493,6 +493,15 @@ export async function deleteTask(token: string, taskId: number): Promise<void> {
   await apiRequest<unknown>(`/tasks/${taskId}`, { method: "DELETE", token });
 }
 
+/** Stores the new order of one board column (top to bottom). */
+export async function reorderTaskBoard(token: string, taskIds: number[]): Promise<void> {
+  await apiRequest<unknown>("/tasks/board/reorder", {
+    method: "POST",
+    token,
+    body: { task_ids: taskIds },
+  });
+}
+
 export async function addChecklistItem(token: string, taskId: number, label: string): Promise<Task> {
   const response = await apiRequest<RawTask>(`/tasks/${taskId}/checklist`, {
     method: "POST",

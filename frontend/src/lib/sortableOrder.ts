@@ -81,6 +81,25 @@ export function moveItemToSlot(order: string[], activeKey: string, slot: number)
   return next;
 }
 
+/**
+ * Puts the items of `subsetOrder` (a permutation of a subset of `order`) into the slots that subset
+ * occupied, leaving every other item where it was.
+ */
+export function applySubsetOrder<T, K extends string | number>(
+  order: T[],
+  subsetOrder: K[],
+  keyOf: (item: T) => K,
+): T[] {
+  const subset = new Set(subsetOrder);
+  const byKey = new Map(order.map((item) => [keyOf(item), item]));
+  const queue = subsetOrder.flatMap((key) => {
+    const item = byKey.get(key);
+    return item === undefined ? [] : [item];
+  });
+  let index = 0;
+  return order.map((item) => (subset.has(keyOf(item)) ? (queue[index++] ?? item) : item));
+}
+
 /** Reads the rects of the elements marked with `data-drag-key`, in the given order. */
 export function measureDragRects(
   container: HTMLElement | null,

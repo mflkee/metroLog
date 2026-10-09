@@ -13,6 +13,12 @@ type DragReorderOptions<T extends string | number> = {
   onChange: (next: T[]) => void;
   /** Once, on drop, and only when the order really changed. */
   onCommit: (next: T[]) => void;
+  /**
+   * Restricts the reorder to the items this returns for the dragged key — for example the cards of
+   * one board column. Only those rects are measured, and `onChange`/`onCommit` then receive the new
+   * order of that subset, which the caller merges back with `applySubsetOrder`.
+   */
+  subsetOf?: (activeKey: T, order: T[]) => T[];
 };
 
 type DragReorderResult<T extends string | number> = {
@@ -64,7 +70,7 @@ function pointerFromEvent(event: DragMoveEvent) {
 /**
  * Drag-to-reorder that changes the rendered order while the user drags, so the items make room for
  * real instead of being moved by a transform that has to guess at slot sizes. The dragged element is
- * expected to be rendered outside the flow (an overlay) with a placeholder left in the grid.
+ * expected to be rendered outside the flow (an overlay) with a placeholder left in its place.
  *
  * The positions used to decide where the item goes are measured once, when the drag starts: the
  * answer then depends only on the pointer, and cannot oscillate while the items move underneath.
@@ -74,11 +80,13 @@ export function useDragReorder<T extends string | number>({
   containerRef,
   onChange,
   onCommit,
+  subsetOf,
 }: DragReorderOptions<T>): DragReorderResult<T> {
   const [activeKey, setActiveKey] = useState<T | null>(null);
   const [activeRect, setActiveRect] = useState<DragRect | null>(null);
   const rectsRef = useRef<DragRect[]>([]);
-  const startOrderRef = useRef<T[]>(order);
+  const startSubsetRef = useRef<T[]>(order);
+  const subsetRef = useRef<T[]>(order);
   const startScrollRef = useRef({ x: 0, y: 0 });
   const latestRef = useRef<T[]>(order);
   const activeKeyRef = useRef<T | null>(null);
@@ -89,11 +97,12 @@ export function useDragReorder<T extends string | number>({
 
   function handleDragStart(event: DragStartEvent) {
     const key = event.active.id as T;
-    const measured = measureDragRects(containerRef.current, latestRef.current);
-    rectsRef.current = measured;
-    startOrderRef.current = latestRef.current;
+    const subset = subsetOf ? subsetOf(key, latestRef.current) : latestRef.current;
+    subsetRef.current = subset;
+    startSubsetRef.current = subset;
+    rectsRef.current = measureDragRects(containerRef.current, subset);
     startScrollRef.current = { x: window.scrollX, y: window.scrollY };
-    setActiveRect(measured.find((rect) => rect.key === String(key)) ?? null);
+    setActiveRect(rectsRef.current.find((rect) => rect.key === String(key)) ?? null);
     activeKeyRef.current = key;
     setActiveKey(key);
   }
@@ -109,21 +118,23 @@ export function useDragReorder<T extends string | number>({
       x: pointer.x + (window.scrollX - startScrollRef.current.x),
       y: pointer.y + (window.scrollY - startScrollRef.current.y),
     };
-    const current = keysOf(latestRef.current);
+    const current = keysOf(subsetRef.current);
     const slot = resolveInsertionSlot(scrolled, rectsRef.current);
     const next = moveItemToSlot(current, String(event.active.id), slot);
     if (next.join("|") === current.join("|")) {
       return;
     }
-    onChange(restoreKeys(next, latestRef.current));
+    const restored = restoreKeys(next, subsetRef.current);
+    subsetRef.current = restored;
+    onChange(restored);
   }
 
   function handleDragEnd() {
     justDraggedRef.current = activeKeyRef.current;
     setActiveKey(null);
     setActiveRect(null);
-    if (keysOf(startOrderRef.current).join("|") !== keysOf(latestRef.current).join("|")) {
-      onCommit(latestRef.current);
+    if (keysOf(startSubsetRef.current).join("|") !== keysOf(subsetRef.current).join("|")) {
+      onCommit(subsetRef.current);
     }
   }
 
@@ -131,7 +142,7 @@ export function useDragReorder<T extends string | number>({
     justDraggedRef.current = activeKeyRef.current;
     setActiveKey(null);
     setActiveRect(null);
-    onChange(startOrderRef.current);
+    onChange(startSubsetRef.current);
   }
 
   function shouldSuppressClick(key: T): boolean {
@@ -143,7 +154,7 @@ export function useDragReorder<T extends string | number>({
   }
 
   function moveKeyBy(key: T, delta: number) {
-    const current = keysOf(latestRef.current);
+    const current = keysOf(subsetRef.current);
     const from = current.indexOf(String(key));
     if (from < 0) {
       return;
@@ -155,7 +166,9 @@ export function useDragReorder<T extends string | number>({
     const next = [...current];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
-    const restored = restoreKeys(next, latestRef.current);
+    const restored = restoreKeys(next, subsetRef.current);
+    subsetRef.current = restored;
+    startSubsetRef.current = restored;
     onChange(restored);
     onCommit(restored);
   }

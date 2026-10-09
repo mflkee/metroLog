@@ -80,6 +80,9 @@ class Task(Base):
     )
     kind: Mapped[str | None] = mapped_column(String(128), nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(JSON, nullable=True)
+    # Manual order inside a board column, shared by everybody. Null means "never reordered": those
+    # tasks sort after the explicitly ordered ones of their column, by the default order.
+    board_order: Mapped[int | None] = mapped_column(Integer, nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     created_by_user_id: Mapped[int | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),

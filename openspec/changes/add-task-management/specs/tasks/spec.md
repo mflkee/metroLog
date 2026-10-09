@@ -156,3 +156,33 @@ linked equipment.
 #### Scenario: Journal records status change
 - **WHEN** a participant changes a task status
 - **THEN** a `TASK` journal entry with the previous and new status is recorded
+
+### Requirement: Board column order
+
+The board SHALL show every column in one shared manual order. Dragging a task within its column SHALL
+move it to the place it was dropped, with the neighbouring cards making room while it moves, and the
+resulting order SHALL be the same for every user. Reordering SHALL be an operator action. A task that
+is moved to another column SHALL lose its place in the column it left and join the new one after the
+tasks that were placed there explicitly.
+
+#### Scenario: Reordering inside a column
+
+- **WHEN** an operator drags a task down inside its column and drops it between two other tasks
+- **THEN** the cards make room while it moves, the task lands between them, and another user opening
+  the board sees the same order
+
+#### Scenario: A task moved to another column
+
+- **WHEN** a task is dragged into a different column
+- **THEN** the column it left keeps the order it had and the task joins the new column after the
+  tasks that were placed there explicitly
+
+#### Scenario: A non-operator drags a card
+
+- **WHEN** a user without operator access drags a card inside a column
+- **THEN** the order does not change
+
+#### Scenario: A new task
+
+- **WHEN** a task is created
+- **THEN** it appears at the end of its column, after the tasks that were placed there explicitly

@@ -2,6 +2,7 @@ import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   closestCorners,
@@ -10,6 +11,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -22,6 +24,7 @@ import {
   TASK_STATUS_LABELS,
   createTask,
   fetchTasks,
+  reorderTaskBoard,
   updateTask,
   type TaskListItem,
   type TaskListFilters,
@@ -39,6 +42,9 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
 import { resolveBoardDrop } from "@/lib/taskBoard";
+import { hasOperatorAccess } from "@/lib/roles";
+import { applySubsetOrder } from "@/lib/sortableOrder";
+import { useDragReorder } from "@/lib/useDragReorder";
 import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
 import { resizeTextareaToContent } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
@@ -87,10 +93,16 @@ function TaskCard({ task }: { task: TaskListItem }) {
 }
 
 function DraggableTaskCard({
+  dragging,
+  placeholderHeight,
   task,
+  onMoveBy,
   shouldSuppressClick,
 }: {
+  dragging: boolean;
+  placeholderHeight: number | null;
   task: TaskListItem;
+  onMoveBy: (taskId: number, delta: number) => void;
   shouldSuppressClick: (taskId: number) => boolean;
 }) {
   // Dragging changes the status, so it stays disabled on cards the API marks read-only.
@@ -102,11 +114,32 @@ function DraggableTaskCard({
     ? { transform: `translate3d(${transform.x}px, ${transform.y}px, 0)` }
     : undefined;
 
+  if (dragging) {
+    // The card keeps its slot as a dashed placeholder; the copy that follows the pointer is drawn
+    // by the board's overlay.
+    return (
+      <div
+        ref={setNodeRef}
+        className="rounded-2xl border border-dashed border-line"
+        data-drag-key={task.id}
+        data-flip-key={task.id}
+        style={placeholderHeight ? { height: placeholderHeight } : { height: 84 }}
+      />
+    );
+  }
+
   return (
     <div
-      className={["touch-pan-y", isDragging ? "relative z-50" : ""].filter(Boolean).join(" ")}
+      className={[
+        "touch-pan-y transition-transform duration-200",
+        isDragging ? "relative z-50" : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       ref={setNodeRef}
       style={style}
+      data-drag-key={task.id}
+      data-flip-key={task.id}
       {...attributes}
       {...listeners}
       onClickCapture={(event) => {
@@ -115,6 +148,22 @@ function DraggableTaskCard({
           event.preventDefault();
           event.stopPropagation();
         }
+      }}
+      onKeyDown={(event) => {
+        if (!event.altKey) {
+          return;
+        }
+        const delta =
+          event.key === "ArrowDown" || event.key === "ArrowRight"
+            ? 1
+            : event.key === "ArrowUp" || event.key === "ArrowLeft"
+              ? -1
+              : 0;
+        if (!delta) {
+          return;
+        }
+        event.preventDefault();
+        onMoveBy(task.id, delta);
       }}
     >
       <Link className="block" draggable={false} to={`/tasks/${task.id}`}>
@@ -127,15 +176,21 @@ function DraggableTaskCard({
 function BoardColumn({
   count,
   dragging,
+  draggingTaskId,
+  placeholderHeight,
   shouldSuppressClick,
   status,
   tasks,
+  onMoveBy,
 }: {
   count: number;
   dragging: boolean;
+  draggingTaskId: number | null;
+  placeholderHeight: number | null;
   shouldSuppressClick: (taskId: number) => boolean;
   status: TaskStatus;
   tasks: TaskListItem[];
+  onMoveBy: (taskId: number, delta: number) => void;
 }) {
   const { isOver, setNodeRef } = useDroppable({ id: status });
 
@@ -153,7 +208,14 @@ function BoardColumn({
       </StatusBadge>
       <div className="space-y-2 px-1">
         {tasks.map((task) => (
-          <DraggableTaskCard key={task.id} task={task} shouldSuppressClick={shouldSuppressClick} />
+          <DraggableTaskCard
+            key={task.id}
+            dragging={task.id === draggingTaskId}
+            placeholderHeight={placeholderHeight}
+            task={task}
+            onMoveBy={onMoveBy}
+            shouldSuppressClick={shouldSuppressClick}
+          />
         ))}
         {isOver && dragging ? (
           <div className="h-24 rounded-2xl border border-dashed border-line" aria-hidden="true" />
@@ -193,10 +255,10 @@ export function TasksPage() {
       assigneeUserId: mine && currentUser ? currentUser.id : null,
       overdueOnly,
       query: query.trim() || null,
-      sort: "due",
+      sort: view === "board" ? "board" : "due",
       limit: 200,
     }),
-    [folderId, statuses, priority, mine, currentUser, overdueOnly, query],
+    [folderId, statuses, priority, mine, currentUser, overdueOnly, query, view],
   );
 
   const tasksQuery = useQuery({
@@ -236,6 +298,66 @@ export function TasksPage() {
     return optimistic && optimistic !== task.status ? optimistic : task.status;
   }
 
+  const reorderEnabled = hasOperatorAccess(currentUser?.role);
+  const [boardOrderOverride, setBoardOrderOverride] = useState<{
+    ids: number[];
+    stamp: number;
+  } | null>(null);
+  const boardContainerRef = useRef<HTMLDivElement>(null);
+  const statusById = useMemo(
+    () => new Map(tasks.map((task) => [task.id, taskStatusOf(task)])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tasks, optimisticStatus],
+  );
+  const orderedTasks = useMemo(() => {
+    if (!boardOrderOverride || boardOrderOverride.stamp !== tasksQuery.dataUpdatedAt) {
+      return tasks;
+    }
+    const byId = new Map(tasks.map((task) => [task.id, task]));
+    const ordered = boardOrderOverride.ids.flatMap((id) => byId.get(id) ?? []);
+    const rest = tasks.filter((task) => !boardOrderOverride.ids.includes(task.id));
+    return [...ordered, ...rest];
+  }, [boardOrderOverride, tasks, tasksQuery.dataUpdatedAt]);
+  const activeTask = activeTaskId === null
+    ? null
+    : orderedTasks.find((task) => task.id === activeTaskId) ?? null;
+
+  const reorderBoardMutation = useMutation({
+    mutationFn: (taskIds: number[]) => reorderTaskBoard(token, taskIds),
+    onError: (error) => {
+      setBoardOrderOverride(null);
+      setBoardError(
+        error instanceof Error && error.message
+          ? error.message
+          : "Не удалось сохранить порядок задач.",
+      );
+    },
+    onSuccess: () => {
+      setBoardError(null);
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+    },
+  });
+
+  const boardDrag = useDragReorder<number>({
+    order: orderedTasks.map((task) => task.id),
+    containerRef: boardContainerRef,
+    // Only operators may reorder the shared queue; for everybody else the subset is just the
+    // dragged card, so nothing can move.
+    subsetOf: (key, order) =>
+      reorderEnabled ? order.filter((id) => statusById.get(id) === statusById.get(key)) : [key],
+    onChange: (subsetOrder) => {
+      setBoardOrderOverride({
+        ids: applySubsetOrder(
+          orderedTasks.map((task) => task.id),
+          subsetOrder,
+          (id) => id,
+        ),
+        stamp: tasksQuery.dataUpdatedAt,
+      });
+    },
+    onCommit: (subsetOrder) => reorderBoardMutation.mutate(subsetOrder),
+  });
+
   useEffect(() => {
     setOptimisticStatus((current) => {
       const next: Record<number, TaskStatus> = {};
@@ -259,22 +381,33 @@ export function TasksPage() {
 
   function handleDragStart(event: DragStartEvent) {
     setActiveTaskId(Number(event.active.id));
+    boardDrag.handleDragStart(event);
+  }
+
+  function handleDragMove(event: DragMoveEvent) {
+    boardDrag.handleDragMove(event);
   }
 
   function handleDragEnd(event: DragEndEvent) {
     justDraggedTaskRef.current = Number(event.active.id);
     setActiveTaskId(null);
-    const drop = resolveBoardDrop(event.active.id, event.over?.id, tasks);
-    if (!drop) {
+
+    const drop = resolveBoardDrop(event.active.id, event.over?.id, orderedTasks);
+    if (drop) {
+      // The card leaves its column: the column it came from keeps the order it had.
+      boardDrag.handleDragCancel();
+      setOptimisticStatus((current) => ({ ...current, [drop.id]: drop.status }));
+      statusMutation.mutate(drop);
       return;
     }
-    setOptimisticStatus((current) => ({ ...current, [drop.id]: drop.status }));
-    statusMutation.mutate(drop);
+    // The card stays in its column: the order it was dragged to is what to save.
+    boardDrag.handleDragEnd();
   }
 
   function handleDragCancel() {
     justDraggedTaskRef.current = activeTaskId;
     setActiveTaskId(null);
+    boardDrag.handleDragCancel();
   }
 
   /** True once, for the card that was just dragged: a drop must not also open it. */
@@ -399,23 +532,34 @@ export function TasksPage() {
           sensors={sensors}
           onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
+          onDragMove={handleDragMove}
           onDragStart={handleDragStart}
         >
-          <div className="grid gap-3 lg:grid-cols-5">
+          <div className="grid gap-3 lg:grid-cols-5" ref={boardContainerRef}>
             {BOARD_STATUSES.map((status) => {
-              const columnTasks = tasks.filter((task) => taskStatusOf(task) === status);
+              const columnTasks = orderedTasks.filter((task) => taskStatusOf(task) === status);
               return (
                 <BoardColumn
                   count={columnTasks.length}
                   dragging={activeTaskId !== null}
+                  draggingTaskId={activeTaskId}
                   key={status}
+                  placeholderHeight={
+                    boardDrag.activeRect
+                      ? Math.round(boardDrag.activeRect.bottom - boardDrag.activeRect.top)
+                      : null
+                  }
                   shouldSuppressClick={shouldSuppressTaskClick}
                   status={status}
                   tasks={columnTasks}
+                  onMoveBy={boardDrag.moveKeyBy}
                 />
               );
             })}
           </div>
+          <DragOverlay dropAnimation={null}>
+            {activeTask ? <TaskCard task={activeTask} /> : null}
+          </DragOverlay>
         </DndContext>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-line">

@@ -39,6 +39,7 @@ from app.repositories.task_repository import (
 )
 from app.schemas.task import (
     TaskAttachmentRead,
+    TaskBoardReorderRequest,
     TaskChecklistItemCreateRequest,
     TaskChecklistItemRead,
     TaskChecklistItemUpdateRequest,
@@ -423,6 +424,46 @@ class TaskService:
     def get_task(self, *, task_id: int) -> TaskRead:
         return self.serialize_task(self._get_task_or_404(task_id))
 
+    def reorder_board(self, *, payload: TaskBoardReorderRequest, current_user: User) -> None:
+        """Stores the order of one board column.
+
+        The board is a shared queue, so reordering it is an operator action; the listed tasks must
+        all be visible to the caller and belong to a single column.
+        """
+        if not has_operator_access(current_user.role):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Порядок задач на доске может менять только оператор.",
+            )
+
+        task_ids = list(dict.fromkeys(payload.task_ids))
+        if not task_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Нужно передать порядок хотя бы одной задачи.",
+            )
+
+        tasks = self.tasks.list_by_ids(task_ids=task_ids)
+        by_id = {task.id: task for task in tasks}
+        missing = [task_id for task_id in task_ids if task_id not in by_id]
+        if missing:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Задача не найдена.",
+            )
+        for task in tasks:
+            self._assert_task_visible(task)
+
+        if len({task.status for task in tasks}) > 1:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Переставить можно только задачи одной колонки.",
+            )
+
+        for position, task_id in enumerate(task_ids):
+            by_id[task_id].board_order = position
+        self.session.commit()
+
     def list_tasks_for_equipment(self, *, equipment_id: int) -> list[TaskListItemRead]:
         equipment = self.equipment.get_by_id(equipment_id)
         if equipment is None:
@@ -548,6 +589,10 @@ class TaskService:
             task.description = payload.description
         if "status" in fields and payload.status is not None:
             task.status = payload.status
+            # A task that changed column loses its place in the old column's queue and joins the new
+            # one unordered, i.e. after the tasks that were placed there explicitly.
+            if payload.status != previous_status:
+                task.board_order = None
         if "priority" in fields and payload.priority is not None:
             task.priority = payload.priority
         if "kind" in fields:

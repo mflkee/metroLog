@@ -440,13 +440,13 @@ export function TaskDetailsPage() {
                     {item.label}
                   </label>
                   {canMutate ? (
-                    <button
-                      className="ml-auto text-xs text-[color:var(--danger)]"
+                    <IconActionButton
+                      className="icon-action-button--danger ml-auto shrink-0"
+                      icon={<Icon className="h-4 w-4" name="delete" />}
+                      label="Удалить пункт чек-листа"
+                      size="tiny"
                       onClick={() => checklistDelete.mutate(item.id)}
-                      type="button"
-                    >
-                      удалить
-                    </button>
+                    />
                   ) : null}
                 </li>
               ))}

@@ -334,7 +334,7 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 
 **Tasks**
 - `tasks` — id, `folder_id` (**nullable**: taken from the linked equipment when it lives in one folder), title, description, status, priority, kind, tags, `due_date`, author, `completed_at`.
-- `task_participants` — (`task_id`, `user_id`, role `RESPONSIBLE`/`ASSIGNEE`/`OBSERVER`), unique per pair; plus `task_equipment`, `task_checklist_items`, `task_messages` + message attachments, `task_attachments`, `task_subscriptions`, `task_reminder_log`.
+- `task_participants` — (`task_id`, `user_id`, role `RESPONSIBLE`/`ASSIGNEE`/`OBSERVER`), unique per role so the responsible may also be an assignee; plus `task_equipment`, `task_checklist_items`, `task_messages` + message attachments, `task_attachments`, `task_subscriptions`, `task_reminder_log`.
 - Visibility: a task with a folder follows the folder scope; a folder-less task is visible to its author, its participants and operators only. Mutation is allowed to operators, the author and `RESPONSIBLE`/`ASSIGNEE` (exposed as `can_mutate`).
 
 **Repairs**

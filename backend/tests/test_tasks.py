@@ -817,3 +817,33 @@ async def test_folderless_task_is_visible_to_its_people(client: AsyncClient, db_
     assert all(item["id"] != task_id for item in bystander_list.json()["items"])
     author_list = await client.get("/api/v1/tasks", headers=author_headers)
     assert any(item["id"] == task_id for item in author_list.json()["items"])
+
+
+@pytest.mark.anyio
+async def test_responsible_may_also_be_an_assignee(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={
+            "title": "Сам себе исполнитель",
+            "responsible_user_id": admin_id,
+            "assignee_user_ids": [admin_id],
+        },
+    )
+    assert created.status_code == 201, created.text
+    roles = {
+        (participant["user_id"], participant["role"])
+        for participant in created.json()["participants"]
+    }
+    assert (admin_id, "RESPONSIBLE") in roles
+    assert (admin_id, "ASSIGNEE") in roles
+
+    # The overlap is what makes the task show up under «Где я исполнитель».
+    listing = await client.get(f"/api/v1/tasks?assignee_user_id={admin_id}", headers=headers)
+    assert listing.status_code == 200, listing.text
+    assert any(item["id"] == created.json()["id"] for item in listing.json()["items"])

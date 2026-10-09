@@ -128,8 +128,11 @@ class Task(Base):
 
 class TaskParticipant(Base):
     __tablename__ = "task_participants"
+    # Per role, not per person: the responsible may also be an assignee.
     __table_args__ = (
-        UniqueConstraint("task_id", "user_id", name="uq_task_participants_task_id_user_id"),
+        UniqueConstraint(
+            "task_id", "user_id", "role", name="uq_task_participants_task_id_user_id_role"
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

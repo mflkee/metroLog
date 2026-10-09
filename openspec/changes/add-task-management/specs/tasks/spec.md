@@ -79,14 +79,20 @@ SHALL retain association with the live equipment record.
 
 A task SHALL have exactly one responsible participant, any number of assignees,
 and any number of observers. Participants SHALL be existing active users.
-Operators (`MKAIR` and above), the task author and the participants holding the
-`RESPONSIBLE` or `ASSIGNEE` role SHALL be able to change the task, including its
-participants, links and checklist. Observers SHALL NOT change any of it; reading,
+A participant MAY hold more than one role: the responsible participant MAY also
+be an assignee, and the task then reports both. Operators (`MKAIR` and above),
+the task author and the participants holding the `RESPONSIBLE` or `ASSIGNEE`
+role SHALL be able to change the task, including its participants, links and
+checklist. Observers SHALL NOT change any of it; reading,
 commenting, attaching files and subscribing stay available to them.
 
 #### Scenario: Assign a responsible and assignees
 - **WHEN** a user sets one responsible participant and two assignees on a task
 - **THEN** the task exposes one responsible and two assignees, and both roles are notified
+
+#### Scenario: The responsible is also an assignee
+- **WHEN** a user names themselves both the responsible and an assignee of a task
+- **THEN** the task records both roles for them, and the task is returned when filtering by assignee
 
 #### Scenario: Replacing the responsible participant
 - **WHEN** the responsible participant is changed to another user

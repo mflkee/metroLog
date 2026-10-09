@@ -446,10 +446,12 @@ class TaskService:
         assignee_user_ids: list[int],
         observer_user_ids: list[int],
     ) -> None:
-        assignees = [user_id for user_id in assignee_user_ids if user_id != responsible_user_id]
+        # The responsible may also be an assignee; an observer role would add nothing to somebody
+        # who is already responsible or an assignee, so that overlap is still dropped.
+        assignees = list(dict.fromkeys(assignee_user_ids))
         observers = [
             user_id
-            for user_id in observer_user_ids
+            for user_id in dict.fromkeys(observer_user_ids)
             if user_id != responsible_user_id and user_id not in assignees
         ]
         all_ids = [responsible_user_id, *assignees, *observers]

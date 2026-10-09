@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 
+import { FolderRefreshDock } from "@/components/FolderRefreshDock";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 
@@ -61,6 +62,8 @@ export function AppShell({ children }: AppShellProps) {
             onToggleMobileNavigation={() => setMobileSidebarOpen((current) => !current)}
           />
           <main className="flex-1 px-2.5 pb-5 pt-2.5 sm:px-6 sm:pb-8 sm:pt-4 lg:px-8">{children}</main>
+          {/* Outside <main> on purpose: the rescan panel must survive page navigation. */}
+          <FolderRefreshDock />
         </div>
       </div>
     </div>

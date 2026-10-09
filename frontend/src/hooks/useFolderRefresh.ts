@@ -6,6 +6,7 @@ import {
 } from "@/api/equipment/folders";
 import { updateEquipmentArshinRefreshExclusion } from "@/api/equipment/refresh";
 import { invalidateEquipmentRegistryQueries } from "@/lib/equipmentQueries";
+import { useFolderRefreshStore } from "@/store/folderRefresh";
 import { useState } from "react";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -22,9 +23,24 @@ export function useFolderRefresh({
 }: UseFolderRefreshParams) {
   const queryClient = useQueryClient();
 
-  const [folderRefreshModalOpen, setFolderRefreshModalOpen] = useState(false);
-  const [folderRefreshTaskId, setFolderRefreshTaskId] = useState<number | null>(null);
-  const [folderRefreshMinimized, setFolderRefreshMinimized] = useState(false);
+  /*
+   * The tracked task, the docked panel and the modal live in a store so the panel (and its polling)
+   * survive leaving the registry page; the review table below stays local to the page.
+   */
+  const folderRefreshModalOpen = useFolderRefreshStore((state) => state.modalOpen);
+  const setFolderRefreshModalOpen = useFolderRefreshStore((state) => state.setModalOpen);
+  const folderRefreshTaskId = useFolderRefreshStore((state) => state.taskId);
+  const setFolderRefreshTaskId = useFolderRefreshStore((state) => state.setTaskId);
+  const folderRefreshMinimized = useFolderRefreshStore((state) => state.minimized);
+  const setFolderRefreshMinimized = useFolderRefreshStore((state) => state.setMinimized);
+  const trackFolderRefresh = useFolderRefreshStore((state) => state.track);
+  /*
+   * Reviewing and applying belongs to the tracked task's folder. The browsed folder may well be
+   * another one by then (the panel now survives navigation), and writing rows of folder A through
+   * the folder-B endpoint would be a subtle data bug.
+   */
+  const trackedFolderId = useFolderRefreshStore((state) => state.folderId);
+  const reviewedFolderId = trackedFolderId ?? folderId;
   const [folderRefreshScopeEquipmentIds, setFolderRefreshScopeEquipmentIds] = useState<number[]>([]);
   const [selectedFolderRefreshRowIds, setSelectedFolderRefreshRowIds] = useState<number[]>([]);
   const [folderRefreshApplyResult, setFolderRefreshApplyResult] = useState<EquipmentFolderRefreshApplyResult | null>(null);
@@ -37,8 +53,10 @@ export function useFolderRefresh({
   const startFolderRefreshMutation = useMutation({
     mutationFn: (equipmentIds: number[]) =>
       startFolderRefreshTask(token ?? "", folderId ?? 0, equipmentIds),
-    onSuccess: (task) => {
+    onSuccess: (task, equipmentIds) => {
       setFolderRefreshTaskId(task.id);
+      // Publish the task with its folder so the shell-level panel keeps reporting it.
+      trackFolderRefresh({ taskId: task.id, folderId, scopeEquipmentIds: equipmentIds });
       setSelectedFolderRefreshRowIds([]);
       setFolderRefreshApplyResult(null);
     },
@@ -46,7 +64,7 @@ export function useFolderRefresh({
 
   const applyFolderRefreshMutation = useMutation({
     mutationFn: (rowIds: number[]) =>
-      applyFolderRefreshRows(token ?? "", folderId ?? 0, folderRefreshTaskId ?? 0, rowIds),
+      applyFolderRefreshRows(token ?? "", reviewedFolderId ?? 0, folderRefreshTaskId ?? 0, rowIds),
     onSuccess: async (result) => {
       setFolderRefreshApplyResult(result);
       setSelectedFolderRefreshRowIds([]);
@@ -55,13 +73,15 @@ export function useFolderRefresh({
         queryClient.invalidateQueries({
           queryKey: [
             "equipment-folder-refresh-task",
-            folderId ?? "none",
+            reviewedFolderId ?? "none",
             folderRefreshTaskId ?? "none",
           ],
         }),
         invalidateEquipmentRegistryQueries(queryClient),
         queryClient.invalidateQueries({ queryKey: ["equipment-item"] }),
-        queryClient.invalidateQueries({ queryKey: ["equipment-esi-monitoring", folderId ?? "none"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["equipment-esi-monitoring", reviewedFolderId ?? "none"],
+        }),
       ]);
     },
   });

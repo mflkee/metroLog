@@ -9,6 +9,8 @@ type UseEquipmentRegistryQueriesParams = {
   token: string | null,
   canManage: boolean,
   selectedFolderId: number | null,
+  /** Folder of the tracked Arshin rescan; falls back to the selected folder. */
+  folderRefreshFolderId?: number | null,
   searchQuery: string | null,
   objectNameFilter: string | null,
   locationFilter: string | null,
@@ -26,6 +28,7 @@ export function useEquipmentRegistryQueries({
   token,
   canManage,
   selectedFolderId,
+  folderRefreshFolderId,
   searchQuery,
   objectNameFilter,
   locationFilter,
@@ -114,17 +117,18 @@ export function useEquipmentRegistryQueries({
     enabled: Boolean(token) && canManage && selectedFolderId !== null && folderSubscriptionModalOpen,
   });
 
+  const refreshFolderId = folderRefreshFolderId ?? selectedFolderId;
   const folderRefreshTaskQuery = useQuery({
     queryKey: [
       "equipment-folder-refresh-task",
-      selectedFolderId ?? "none",
+      refreshFolderId ?? "none",
       folderRefreshTaskId ?? "none",
     ],
-    queryFn: () => fetchFolderRefreshTaskDetails(token ?? "", selectedFolderId ?? 0, folderRefreshTaskId ?? 0),
+    queryFn: () => fetchFolderRefreshTaskDetails(token ?? "", refreshFolderId ?? 0, folderRefreshTaskId ?? 0),
     enabled:
       Boolean(token)
       && canManage
-      && selectedFolderId !== null
+      && refreshFolderId !== null
       && folderRefreshTaskId !== null,
     refetchInterval: (query) => {
       const taskStatus = query.state.data?.task.status;

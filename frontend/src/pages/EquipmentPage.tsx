@@ -78,6 +78,7 @@ import { useSearchHistory } from "@/lib/searchHistory";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { insertEmojiAtCursor } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
+import { useFolderRefreshStore } from "@/store/folderRefresh";
 
 function SortableFolderCard({
   canManage,
@@ -258,12 +259,13 @@ export function EquipmentPage() {
     setFolderSelection,
   });
 
+  const folderRefreshDockFolderId = useFolderRefreshStore((state) => state.folderId);
+
   const {
     folderRefreshModalOpen,
     setFolderRefreshModalOpen,
     folderRefreshTaskId,
     setFolderRefreshTaskId,
-    folderRefreshMinimized,
     setFolderRefreshMinimized,
     folderRefreshScopeEquipmentIds,
     setFolderRefreshScopeEquipmentIds,
@@ -308,6 +310,7 @@ export function EquipmentPage() {
     selectedEquipmentIds,
     folderSubscriptionModalOpen,
     folderRefreshTaskId,
+    folderRefreshFolderId: folderRefreshDockFolderId ?? selectedFolderId,
   });
 
   useEffect(() => {
@@ -859,9 +862,6 @@ export function EquipmentPage() {
     [folderRefreshRows, selectedFolderRefreshRowIds],
   );
   const isScopedFolderRefresh = folderRefreshScopeEquipmentIds.length > 0;
-  const folderRefreshScopeLabel = isScopedFolderRefresh
-    ? `по ${folderRefreshScopeEquipmentIds.length} отмеченным приборам`
-    : "по всей папке";
   const folderRefreshScopeDescriptionLabel = isScopedFolderRefresh
     ? `${folderRefreshScopeEquipmentIds.length} отмеченных приборов`
     : "всех приборов папки";
@@ -954,11 +954,6 @@ export function EquipmentPage() {
   const isFolderRefreshProcessing =
     folderRefreshTask?.status === "PENDING"
     || folderRefreshTask?.status === "PROCESSING";
-  const shouldShowMinimizedFolderRefresh =
-    folderRefreshMinimized
-    && !folderRefreshModalOpen
-    && folderRefreshTaskId !== null
-    && folderRefreshTask !== null;
   const filteredFolderSubscriptionUsers = useMemo(
     () =>
       (folderProcessSubscriptionsQuery.data?.users ?? []).filter((userItem) =>
@@ -2080,80 +2075,6 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
         </form>
       </Modal>
 
-      {shouldShowMinimizedFolderRefresh ? (
-        <aside className="tone-parent fixed bottom-4 right-4 z-40 w-[min(26rem,calc(100vw-2rem))] rounded-[24px] border border-line p-4 shadow-panel">
-          <div className="space-y-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-ink">Обновление СИ</p>
-                <p className="mt-1 text-xs text-steel">
-                  {selectedFolder ? `Папка: ${selectedFolder.name} • ${folderRefreshScopeLabel}` : "Выбранная папка"}
-                </p>
-              </div>
-              <button
-                className={`${subtleButtonClass} btn-sm shrink-0`}
-                type="button"
-                onClick={openFolderRefreshModal}
-              >
-                Открыть
-              </button>
-            </div>
-
-            <div className="tone-child rounded-2xl border border-line px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-ink">
-                    Статус: {getFolderRefreshTaskStatusLabel(folderRefreshTask.status)}
-                  </div>
-                  <div className="mt-1 text-xs text-steel">
-                    {folderRefreshTask.totalRows > 0
-                      ? `Обработано ${folderRefreshTask.processedRows} из ${folderRefreshTask.totalRows}.`
-                      : "Подготавливаем список приборов для проверки."}
-                  </div>
-                </div>
-                <div className="text-sm font-semibold text-ink">{folderRefreshTask.progress}%</div>
-              </div>
-              <div className="mt-3 h-2 overflow-hidden rounded-full bg-[var(--accent-soft)]">
-                <div
-                  className="h-full rounded-full bg-[var(--accent)] transition-all"
-                  style={{ width: `${folderRefreshTask.progress}%` }}
-                />
-              </div>
-            </div>
-
-            {folderRefreshTask.summary ? (
-              <div className="flex flex-wrap gap-2">
-                {[
-                  ["Обновить", folderRefreshTask.summary.updated ?? 0],
-                  ["Обновить?", folderRefreshTask.summary.updatedUncertain ?? 0],
-                  ["Без изменений", folderRefreshTask.summary.unchanged ?? 0],
-                  ["Не найдено", folderRefreshTask.summary.notFound ?? 0],
-                  ["Ошибки", folderRefreshTask.summary.error ?? 0],
-                ].map(([label, value]) => (
-                  <span
-                    key={label}
-                    className="tone-child rounded-full border border-line px-3 py-1 text-xs text-ink"
-                  >
-                    {label}: {value}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-
-            {folderRefreshTask.errorMessage ? (
-              <p className="text-sm text-[#b04c43]">{folderRefreshTask.errorMessage}</p>
-            ) : null}
-
-            {!isFolderRefreshProcessing ? (
-              <div className="flex justify-end">
-                <button className={`${subtleButtonClass} btn-sm`} type="button" onClick={resetFolderRefreshState}>
-                  Убрать
-                </button>
-              </div>
-            ) : null}
-          </div>
-        </aside>
-      ) : null}
 
       <Modal
         description={

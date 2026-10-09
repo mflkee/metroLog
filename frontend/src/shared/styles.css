@@ -57,6 +57,16 @@
     border-color: var(--border-color);
   }
 
+  /*
+   * A bordered rounded block is a card. Inside the tone ladder a descendant rule paints it, but on a
+   * plain page there was nothing to paint it, so the card stayed transparent and showed the page
+   * through — which is exactly what made the light theme look like holes. `@layer base` is the right
+   * place: the unlayered tone rules and any `bg-*` utility still take precedence.
+   */
+  :where(div, span, a, label, button, article, section, li, form).rounded-2xl.border.border-line {
+    background: var(--panel-bg);
+  }
+
   button:not(:disabled),
   [role="button"]:not(:disabled) {
     cursor: pointer;
@@ -77,8 +87,8 @@
    * looked like holes. The first white version then used a single faint border for everything, which
    * left the dense screens (tasks) with no visible structure at all.
    */
-  --bg-layer-1: #eef1f6;
-  --bg-layer-2: #e3e9f0;
+  --bg-layer-1: #e6eaf1;
+  --bg-layer-2: #dde3ec;
   --bg-glow: transparent;
   --text-primary: #1f2328;
   --text-muted: #5b6673;
@@ -90,7 +100,7 @@
   --border-strong: #a3aeba;
   --panel-bg: #ffffff;
   --panel-ghost: rgba(255, 255, 255, 0.9);
-  --panel-hover: #e5ebf3;
+  --panel-hover: #edf1f7;
   --accent: #2563eb;
   --accent-soft: rgba(37, 99, 235, 0.1);
   --success: #29493d;
@@ -103,7 +113,7 @@
   --info: #2f5079;
   --button-primary-bg: #111827;
   --button-primary-text: #ffffff;
-  --input-bg: #ffffff;
+  --input-bg: #eaeff6;
   --switch-track: color-mix(in oklab, var(--text-muted) 45%, transparent);
   --switch-thumb: oklch(1 0 0);
   --panel-shadow-value:

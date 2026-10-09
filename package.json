@@ -1,7 +1,7 @@
 {
   "name": "metro-log",
   "private": true,
-  "version": "0.3.6",
+  "version": "0.3.7",
   "scripts": {
     "setup:local": "./scripts/local/setup.sh",
     "start:infra": "./scripts/local/start-infra.sh",

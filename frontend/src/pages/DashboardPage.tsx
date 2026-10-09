@@ -23,6 +23,7 @@ import {
   defaultDashboardWidgets,
   getDashboardFolderIds,
   normalizeDashboardWidgets,
+  isCheckExpired,
 } from "@/lib/dashboard";
 import { hasOperatorAccess } from "@/lib/roles";
 import { MyTasksWidget } from "@/components/MyTasksWidget";
@@ -197,7 +198,6 @@ export function DashboardPage() {
     () => buildUpcomingChecks(equipmentItems),
     [equipmentItems],
   );
-  const overdueEntries = useMemo(() => buildRepairOverdueEntries(repairItems), [repairItems]);
   const completedProcessEntries = useMemo(
     () => buildCompletedProcessEntries(archivedRepairItems, archivedVerificationItems),
     [archivedRepairItems, archivedVerificationItems],
@@ -314,24 +314,6 @@ export function DashboardPage() {
             <div className="xl:col-span-4">
               <WidgetCard title="Категории оборудования">
                 <DonutCard entries={typeEntries} emptyLabel="Нет приборов в папке" />
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("repair_overdue") ? (
-            <div className="xl:col-span-4">
-              <WidgetCard title="Просрочки по ремонтам">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {overdueEntries.map((entry) => (
-                    <div
-                      key={entry.label}
-                      className="tone-child rounded-2xl border border-line px-4 py-3"
-                    >
-                      <p className="text-xs text-steel">{entry.label}</p>
-                      <p className="mt-2 text-2xl font-semibold text-ink">{entry.value}</p>
-                    </div>
-                  ))}
-                </div>
               </WidgetCard>
             </div>
           ) : null}
@@ -567,7 +549,10 @@ function buildDashboardSummary(
   verificationItems: VerificationQueueItem[],
 ) {
   const expiringSoon = buildUpcomingChecks(equipmentItems).filter((item) => item.daysLeft <= 30);
-  const anyOverdue = repairItems.filter((item) => item.maxOverdueDays > 0).length;
+  // Two kinds of trouble: a repair stage past its planned date, and a device whose verification
+  // (or attestation) has already expired while it is still in the registry.
+  const overdueRepairs = repairItems.filter((item) => item.maxOverdueDays > 0).length;
+  const expiredChecks = equipmentItems.filter((item) => isCheckExpired(item)).length;
 
   return [
     {
@@ -587,8 +572,8 @@ function buildDashboardSummary(
     },
     {
       title: "Есть просрочка",
-      value: String(anyOverdue),
-      hint: "Ремонты, где уже нарушен хотя бы один срок.",
+      value: String(overdueRepairs + expiredChecks),
+      hint: "Ремонты с нарушенным сроком этапа и приборы с истёкшей поверкой.",
     },
     {
       title: "Скоро истекает",
@@ -734,27 +719,6 @@ function buildUpcomingChecks(equipmentItems: EquipmentItem[]) {
       ];
     })
     .sort((left, right) => left.daysLeft - right.daysLeft);
-}
-
-function buildRepairOverdueEntries(repairItems: RepairQueueItem[]) {
-  return [
-    {
-      label: "Ремонт",
-      value: repairItems.filter((item) => item.repairOverdueDays > 0).length,
-    },
-    {
-      label: "Прибытие обратно",
-      value: repairItems.filter((item) => item.registrationOverdueDays > 0).length,
-    },
-    {
-      label: "Входной контроль",
-      value: repairItems.filter((item) => item.controlOverdueDays > 0).length,
-    },
-    {
-      label: "Оплата",
-      value: repairItems.filter((item) => item.paymentOverdueDays > 0).length,
-    },
-  ];
 }
 
 function buildCompletedProcessEntries(

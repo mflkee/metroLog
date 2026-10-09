@@ -1,3 +1,5 @@
+import { getEquipmentNextDueDate, type EquipmentItem } from "@/api/equipment/registry";
+
 export const dashboardWidgetOptions = [
   {
     value: "summary_cards",
@@ -18,11 +20,6 @@ export const dashboardWidgetOptions = [
     value: "top_locations",
     label: "Местонахождения",
     description: "Где сейчас сосредоточено больше всего приборов в выбранной папке.",
-  },
-  {
-    value: "repair_overdue",
-    label: "Просрочки ремонта",
-    description: "Сводка по текущим просрочкам на этапах ремонта и получения.",
   },
   {
     value: "verification_expiry",
@@ -82,4 +79,30 @@ export function getDashboardFolderIds(
     return user.dashboardFolderIds;
   }
   return user?.dashboardFolderId ? [user.dashboardFolderId] : [];
+}
+
+/** The parts of an equipment item this rule needs, so tests do not have to build a whole device. */
+type CheckableEquipment = Pick<
+  EquipmentItem,
+  "equipmentType" | "complianceDate" | "complianceIntervalMonths" | "siVerification" | "status"
+>;
+
+/**
+ * True when the device's verification (attestation, control) date is already behind us and the
+ * device is still in the registry — the «Есть просрочка» summary counts those next to overdue
+ * repair stages. Archived devices are ignored: there is nothing left to do about them.
+ */
+export function isCheckExpired(item: CheckableEquipment, today: Date = new Date()): boolean {
+  if (item.status === "ARCHIVED") {
+    return false;
+  }
+  const dueDate = getEquipmentNextDueDate(item);
+  if (!dueDate) {
+    return false;
+  }
+  const parsed = new Date(dueDate);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+  return parsed.getTime() < today.getTime();
 }

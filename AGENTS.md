@@ -114,7 +114,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/api/v1/routes/events.py` | Event journal. |
 | `app/api/v1/routes/arshin.py` | Arshin proxy endpoints. |
 | `app/api/v1/routes/health.py` | Liveness + readiness (DB + Redis). |
-| `alembic/versions/` | 54 migrations. |
+| `alembic/versions/` | 56 migrations. |
 
 ### Frontend (`frontend/`)
 | File | Purpose |

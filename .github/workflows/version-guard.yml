@@ -1,0 +1,26 @@
+name: Version guard — the tag matches the release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  tag-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tag, versions and the release commit must agree
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          front=$(python3 -c "import json;print(json.load(open('frontend/package.json'))['version'])")
+          root=$(python3 -c "import json;print(json.load(open('package.json'))['version'])")
+          subject=$(git log -1 --pretty=%s)
+          echo "tag=v$tag frontend=$front root=$root commit='$subject'"
+          fail=0
+          [ "$root" = "$front" ] || { echo "::error::корневой package.json ($root) и frontend/package.json ($front) разошлись"; fail=1; }
+          [ "$tag" = "$front" ] || { echo "::error::тег v$tag, а версия в package.json — $front"; fail=1; }
+          [ "$subject" = "chore(release): v$tag" ] || { echo "::error::тег v$tag указывает на '$subject', а не на релизный коммит 'chore(release): v$tag'"; fail=1; }
+          exit $fail

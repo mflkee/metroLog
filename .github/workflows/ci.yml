@@ -14,6 +14,9 @@ concurrency:
 
 jobs:
   build-images:
+    # A branch deletion also fires a `push` event (with the deleted ref, whose own copy of
+    # this file is used). Never build or deploy for that: the SHA reverts to the default branch.
+    if: github.event.deleted != true
     runs-on: ubuntu-latest
     outputs:
       env: ${{ steps.tag.outputs.env }}
@@ -75,6 +78,7 @@ jobs:
   # that broke the test suite still shipped. Runs on GitHub-hosted runners to keep the app
   # host free.
   checks:
+    if: github.event.deleted != true
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -96,11 +100,39 @@ jobs:
       - name: Frontend tests
         run: npm --prefix frontend run test -- --run
 
+  # Version numbers must agree before anything ships. The single source is
+  # frontend/package.json (mirrored in the root manifest), and a release branch is
+  # named after the version it carries, so a half-done bump never reaches prod.
+  version-guard:
+    if: github.event.deleted != true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: The two manifests must agree
+        run: |
+          front=$(python3 -c "import json;print(json.load(open('frontend/package.json'))['version'])")
+          root=$(python3 -c "import json;print(json.load(open('package.json'))['version'])")
+          echo "frontend/package.json=$front root package.json=$root"
+          if [ "$root" != "$front" ]; then
+            echo "::error::корневой package.json ($root) и frontend/package.json ($front) разошлись"
+            exit 1
+          fi
+      - name: A release branch is named after its version
+        if: startsWith(github.ref, 'refs/heads/release/')
+        run: |
+          branch="${GITHUB_REF_NAME#release/}"
+          front=$(python3 -c "import json;print(json.load(open('frontend/package.json'))['version'])")
+          echo "branch=release/$branch version=$front"
+          if [ "$branch" != "$front" ]; then
+            echo "::error::ветка release/$branch несёт версию $front — переименуй ветку или поправь бамп"
+            exit 1
+          fi
+
   # Fail fast with a clear message when the self-hosted runner that executes the
   # deploy jobs is offline, instead of letting the deploy job fail to start with
   # no explanation. Waits up to ~10 minutes for the runner to come back.
   runner-preflight:
-    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    if: (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')) && github.event.deleted != true
     runs-on: ubuntu-latest
     steps:
       - name: Wait for the self-hosted runner
@@ -128,8 +160,8 @@ jobs:
           exit 1
 
   deploy-staging:
-    if: github.ref == 'refs/heads/main'
-    needs: [checks, build-images, runner-preflight]
+    if: github.ref == 'refs/heads/main' && github.event.deleted != true
+    needs: [checks, version-guard, build-images, runner-preflight]
     runs-on: [self-hosted, mkair]
     environment: staging
     steps:
@@ -161,10 +193,12 @@ jobs:
           echo STAGING_FAIL; exit 1
 
   deploy-prod:
-    if: startsWith(github.ref, 'refs/heads/release/')
-    needs: [checks, build-images, runner-preflight]
+    if: startsWith(github.ref, 'refs/heads/release/') && github.event.deleted != true
+    needs: [checks, version-guard, build-images, runner-preflight]
     runs-on: [self-hosted, mkair]
     environment: production
+    permissions:
+      contents: write
     steps:
       - name: Pull repo code
         run: |
@@ -197,3 +231,16 @@ jobs:
             sleep 2
           done
           echo PROD_FAIL; exit 1
+      # release/* is a one-shot branch: the tag is the record of the release, and a
+      # live stale branch is a footgun (any push to it redeploys prod from that code).
+      - name: Delete the release branch (the tag is the record)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          curl -fsS -X DELETE \
+            -H "Authorization: Bearer ${GH_TOKEN}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/git/refs/heads/${{ github.ref_name }}" \
+            >/dev/null \
+            && echo "branch ${{ github.ref_name }} deleted" \
+            || echo "::warning::не удалось удалить ветку ${{ github.ref_name }} — удали вручную"

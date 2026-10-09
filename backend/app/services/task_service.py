@@ -127,20 +127,22 @@ class TaskService:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
     def _assert_task_visible(self, task: Task) -> None:
-        """Folder scoping, plus the rule for tasks that live outside any folder.
+        """An invitation outranks the folder scope.
 
-        A folder-less task is reachable by its author, its participants and operators; anybody else
-        gets the same 404 a foreign folder produces, so existence is not leaked either.
+        Operators, the author and every participant see their task even without access to its
+        folder: adding somebody to a task in another folder must not hand them an email with a dead
+        link. Everybody else is still scoped by folder, and gets the same 404 a foreign folder
+        produces so existence is not leaked either.
         """
-        if task.folder_id is not None:
-            self._assert_folder_access(task.folder_id)
-            return
         user = self.access_user
         if user is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена.")
         if has_operator_access(user.role) or task.created_by_user_id == user.id:
             return
         if any(participant.user_id == user.id for participant in task.participants):
+            return
+        if task.folder_id is not None:
+            self._assert_folder_access(task.folder_id)
             return
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена.")
 

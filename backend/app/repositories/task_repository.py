@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import and_, case, exists, false, func, or_, select
+from sqlalchemy import case, exists, false, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.task import (
@@ -96,17 +96,13 @@ class TaskRepository:
             folder_scope = (
                 Task.folder_id.in_(sorted(allowed_folder_ids)) if allowed_folder_ids else false()
             )
+            # The folder scope, plus everything the viewer is part of: an invitation (or being the
+            # author) makes a task visible whatever folder it lives in.
             statement = statement.where(
                 or_(
                     folder_scope,
-                    # Tasks outside any folder are reachable by their author and their participants.
-                    and_(
-                        Task.folder_id.is_(None),
-                        or_(
-                            Task.created_by_user_id == viewer_user_id,
-                            _participant_exists(viewer_user_id),
-                        ),
-                    ),
+                    Task.created_by_user_id == viewer_user_id,
+                    _participant_exists(viewer_user_id),
                 )
             )
 

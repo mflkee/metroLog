@@ -335,7 +335,7 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 **Tasks**
 - `tasks` — id, `folder_id` (**nullable**: taken from the linked equipment when it lives in one folder), title, description, status, priority, kind, tags, `due_date`, author, `completed_at`.
 - `task_participants` — (`task_id`, `user_id`, role `RESPONSIBLE`/`ASSIGNEE`/`OBSERVER`), unique per role so the responsible may also be an assignee; plus `task_equipment`, `task_checklist_items`, `task_messages` + message attachments, `task_attachments`, `task_subscriptions`, `task_reminder_log`.
-- Visibility: a task with a folder follows the folder scope; a folder-less task is visible to its author, its participants and operators only. Mutation is allowed to operators, the author and `RESPONSIBLE`/`ASSIGNEE` (exposed as `can_mutate`).
+- Visibility: the folder scope plus everything the viewer is part of — the author and any participant read their task whatever folder it lives in (an invitation outranks the folder); everybody else stays scoped, and a folder-less task is otherwise operators-only. Mutation is allowed to operators, the author and `RESPONSIBLE`/`ASSIGNEE` (exposed as `can_mutate`).
 
 **Repairs**
 - `repairs` — `equipment_id`, `batch_key`/`batch_name`, `is_on_site`, `route_city`/`destination`, milestone dates, `deadline_preset_snapshot_json`, `custom_stages_json`, `closed_at`.
@@ -419,8 +419,8 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 - Creation asks for a title and a responsible; equipment goes through the folder-aware
   `EquipmentPicker` (folder → filters → ticks → `Добавить`). The task's folder is derived from the
   equipment, so a task is folder-less when there is no equipment or it spans folders.
-- Access: folder-bound tasks follow the folder scope; folder-less ones belong to the author, the
-  participants and operators. Mutations are for operators, the author and `RESPONSIBLE`/`ASSIGNEE`
+- Access: the folder scope, plus anything the viewer is part of — an invitation outranks the
+  folder, so a participant always reads their task; a folder-less task is otherwise operators-only. Mutations are for operators, the author and `RESPONSIBLE`/`ASSIGNEE`
   (the payload carries `can_mutate`, which is what the screens hide controls with).
 
 ### Folder Refresh (metroSearch)

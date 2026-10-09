@@ -847,3 +847,68 @@ async def test_responsible_may_also_be_an_assignee(client: AsyncClient, db_engin
     listing = await client.get(f"/api/v1/tasks?assignee_user_id={admin_id}", headers=headers)
     assert listing.status_code == 200, listing.text
     assert any(item["id"] == created.json()["id"] for item in listing.json()["items"])
+
+
+@pytest.mark.anyio
+async def test_invited_participant_sees_the_task_without_folder_access(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    """An invitation outranks the folder scope, or the email link would lead nowhere."""
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    task_folder = await create_folder(client, admin["access_token"], "Задачи: папка задачи")
+    other_folder = await create_folder(client, admin["access_token"], "Задачи: другая папка")
+    equipment = await create_equipment(
+        client, admin["access_token"], task_folder["id"], "Прибор задачи"
+    )
+
+    invited = await create_user(
+        client,
+        admin_token=admin["access_token"],
+        email="invited@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[other_folder["id"]],
+    )
+    await create_user(
+        client,
+        admin_token=admin["access_token"],
+        email="outsider@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[other_folder["id"]],
+    )
+    invited_login = await login_user(client, email="invited@example.test", password="TestPass123")
+    outsider_login = await login_user(client, email="outsider@example.test", password="TestPass123")
+    invited_headers = {"Authorization": f"Bearer {invited_login['access_token']}"}
+    outsider_headers = {"Authorization": f"Bearer {outsider_login['access_token']}"}
+
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=admin_headers,
+        json={
+            "title": "Задача в чужой папке",
+            "responsible_user_id": admin_id,
+            "observer_user_ids": [invited["user"]["id"]],
+            "equipment_ids": [equipment["id"]],
+        },
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["folder_id"] == task_folder["id"]
+    task_id = created.json()["id"]
+
+    detail = await client.get(f"/api/v1/tasks/{task_id}", headers=invited_headers)
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["can_mutate"] is False  # an observer stays read-only
+
+    invited_list = await client.get("/api/v1/tasks", headers=invited_headers)
+    assert any(item["id"] == task_id for item in invited_list.json()["items"])
+
+    # Somebody with the same folders but no invitation stays outside.
+    assert (
+        await client.get(f"/api/v1/tasks/{task_id}", headers=outsider_headers)
+    ).status_code == 404
+    outsider_list = await client.get("/api/v1/tasks", headers=outsider_headers)
+    assert all(item["id"] != task_id for item in outsider_list.json()["items"])

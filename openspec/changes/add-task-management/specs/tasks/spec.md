@@ -32,6 +32,10 @@ absent otherwise.
 - **WHEN** a user creates a task whose equipment comes from several folders, or creates one without equipment
 - **THEN** the task has no folder, and later attaching equipment from one folder gives it that folder
 
+#### Scenario: Invited participant without folder access
+- **WHEN** a user who cannot access a task's folder is added to that task
+- **THEN** they can read the task and it appears in their list, while a user who is neither invited nor has the folder still answers 404
+
 #### Scenario: A task without a folder belongs to its people
 - **WHEN** a user who may see the folder but neither created the folder-less task nor participates in it reads it or lists tasks
 - **THEN** the task answers 404 and is absent from their list, while the author, the participants and operators see it
@@ -80,7 +84,10 @@ SHALL retain association with the live equipment record.
 A task SHALL have exactly one responsible participant, any number of assignees,
 and any number of observers. Participants SHALL be existing active users.
 A participant MAY hold more than one role: the responsible participant MAY also
-be an assignee, and the task then reports both. Operators (`MKAIR` and above),
+be an assignee, and the task then reports both. A participant SHALL be able to
+read the task they belong to even without access to its folder: an invitation
+outranks the folder scope, otherwise adding somebody to a task in another folder
+would hand them an email with a dead link. Operators (`MKAIR` and above),
 the task author and the participants holding the `RESPONSIBLE` or `ASSIGNEE`
 role SHALL be able to change the task, including its participants, links and
 checklist. Observers SHALL NOT change any of it; reading,

@@ -81,6 +81,18 @@ export function getDashboardFolderIds(
   return user?.dashboardFolderId ? [user.dashboardFolderId] : [];
 }
 
+/** True when the date is set and already behind us. */
+export function isDatePast(value: string | null | undefined, today: Date = new Date()): boolean {
+  if (!value) {
+    return false;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return false;
+  }
+  return parsed.getTime() < today.getTime();
+}
+
 /** The parts of an equipment item this rule needs, so tests do not have to build a whole device. */
 type CheckableEquipment = Pick<
   EquipmentItem,
@@ -96,13 +108,5 @@ export function isCheckExpired(item: CheckableEquipment, today: Date = new Date(
   if (item.status === "ARCHIVED") {
     return false;
   }
-  const dueDate = getEquipmentNextDueDate(item);
-  if (!dueDate) {
-    return false;
-  }
-  const parsed = new Date(dueDate);
-  if (Number.isNaN(parsed.getTime())) {
-    return false;
-  }
-  return parsed.getTime() < today.getTime();
+  return isDatePast(getEquipmentNextDueDate(item), today);
 }

@@ -24,6 +24,7 @@ import {
   getDashboardFolderIds,
   normalizeDashboardWidgets,
   isCheckExpired,
+  isDatePast,
 } from "@/lib/dashboard";
 import { hasOperatorAccess } from "@/lib/roles";
 import { MyTasksWidget } from "@/components/MyTasksWidget";
@@ -549,17 +550,13 @@ function buildDashboardSummary(
   verificationItems: VerificationQueueItem[],
 ) {
   const expiringSoon = buildUpcomingChecks(equipmentItems).filter((item) => item.daysLeft <= 30);
-  // Two kinds of trouble: a repair stage past its planned date, and a device whose verification
-  // (or attestation) has already expired while it is still in the registry.
-  const overdueRepairs = repairItems.filter((item) => item.maxOverdueDays > 0).length;
   const expiredChecks = equipmentItems.filter((item) => isCheckExpired(item)).length;
+  // Running work past its deadline: a repair stage past its planned date, or a verification whose
+  // device certificate expired while the process is still open — the certificate is the deadline.
+  const overdueRepairs = repairItems.filter((item) => item.maxOverdueDays > 0).length;
+  const overdueVerifications = verificationItems.filter((item) => isDatePast(item.validDate)).length;
 
   return [
-    {
-      title: "Приборов в папке",
-      value: String(equipmentItems.length),
-      hint: "Все записи текущего рабочего реестра.",
-    },
     {
       title: "Активные ремонты",
       value: String(repairItems.length),
@@ -572,13 +569,18 @@ function buildDashboardSummary(
     },
     {
       title: "Есть просрочка",
-      value: String(overdueRepairs + expiredChecks),
-      hint: "Ремонты с нарушенным сроком этапа и приборы с истёкшей поверкой.",
+      value: String(overdueRepairs + overdueVerifications),
+      hint: "Ремонты с нарушенным сроком этапа и поверки, у которых срок истёк, а работа ещё идёт.",
     },
     {
       title: "Скоро истекает",
       value: String(expiringSoon.length),
       hint: "СИ, у которых поверка закончится в ближайшие 30 дней.",
+    },
+    {
+      title: "Истекшие сроки поверки",
+      value: String(expiredChecks),
+      hint: "Приборы, у которых срок поверки (аттестации, контроля) уже прошёл.",
     },
   ];
 }

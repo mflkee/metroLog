@@ -30,7 +30,15 @@ branch_labels = None
 depends_on = None
 
 # A theme that was removed from the app, and the one its users actually get.
-_RETIRED_THEMES = {
+#
+# The two columns do not use the same form: `theme_preference` is a SQLAlchemy `Enum` without
+# `values_callable`, so it stores the member *name* (upper case in the database), while
+# `enabled_theme_options` is a plain JSON list of the member *values*.
+_RETIRED_THEME_PREFERENCES = {
+    "gray": "LIGHT",
+    "flexoki": "LIGHT",
+}
+_RETIRED_THEME_OPTIONS = {
     "gray": "light",
     "flexoki": "light",
 }
@@ -54,7 +62,7 @@ def upgrade() -> None:
     ).all()
 
     for user_id, theme_preference, enabled_theme_options in rows:
-        next_theme_preference = _retire(theme_preference)
+        next_theme_preference = _retire_preference(theme_preference)
         next_enabled_options = _normalize_enabled_themes(enabled_theme_options)
 
         if (
@@ -82,10 +90,16 @@ def downgrade() -> None:
     """
 
 
-def _retire(value: str | None) -> str | None:
+def _retire_preference(value: str | None) -> str | None:
     if not isinstance(value, str):
         return value
-    return _RETIRED_THEMES.get(value, value)
+    return _RETIRED_THEME_PREFERENCES.get(value.lower(), value)
+
+
+def _retire_option(value: str | None) -> str | None:
+    if not isinstance(value, str):
+        return value
+    return _RETIRED_THEME_OPTIONS.get(value.lower(), value)
 
 
 def _normalize_enabled_themes(values: list[str] | None) -> list[str] | None:
@@ -95,7 +109,7 @@ def _normalize_enabled_themes(values: list[str] | None) -> list[str] | None:
     normalized: list[str] = []
     seen: set[str] = set()
     for raw_value in values:
-        value = _retire(raw_value)
+        value = _retire_option(raw_value)
         if not isinstance(value, str) or value in seen:
             continue
         seen.add(value)

@@ -392,7 +392,15 @@ export function DashboardPage() {
                           </div>
                           <div className="text-right text-xs text-steel">
                             <p>{formatDisplayDate(item.validDate)}</p>
-                            <p className="mt-1">{item.daysLeft} дн.</p>
+                            <p
+                              className={
+                                item.daysLeft < 0
+                                  ? "mt-1 font-semibold text-[color:var(--danger)]"
+                                  : "mt-1"
+                              }
+                            >
+                              {item.daysLeft < 0 ? "просрочено" : `${item.daysLeft} дн.`}
+                            </p>
                           </div>
                         </Link>
                       ))}
@@ -549,7 +557,11 @@ function buildDashboardSummary(
   repairItems: RepairQueueItem[],
   verificationItems: VerificationQueueItem[],
 ) {
-  const expiringSoon = buildUpcomingChecks(equipmentItems).filter((item) => item.daysLeft <= 30);
+  // Only what is still ahead: already-expired checks belong to «Истекшие сроки поверки», and
+  // counting them here as well made the two cards overlap.
+  const expiringSoon = buildUpcomingChecks(equipmentItems).filter(
+    (item) => item.daysLeft >= 0 && item.daysLeft <= 30,
+  );
   const expiredChecks = equipmentItems.filter((item) => isCheckExpired(item)).length;
   // Running work past its deadline: a repair stage past its planned date, or a verification whose
   // device certificate expired while the process is still open — the certificate is the deadline.

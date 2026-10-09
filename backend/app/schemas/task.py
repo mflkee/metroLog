@@ -83,7 +83,8 @@ class TaskChecklistItemUpdateRequest(BaseModel):
 
 
 class TaskCreateRequest(BaseModel):
-    folder_id: int
+    # Optional: when it is omitted the folder is taken from the attached equipment.
+    folder_id: int | None = None
     title: str = Field(min_length=1, max_length=255)
     description: str | None = None
     status: TaskStatus = TaskStatus.NEW
@@ -167,7 +168,7 @@ class TaskUpdateRequest(BaseModel):
 
 class TaskRead(BaseModel):
     id: int
-    folder_id: int
+    folder_id: int | None = None
     folder_name: str | None = None
     title: str
     description: str | None
@@ -192,7 +193,7 @@ class TaskRead(BaseModel):
 
 class TaskListItemRead(BaseModel):
     id: int
-    folder_id: int
+    folder_id: int | None = None
     folder_name: str | None = None
     title: str
     status: TaskStatus

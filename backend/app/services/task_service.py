@@ -126,12 +126,40 @@ class TaskService:
         if folder_id is None or folder_id not in allowed:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
 
+    def _assert_task_visible(self, task: Task) -> None:
+        """Folder scoping, plus the rule for tasks that live outside any folder.
+
+        A folder-less task is reachable by its author, its participants and operators; anybody else
+        gets the same 404 a foreign folder produces, so existence is not leaked either.
+        """
+        if task.folder_id is not None:
+            self._assert_folder_access(task.folder_id)
+            return
+        user = self.access_user
+        if user is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена.")
+        if has_operator_access(user.role) or task.created_by_user_id == user.id:
+            return
+        if any(participant.user_id == user.id for participant in task.participants):
+            return
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена.")
+
     def _get_task_or_404(self, task_id: int) -> Task:
         task = self.tasks.get_by_id(task_id)
         if task is None:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задача не найдена.")
-        self._assert_folder_access(task.folder_id)
+        self._assert_task_visible(task)
         return task
+
+    def _resolve_task_folder(self, folder_id: int | None, equipment_items: list) -> int | None:
+        """The folder a task belongs to: the explicit one, else the single folder of its
+        equipment. Equipment from several folders (or none) leaves the task without a folder."""
+        if folder_id is not None:
+            return folder_id
+        folders = {item.folder_id for item in equipment_items}
+        if len(folders) == 1:
+            return next(iter(folders))
+        return None
 
     def _can_mutate(self, task: Task, user: User | None) -> bool:
         """Operators (MKAIR and above), the author and the RESPONSIBLE/ASSIGNEE participants.
@@ -359,6 +387,7 @@ class TaskService:
         allowed_folder_ids = self._accessible_folder_ids()
         tasks, total = self.tasks.list_page(
             allowed_folder_ids=allowed_folder_ids,
+            viewer_user_id=None if allowed_folder_ids is None else self.access_user.id,
             folder_id=folder_id,
             statuses=statuses,
             priorities=priorities,
@@ -440,8 +469,7 @@ class TaskService:
                 TaskParticipant(user_id=user_id, role=TaskParticipantRole.OBSERVER)
             )
 
-    def _apply_equipment(self, task: Task, equipment_ids: list[int]) -> None:
-        equipment_items = self._resolve_equipment(equipment_ids)
+    def _apply_equipment(self, task: Task, equipment_items: list) -> None:
         task.equipment_links.clear()
         self.session.flush()
         for index, equipment in enumerate(equipment_items):
@@ -454,13 +482,15 @@ class TaskService:
             task.completed_at = None
 
     def create_task(self, *, payload: TaskCreateRequest, current_user: User) -> TaskRead:
-        self._assert_folder_access(payload.folder_id)
         responsible = payload.responsible_user_id
         self._resolve_active_users([responsible])
         equipment_items = self._resolve_equipment(payload.equipment_ids)
+        folder_id = self._resolve_task_folder(payload.folder_id, equipment_items)
+        if folder_id is not None:
+            self._assert_folder_access(folder_id)
 
         task = Task(
-            folder_id=payload.folder_id,
+            folder_id=folder_id,
             title=payload.title,
             description=payload.description,
             status=payload.status,
@@ -544,7 +574,12 @@ class TaskService:
             )
 
         if "equipment_ids" in fields and payload.equipment_ids is not None:
-            self._apply_equipment(task, payload.equipment_ids)
+            equipment_items = self._resolve_equipment(payload.equipment_ids)
+            self._apply_equipment(task, equipment_items)
+            if task.folder_id is None:
+                # A task that never had a folder picks up the one its equipment lives in; one that
+                # already has a folder keeps it, so it never silently disappears from a view.
+                task.folder_id = self._resolve_task_folder(None, equipment_items)
 
         self._record_event(
             action="task_updated",

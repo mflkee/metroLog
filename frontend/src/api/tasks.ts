@@ -31,7 +31,7 @@ export type TaskChecklistItem = {
 
 export type Task = {
   id: number;
-  folderId: number;
+  folderId: number | null;
   folderName: string | null;
   title: string;
   description: string | null;
@@ -57,7 +57,7 @@ export type Task = {
 
 export type TaskListItem = {
   id: number;
-  folderId: number;
+  folderId: number | null;
   folderName: string | null;
   title: string;
   status: TaskStatus;
@@ -130,7 +130,8 @@ export type TaskListFilters = {
 };
 
 export type TaskCreatePayload = {
-  folderId: number;
+  /** Omitted in the UI: the API takes the folder from the attached equipment. */
+  folderId?: number | null;
   title: string;
   description?: string | null;
   priority?: TaskPriority;
@@ -208,7 +209,7 @@ type RawChecklistItem = {
 
 type RawTask = {
   id: number;
-  folder_id: number;
+  folder_id: number | null;
   folder_name: string | null;
   title: string;
   description: string | null;
@@ -233,7 +234,7 @@ type RawTask = {
 
 type RawTaskListItem = {
   id: number;
-  folder_id: number;
+  folder_id: number | null;
   folder_name: string | null;
   title: string;
   status: TaskStatus;
@@ -441,7 +442,7 @@ export async function createTask(token: string, payload: TaskCreatePayload): Pro
     method: "POST",
     token,
     body: {
-      folder_id: payload.folderId,
+      folder_id: payload.folderId ?? null,
       title: payload.title,
       description: payload.description ?? null,
       priority: payload.priority ?? "NORMAL",

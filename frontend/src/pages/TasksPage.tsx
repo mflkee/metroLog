@@ -1,4 +1,4 @@
-import { type FormEvent, useDeferredValue, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   DndContext,
@@ -15,7 +15,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 
-import { fetchEquipmentFolders, fetchEquipmentFolderSuggestions, fetchEquipmentPage } from "@/api/equipment";
+import { fetchEquipmentFolders } from "@/api/equipment";
 import {
   TASK_PRIORITY_LABELS,
   TASK_STATUSES,
@@ -31,13 +31,13 @@ import {
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
+import { EquipmentPicker, type PickedEquipment } from "@/components/EquipmentPicker";
 import { AppDialog } from "@/components/ui/app-dialog";
 import { SearchableMultiSelect, SearchableSelect } from "@/components/ui/searchable-select";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
-import { useSearchHistory } from "@/lib/searchHistory";
 import { resolveBoardDrop } from "@/lib/taskBoard";
 import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
 import { resizeTextareaToContent } from "@/lib/textarea";
@@ -455,19 +455,11 @@ function CreateTaskModal({
   onClose: () => void;
   onCreated: () => void;
 }) {
-  const foldersQuery = useQuery({
-    queryKey: ["equipment-folders"],
-    queryFn: () => fetchEquipmentFolders(token),
-    enabled: open && Boolean(token),
-  });
   const usersQuery = useQuery({
     queryKey: ["mention-users"],
     queryFn: () => fetchMentionUsers(token),
     enabled: open && Boolean(token),
   });
-  const { history: equipmentSearchHistory, remember: rememberEquipmentSearch } =
-    useSearchHistory("metroLog.search.task-equipment");
-  const [folderId, setFolderId] = useState<string>(defaultFolderId ? String(defaultFolderId) : "");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [responsibleUserId, setResponsibleUserId] = useState<string>("");
@@ -476,28 +468,9 @@ function CreateTaskModal({
   const [assigneeIds, setAssigneeIds] = useState<number[]>([]);
   const [observerIds, setObserverIds] = useState<number[]>([]);
   const [equipmentIds, setEquipmentIds] = useState<number[]>([]);
-  const [objectName, setObjectName] = useState("");
-  const [equipmentSearch, setEquipmentSearch] = useState("");
-  const deferredEquipmentSearch = useDeferredValue(equipmentSearch);
+  const [pickedEquipment, setPickedEquipment] = useState<PickedEquipment[]>([]);
+  const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const suggestionsQuery = useQuery({
-    queryKey: ["equipment-folder-suggestions", folderId],
-    queryFn: () => fetchEquipmentFolderSuggestions(token, Number(folderId)),
-    enabled: open && Boolean(token) && Boolean(folderId),
-  });
-  const equipmentQuery = useQuery({
-    queryKey: ["equipment-picker", "create", folderId, objectName, deferredEquipmentSearch],
-    queryFn: () =>
-      fetchEquipmentPage(token, {
-        folderId: Number(folderId),
-        objectName: objectName || null,
-        query: deferredEquipmentSearch.trim() || undefined,
-        limit: 50,
-        offset: 0,
-      }),
-    enabled: open && Boolean(token) && Boolean(folderId),
-  });
 
   const mentionSuggestions = useMemo(
     () => buildMentionSuggestionOptions(usersQuery.data ?? []),
@@ -507,7 +480,6 @@ function CreateTaskModal({
   const mutation = useMutation({
     mutationFn: () =>
       createTask(token, {
-        folderId: Number(folderId),
         title: title.trim(),
         description: description.trim() || null,
         priority,
@@ -524,7 +496,7 @@ function CreateTaskModal({
       setAssigneeIds([]);
       setObserverIds([]);
       setEquipmentIds([]);
-      setObjectName("");
+      setPickedEquipment([]);
       onCreated();
     },
     onError: (mutationError: unknown) => {
@@ -535,32 +507,37 @@ function CreateTaskModal({
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
     setError(null);
-    if (!folderId || !title.trim() || !responsibleUserId) {
-      setError("Заполните папку, название и ответственного.");
+    if (!title.trim() || !responsibleUserId) {
+      setError("Заполните название и ответственного.");
       return;
     }
     mutation.mutate();
   }
 
   return (
-    <AppDialog title="Новая задача" open={open} onClose={onClose}>
+    <AppDialog
+      description={
+        equipmentOpen ? "Выбери папку, найди приборы и отметь нужные галочками." : undefined
+      }
+      title={equipmentOpen ? "Выбор приборов" : "Новая задача"}
+      open={open}
+      onClose={onClose}
+    >
+      {equipmentOpen ? (
+        <EquipmentPicker
+          cancelLabel="Назад"
+          defaultFolderId={defaultFolderId}
+          initialSelection={pickedEquipment}
+          token={token}
+          onCancel={() => setEquipmentOpen(false)}
+          onConfirm={(items) => {
+            setEquipmentIds(items.map((item) => item.id));
+            setPickedEquipment(items);
+            setEquipmentOpen(false);
+          }}
+        />
+      ) : (
       <form className="space-y-3" onSubmit={handleSubmit}>
-        <label className="block space-y-1">
-          <span className="text-xs uppercase tracking-wide text-steel">Папка</span>
-          <SearchableSelect
-            onChange={(next) => {
-              setFolderId(next === null ? "" : next);
-              setObjectName("");
-              setEquipmentSearch("");
-            }}
-            options={(foldersQuery.data ?? []).map((folder) => ({
-              value: String(folder.id),
-              label: folder.name,
-            }))}
-            placeholder="— выберите —"
-            value={folderId === "" ? null : folderId}
-          />
-        </label>
         <label className="block space-y-1">
           <span className="text-xs uppercase tracking-wide text-steel">Название</span>
           <input className="form-input" value={title} onChange={(event) => setTitle(event.target.value)} />
@@ -639,45 +616,47 @@ function CreateTaskModal({
             />
           </label>
         </div>
-        {folderId ? (
-          <div className="space-y-3">
-            <label className="block space-y-1">
-              <span className="text-xs uppercase tracking-wide text-steel">Объект</span>
-              <SearchableSelect
-                onChange={(next) => setObjectName(next ?? "")}
-                options={[
-                  { value: "", label: "Все объекты" },
-                  ...(suggestionsQuery.data?.objectNames ?? []).map((name) => ({
-                    value: name,
-                    label: name,
-                  })),
-                ]}
-                placeholder="Все объекты"
-                value={objectName}
-              />
-            </label>
-            <label className="block space-y-1">
-              <span className="text-xs uppercase tracking-wide text-steel">Приборы</span>
-              <SearchableMultiSelect
-                emptyLabel="Ничего не найдено по выбранному объекту."
-                filterLocally={false}
-                history={equipmentSearchHistory}
-                loading={equipmentQuery.isLoading}
-                maxResults={5}
-                onChange={setEquipmentIds}
-                onQueryChange={setEquipmentSearch}
-                onQueryCommitted={rememberEquipmentSearch}
-                options={(equipmentQuery.data?.items ?? []).map((item) => ({
-                  value: item.id,
-                  label: item.name,
-                  hint: item.serialNumber ? `зав. № ${item.serialNumber}` : undefined,
-                }))}
-                placeholder="Поиск прибора…"
-                value={equipmentIds}
-              />
-            </label>
+        <div className="space-y-1">
+          <span className="text-xs uppercase tracking-wide text-steel">Приборы</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              className="btn-secondary btn-sm"
+              onClick={() => setEquipmentOpen(true)}
+              type="button"
+            >
+              {equipmentIds.length > 0 ? `Изменить выбор (${equipmentIds.length})` : "Выбрать приборы"}
+            </button>
+            {pickedEquipment.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {pickedEquipment.map((item) => (
+                  <span
+                    key={item.id}
+                    className="inline-flex max-w-full items-center gap-1 rounded-full border border-line px-2 py-0.5 text-xs text-ink"
+                  >
+                    <span className="truncate">{item.label}</span>
+                    <button
+                      aria-label={`Убрать ${item.label}`}
+                      className="text-steel transition hover:text-[color:var(--danger)]"
+                      onClick={() => {
+                        setPickedEquipment((current) =>
+                          current.filter((entry) => entry.id !== item.id),
+                        );
+                        setEquipmentIds((current) => current.filter((id) => id !== item.id));
+                      }}
+                      type="button"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <span className="text-xs text-steel">
+                Без приборов задача будет без папки — её увидят только участники.
+              </span>
+            )}
           </div>
-        ) : null}
+        </div>
         {error ? <p className="text-sm text-[color:var(--danger)]">{error}</p> : null}
         <div className="flex justify-end gap-2">
           <button className="btn-secondary btn-sm" onClick={onClose} type="button">
@@ -688,6 +667,7 @@ function CreateTaskModal({
           </button>
         </div>
       </form>
+      )}
     </AppDialog>
   );
 }

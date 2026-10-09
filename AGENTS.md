@@ -100,6 +100,11 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/services/arshin_service.py` | Arshin search and detail fetch. |
 | `app/services/folder_refresh_matcher.py` | Two-stage Arshin matcher for folder refresh. |
 | `app/services/notification_service.py` | SMTP email dispatch. |
+| `app/services/task_service.py` | Tasks: creation (folder derived from equipment), participants, checklist, messages, attachments, subscriptions, reminders, permissions (`_can_mutate`, `_assert_task_visible`). |
+| `app/repositories/task_repository.py` | Task queries: list filters (folder scope plus the folder-less tasks of the viewer) and ordering. |
+| `app/models/task.py` | Task ORM models (task, participants, equipment links, checklist, messages, attachments, subscriptions, reminder log). |
+| `app/schemas/task.py` | Task request/response schemas. |
+| `app/api/v1/routes/tasks.py` | Task HTTP surface: list/detail, participants, equipment, checklist, messages, attachments, subscription. |
 | `app/tasks/worker.py` | RQ worker bootstrap. |
 | `app/tasks/notifications.py` | Enqueued email jobs. |
 | `app/integrations/arshin_client.py` | HTTP client for FGIS Arshin API. |
@@ -109,7 +114,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/api/v1/routes/events.py` | Event journal. |
 | `app/api/v1/routes/arshin.py` | Arshin proxy endpoints. |
 | `app/api/v1/routes/health.py` | Liveness + readiness (DB + Redis). |
-| `alembic/versions/` | 49 migrations. |
+| `alembic/versions/` | 54 migrations. |
 
 ### Frontend (`frontend/`)
 | File | Purpose |
@@ -148,7 +153,14 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/hooks/useEquipmentArshinEsi.ts` | Arshin SI-refresh and ESI-composition tooling (state, mutations, modal helpers). |
 | `src/hooks/useEquipmentProcessActions.ts` | Create-repair/verification, delete and Arshin-exclusion actions. |
 | `src/hooks/useEquipmentRegistryQueries.ts` | Registry page queries (folders, presets, page, selection, suggestions, refresh task, mentions). |
-| `src/hooks/useFolderRefresh.ts` | Folder rescan state and mutations of the registry page. |
+| `src/hooks/useFolderRefresh.ts` | Folder rescan state and mutations of the registry page (tracked task lives in `src/store/folderRefresh.ts`). |
+| `src/pages/TasksPage.tsx` | Task board and list with filters, plus the create dialog whose equipment step is `EquipmentPicker`. |
+| `src/pages/TaskDetailsPage.tsx` | Task card: status, priority, due date, participants, equipment, checklist, discussion, attachments, subscription. |
+| `src/components/EquipmentPicker.tsx` | Equipment picker body: folder → filters → ticked rows → `Добавить`; rendered inside the task dialog and by `EquipmentPickerModal`. |
+| `src/components/EquipmentPickerModal.tsx` | The picker in a dialog of its own (task card). |
+| `src/components/TaskParticipantsModal.tsx` | Responsible/assignees/observers editor of the task card. |
+| `src/store/folderRefresh.ts` | Folder-rescan tracking that outlives the registry page (task, folder, minimised, modal open). |
+| `src/components/FolderRefreshDock.tsx` | Shell-level panel that keeps reporting a running rescan in any section. |
 | `src/hooks/useFolderActions.ts` | Folder CRUD and folder-subscription actions. |
 | `src/hooks/useSiImportExport.ts` | Arshin SI import/export slice of the registry page. |
 | `src/components/equipment-registry/EquipmentTable.tsx` | Registry table row and sortable header. |
@@ -320,6 +332,11 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 - `si_verifications` — 1:1 with `equipment` (SI). Stores `vri_id`, certificate numbers, valid dates, `raw_payload_json`, `detail_payload_json`.
 - `equipment_esi_composition_entries` — 1:N with `equipment` (ESI). `module_kind` (`INTERNAL`/`EXTERNAL`), `vri_id`, `measurement_limit`, `sort_order`, certificate fields.
 
+**Tasks**
+- `tasks` — id, `folder_id` (**nullable**: taken from the linked equipment when it lives in one folder), title, description, status, priority, kind, tags, `due_date`, author, `completed_at`.
+- `task_participants` — (`task_id`, `user_id`, role `RESPONSIBLE`/`ASSIGNEE`/`OBSERVER`), unique per pair; plus `task_equipment`, `task_checklist_items`, `task_messages` + message attachments, `task_attachments`, `task_subscriptions`, `task_reminder_log`.
+- Visibility: a task with a folder follows the folder scope; a folder-less task is visible to its author, its participants and operators only. Mutation is allowed to operators, the author and `RESPONSIBLE`/`ASSIGNEE` (exposed as `can_mutate`).
+
 **Repairs**
 - `repairs` — `equipment_id`, `batch_key`/`batch_name`, `is_on_site`, `route_city`/`destination`, milestone dates, `deadline_preset_snapshot_json`, `custom_stages_json`, `closed_at`.
 - `repair_messages` — `repair_id`, author, text, `is_private`, `batch_key`.
@@ -397,6 +414,14 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 - **Auto-save**: frontend uses `useQueuedAutoSave` for debounced milestone mutations.
 - **Messages**: attachments, `@mentions`, private notes (`is_private`). Deletable by author or admin.
 - **Close**: sets `closed_at`, moves to archive tab.
+
+### Tasks
+- Creation asks for a title and a responsible; equipment goes through the folder-aware
+  `EquipmentPicker` (folder → filters → ticks → `Добавить`). The task's folder is derived from the
+  equipment, so a task is folder-less when there is no equipment or it spans folders.
+- Access: folder-bound tasks follow the folder scope; folder-less ones belong to the author, the
+  participants and operators. Mutations are for operators, the author and `RESPONSIBLE`/`ASSIGNEE`
+  (the payload carries `can_mutate`, which is what the screens hide controls with).
 
 ### Folder Refresh (metroSearch)
 1. User triggers `POST /folders/{id}/refresh` → creates `EquipmentFolderRefreshTask` (status `PENDING`).

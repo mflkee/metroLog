@@ -60,9 +60,10 @@ class Task(Base):
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    folder_id: Mapped[int] = mapped_column(
+    # Nullable on purpose: a task may live outside any folder (see `_resolve_task_folder`).
+    folder_id: Mapped[int | None] = mapped_column(
         ForeignKey("equipment_folders.id", ondelete="CASCADE"),
-        nullable=False,
+        nullable=True,
         index=True,
     )
     title: Mapped[str] = mapped_column(String(255), nullable=False)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import case, exists, false, func, or_, select
+from sqlalchemy import and_, case, exists, false, func, or_, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.task import (
@@ -76,6 +76,7 @@ class TaskRepository:
         statement,
         *,
         allowed_folder_ids: set[int] | None = None,
+        viewer_user_id: int | None = None,
         folder_id: int | None = None,
         statuses: list[TaskStatus] | None = None,
         priorities: list[TaskPriority] | None = None,
@@ -90,9 +91,24 @@ class TaskRepository:
         today: date | None = None,
     ):
         if allowed_folder_ids is not None:
-            if not allowed_folder_ids:
+            if viewer_user_id is None:
                 return statement.where(false())
-            statement = statement.where(Task.folder_id.in_(sorted(allowed_folder_ids)))
+            folder_scope = (
+                Task.folder_id.in_(sorted(allowed_folder_ids)) if allowed_folder_ids else false()
+            )
+            statement = statement.where(
+                or_(
+                    folder_scope,
+                    # Tasks outside any folder are reachable by their author and their participants.
+                    and_(
+                        Task.folder_id.is_(None),
+                        or_(
+                            Task.created_by_user_id == viewer_user_id,
+                            _participant_exists(viewer_user_id),
+                        ),
+                    ),
+                )
+            )
 
         if folder_id is not None:
             statement = statement.where(Task.folder_id == folder_id)
@@ -167,6 +183,7 @@ class TaskRepository:
         self,
         *,
         allowed_folder_ids: set[int] | None = None,
+        viewer_user_id: int | None = None,
         folder_id: int | None = None,
         statuses: list[TaskStatus] | None = None,
         priorities: list[TaskPriority] | None = None,
@@ -186,6 +203,7 @@ class TaskRepository:
         filtered_ids = self._apply_filters(
             select(Task.id),
             allowed_folder_ids=allowed_folder_ids,
+            viewer_user_id=viewer_user_id,
             folder_id=folder_id,
             statuses=statuses,
             priorities=priorities,

@@ -706,3 +706,114 @@ async def test_mention_candidates_are_scoped_to_callers_folders(
     assert everyone.status_code == 200, everyone.text
     admin_emails = {item["email"] for item in everyone.json()}
     assert {"mentions-a@example.test", "mentions-b@example.test"} <= admin_emails
+
+
+@pytest.mark.anyio
+async def test_folder_of_a_task_follows_its_equipment(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    first = await create_folder(client, admin["access_token"], "Задачи: папка 1")
+    second = await create_folder(client, admin["access_token"], "Задачи: папка 2")
+    item_a = await create_equipment(client, admin["access_token"], first["id"], "Прибор А")
+    item_b = await create_equipment(client, admin["access_token"], second["id"], "Прибор Б")
+
+    single = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={
+            "title": "По прибору",
+            "responsible_user_id": admin_id,
+            "equipment_ids": [item_a["id"]],
+        },
+    )
+    assert single.status_code == 201, single.text
+    assert single.json()["folder_id"] == first["id"]
+
+    empty = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={"title": "Без приборов", "responsible_user_id": admin_id},
+    )
+    assert empty.status_code == 201, empty.text
+    assert empty.json()["folder_id"] is None
+
+    mixed = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={
+            "title": "По двум папкам",
+            "responsible_user_id": admin_id,
+            "equipment_ids": [item_a["id"], item_b["id"]],
+        },
+    )
+    assert mixed.status_code == 201, mixed.text
+    assert mixed.json()["folder_id"] is None
+
+    # Attaching equipment to a folder-less task hands it the equipment's folder...
+    attached = await client.patch(
+        f"/api/v1/tasks/{empty.json()['id']}",
+        headers=headers,
+        json={"equipment_ids": [item_b["id"]]},
+    )
+    assert attached.status_code == 200, attached.text
+    assert attached.json()["folder_id"] == second["id"]
+
+    # ...while detaching never drops a folder the task already has.
+    detached = await client.patch(
+        f"/api/v1/tasks/{attached.json()['id']}",
+        headers=headers,
+        json={"equipment_ids": []},
+    )
+    assert detached.status_code == 200, detached.text
+    assert detached.json()["folder_id"] == second["id"]
+
+
+@pytest.mark.anyio
+async def test_folderless_task_is_visible_to_its_people(client: AsyncClient, db_engine) -> None:
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: общая")
+    author = await create_user(
+        client,
+        admin_token=admin["access_token"],
+        email="author@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[folder["id"]],
+    )
+    await create_user(
+        client,
+        admin_token=admin["access_token"],
+        email="bystander@example.test",
+        role="CUSTOMER",
+        allowed_folder_ids=[folder["id"]],
+    )
+    author_login = await login_user(client, email="author@example.test", password="TestPass123")
+    bystander_login = await login_user(
+        client, email="bystander@example.test", password="TestPass123"
+    )
+    author_headers = {"Authorization": f"Bearer {author_login['access_token']}"}
+    bystander_headers = {"Authorization": f"Bearer {bystander_login['access_token']}"}
+
+    created = await client.post(
+        "/api/v1/tasks",
+        headers=author_headers,
+        json={"title": "Задача без папки", "responsible_user_id": author["user"]["id"]},
+    )
+    assert created.status_code == 201, created.text
+    assert created.json()["folder_id"] is None
+    task_id = created.json()["id"]
+
+    assert (await client.get(f"/api/v1/tasks/{task_id}", headers=author_headers)).status_code == 200
+    # A colleague who may see the whole folder still gets nothing: the task belongs to its people.
+    assert (
+        await client.get(f"/api/v1/tasks/{task_id}", headers=bystander_headers)
+    ).status_code == 404
+
+    bystander_list = await client.get("/api/v1/tasks", headers=bystander_headers)
+    assert all(item["id"] != task_id for item in bystander_list.json()["items"])
+    author_list = await client.get("/api/v1/tasks", headers=author_headers)
+    assert any(item["id"] == task_id for item in author_list.json()["items"])

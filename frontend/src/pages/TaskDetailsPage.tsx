@@ -38,7 +38,7 @@ import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
-import { TaskEquipmentModal } from "@/components/TaskEquipmentModal";
+import { EquipmentPickerModal } from "@/components/EquipmentPickerModal";
 import { TaskParticipantsModal } from "@/components/TaskParticipantsModal";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/ui/page-header";
@@ -152,6 +152,11 @@ export function TaskDetailsPage() {
   const priorityMutation = useMutation({
     mutationFn: (priority: TaskPriority) => updateTask(token, taskId, { priority }),
     onError: (error) => reportError("Не удалось изменить приоритет.", error),
+    onSuccess: refreshTask,
+  });
+  const equipmentMutation = useMutation({
+    mutationFn: (equipmentIds: number[]) => updateTask(token, taskId, { equipmentIds }),
+    onError: (error) => reportError("Не удалось сохранить приборы.", error),
     onSuccess: refreshTask,
   });
   const dueDateMutation = useMutation({
@@ -720,14 +725,21 @@ export function TaskDetailsPage() {
         />
       ) : null}
       {equipmentOpen ? (
-        <TaskEquipmentModal
+        <EquipmentPickerModal
+          defaultFolderId={task.folderId}
+          initialSelection={task.equipment.map((link) => ({
+            id: link.equipmentId,
+            label: `${link.name ?? `Прибор #${link.equipmentId}`}${
+              link.modification ? ` · ${link.modification}` : ""
+            }`,
+            hint: link.serialNumber ? `зав. № ${link.serialNumber}` : undefined,
+          }))}
           open={equipmentOpen}
           token={token}
-          task={task}
           onClose={() => setEquipmentOpen(false)}
-          onSaved={() => {
+          onConfirm={(items) => {
             setEquipmentOpen(false);
-            refreshTask();
+            equipmentMutation.mutate(items.map((item) => item.id));
           }}
         />
       ) : null}

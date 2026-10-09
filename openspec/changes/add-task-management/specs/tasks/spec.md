@@ -10,10 +10,11 @@ links to equipment and per-folder access control.
 
 ### Requirement: Task creation
 
-The system SHALL allow every authenticated user to create a task in any folder
-they can access. A task SHALL have a title, an author, a folder, a status and a
-creation timestamp. Description, kind/category, priority and due date SHALL be
-optional.
+The system SHALL allow every authenticated user to create a task. A task SHALL
+have a title, an author, a status and a creation timestamp. Description,
+kind/category, priority, due date and folder SHALL be optional: the folder is
+taken from the attached equipment when all of it lives in one folder, and is
+absent otherwise.
 
 #### Scenario: Operator creates a task in an allowed folder
 - **WHEN** an MKAIR user submits a new task with a title in a folder from their allowed set
@@ -22,6 +23,18 @@ optional.
 #### Scenario: Customer creates a task in an allowed folder
 - **WHEN** a CUSTOMER user submits a new task in an allowed folder
 - **THEN** the task is created and they are recorded as its author
+
+#### Scenario: The folder comes from the equipment
+- **WHEN** a user creates a task with equipment from a single folder and names no folder
+- **THEN** the task belongs to that folder
+
+#### Scenario: Equipment spans folders, or there is none
+- **WHEN** a user creates a task whose equipment comes from several folders, or creates one without equipment
+- **THEN** the task has no folder, and later attaching equipment from one folder gives it that folder
+
+#### Scenario: A task without a folder belongs to its people
+- **WHEN** a user who may see the folder but neither created the folder-less task nor participates in it reads it or lists tasks
+- **THEN** the task answers 404 and is absent from their list, while the author, the participants and operators see it
 
 #### Scenario: Task creation targets a denied folder
 - **WHEN** a folder-scoped user submits a task for a folder outside their allowed set

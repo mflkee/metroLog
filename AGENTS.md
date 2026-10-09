@@ -292,6 +292,13 @@ runner dir `~/actions-runner-metrolog`. Прод и Stage живут на это
 В `docker-compose*.yml` образы параметризованы: `image: ghcr.io/mflkee/metrolog-backend:${IMAGE_TAG:-latest}`
 (аналогично frontend); `build:` остаётся как fallback для локальной сборки.
 
+> ⚠️ **Грабля GitHub Actions: `permissions` на уровне джобы ЗАМЕНЯЕТ верхнеуровневый блок.** Когда в
+> `deploy-prod` добавили `permissions: contents: write` (для удаления одноразовой релизной ветки),
+> джоба потеряла `packages` из верхнеуровневого `permissions` — и `docker compose pull` из GHCR упал
+> с `error from registry: denied`, хотя `docker/login-action` до этого «успешно» залогинился. Прод при
+> этом не пострадал: шаг упал на `pull`, до `up -d` дело не дошло. **Правило:** объявляя права джобы,
+> перечисляй ВСЕ нужные скоупы (`contents: write` + `packages: read`), а не только новый.
+
 **Monitoring infrastructure** (отдельный compose-проект `~/apps/monitoring`):
 - Prometheus (`127.0.0.1:9091`)
 - Grafana (`192.168.1.84:8090`)

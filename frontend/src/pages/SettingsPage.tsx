@@ -734,7 +734,7 @@ export function SettingsPage() {
         </SettingsSectionCard>
 
         <SettingsSectionCard
-          description="Состав виджетов на главной странице."
+          description="Что показывать на главной. Порядок, ширину и сворачивание модулей настраивают на самой главной."
           expanded={expandedSections.dashboard}
           title="Информационная панель"
           onToggle={() => toggleSection("dashboard")}

@@ -128,7 +128,11 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `src/api/equipment.ts` | Barrel re-exporting the split domain API modules below, so existing imports keep working. |
 | `src/api/equipment/` | Domain API modules: `registry`, `folders`, `repairs`, `verifications`, `comments`, `esi`, `refresh`, `exports`. |
 | `src/api/arshin.ts` | Arshin search, detail, status probe. |
-| `src/pages/DashboardPage.tsx` | Folder-scoped dashboard widgets. |
+| `src/pages/DashboardPage.tsx` | Folder-scoped dashboard widgets, rendered from the user's saved arrangement (order, width preset, collapsed). |
+| `src/components/dashboard/DashboardWidgetGrid.tsx` | The dashboard grid: arranged modules in order, each in its width preset; wires the drag only while editing. |
+| `src/components/dashboard/DashboardWidgetShell.tsx` | One dashboard module: title row, width presets, collapse control, body. |
+| `src/components/dashboard/SortableDashboardWidget.tsx` | The draggable dashboard cell (`useSortable` + width span). |
+| `src/hooks/useIsWideScreen.ts` | True on the `xl` viewport; gates dashboard dragging. |
 | `src/pages/EquipmentPage.tsx` | Registry: folders, groups, pagination, bulk actions, modals. |
 | `src/pages/EquipmentDetailsPage.tsx` | Equipment card: SI/ESI/OTHER, comments, attachments, ESI composition. |
 | `src/pages/RepairsPage.tsx` | Repair queue: grouped batches, milestones, messages. |
@@ -188,6 +192,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 
 > 🧭 **UI-конвенции** (change `ui-polish-batch`, код готов, остались Stage-проверки владельца):
 > - **Drag & drop** — `@dnd-kit`. Доска задач: карточка едет **сама** (свой `transform`, без `DragOverlay`), целевая колонка подсвечивается пунктирным слотом, статус применяется **оптимистично** и карточка встаёт сразу при отпускании (логика дропа — `src/lib/taskBoard.ts`). Список папок: `SortableContext` + `useSortable`, порядок **per-user** (`users.folder_order_ids`, миграция 0053, эндпоинт `PATCH /auth/me`), перетаскивание отключено при активном поиске.
+> - **Раскладка главной** — модули главной пользователь раскладывает сам: порядок, ширина (`1/3`/`1/2`/`1/1`) и сворачивание, всё **per-user** в `users.dashboard_layout` (миграция 0057, `PATCH /auth/me`). Правится в режиме `Настроить раскладку` на самой главной; вне режима модуль выглядит как раньше, а контент кликабелен. Дефолт повторяет прежний порядок и ширины один в один (`defaultDashboardLayout`), поэтому у тех, кто не трогал, ничего не сдвигается. Видимость модулей остаётся в настройках, и выключенный модуль хранит своё место. Сворачивание — чисто визуальное (данные продолжают грузиться), ниже `xl` модули идут одной колонкой и перетаскивания нет. Правила нормализации хранимой раскладки — `src/lib/dashboard.ts` (`normalizeDashboardLayout`), тесты — `dashboard.test.ts` и `src/components/dashboard/*.test.tsx`.
 > - **Контролы**: булевы настройки и toggle-фильтры — shadcn `Switch` (`src/components/ui/switch.tsx`), ярлык через `htmlFor`/`id`. **Чекбоксы остаются** только для выбора из списка (выделение строк в таблицах, массовые действия, выбор получателей) — у `Switch` нет indeterminate, это другой контроль. Чек-листы задач тоже на `Switch`, с локальным оптимистичным тиком, чтобы реагировали мгновенно.
 > - **Даты**: всё отображается как `dd.mm.yyyy` через `src/lib/dates.ts` (`formatDateRu`/`formatDateTimeRu`); дата-only ISO читается как календарная, чтобы день не сдвигался. Нативный `<input type="date">` не использовать (формат по локали браузера) — брать `DateInput`.
 > - **Поп-апы**: любые выпадающие списки рендерить через `FloatingAutocompleteMenu` (`position: fixed`), иначе модалка их обрежет; поверхность — общий класс `.autocomplete-input__menu`, свой бордер/фон не добавлять. Список **всегда раскрывается вниз** от поля (подгоняет высоту по месту, а при нехватке места подтягивается вверх, но не переворачивается над полем — иначе закрывает то, что набираешь). **Внутри модалки список порталится в сам диалог, а не в `body`**: Radix ставит `body { pointer-events: none }` (лечится `pointer-events: auto`) и глобальный непассивный `wheel`-слушатель, который глушит прокрутку всего, что вне диалога — поэтому список в `body` не прокручивается колесом. По той же причине у модалок не должно быть своего `overflow`, иначе они режут портальный список.
@@ -352,7 +357,7 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 ## 6. Database Schema (Key Entities)
 
 **Users & Auth**
-- `users` — id, first/last/patronymic, email (unique), password_hash, role (`DEVELOPER`/`ADMINISTRATOR`/`MKAIR`/`CUSTOMER`), `allowed_folder_ids` (JSON), `dashboard_folder_ids` (JSON), `hidden_equipment_folder_ids` (JSON), theme prefs, last_login/seen.
+- `users` — id, first/last/patronymic, email (unique), password_hash, role (`DEVELOPER`/`ADMINISTRATOR`/`MKAIR`/`CUSTOMER`), `allowed_folder_ids` (JSON), `dashboard_folder_ids` (JSON), `hidden_equipment_folder_ids` (JSON), `dashboard_widget_options` (JSON, which widgets are shown), `dashboard_layout` (JSON, ordered `{key, size, collapsed}` entries — order, width preset and collapsed state; `null` = the default arrangement), theme prefs, last_login/seen.
 
 **Equipment Registry**
 - `equipment_folders` — id, name, description, sort_order, `deadline_preset_id`.

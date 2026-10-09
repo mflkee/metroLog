@@ -1,36 +1,5 @@
 import { apiRequest } from "@/api/client";
-import { mapUser, type AuthUser, type UserRole } from "@/api/auth";
-import type { DashboardWidgetKey } from "@/lib/dashboard";
-import type { ThemeName } from "@/store/theme";
-
-type RawUser = {
-  id: number;
-  first_name: string;
-  last_name: string;
-  patronymic: string | null;
-  email: string;
-  role: UserRole;
-  is_active: boolean;
-  must_change_password: boolean;
-  password_changed_at: string | null;
-  phone: string | null;
-  organization: string | null;
-  position: string | null;
-  facility: string | null;
-  dashboard_folder_id: number | null;
-  dashboard_folder_ids: number[] | null;
-  allowed_folder_ids: number[] | null;
-  hidden_equipment_folder_ids: number[] | null;
-  folder_order_ids: number[] | null;
-  dashboard_widget_options: DashboardWidgetKey[] | null;
-  mention_email_notifications_enabled: boolean;
-  theme_preference: ThemeName | null;
-  enabled_theme_options: ThemeName[] | null;
-  last_login_at: string | null;
-  last_seen_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
+import { mapUser, type AuthUser, type RawUser, type UserRole } from "@/api/auth";
 
 type RawUserTemporaryPasswordResponse = {
   user: RawUser;

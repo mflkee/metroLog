@@ -1,8 +1,9 @@
-import { type ReactNode, useMemo } from "react";
+import { type ReactNode, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 
+import { updateProfile } from "@/api/auth";
 import { fetchEvents, type EventLogItem } from "@/api/events";
 import {
   equipmentTypeLabels,
@@ -18,22 +19,29 @@ import {
   type RepairQueueItem,
   type VerificationQueueItem,
 } from "@/api/equipment";
+import { DashboardWidgetGrid } from "@/components/dashboard/DashboardWidgetGrid";
+import { MyTasksWidget } from "@/components/MyTasksWidget";
 import { PageHeader } from "@/components/layout/PageHeader";
+import { useIsWideScreen } from "@/hooks/useIsWideScreen";
 import {
+  buildDashboardPlan,
+  dashboardSummaryColumnsClass,
+  defaultDashboardLayout,
   defaultDashboardWidgets,
   getDashboardFolderIds,
-  normalizeDashboardWidgets,
   isCheckExpired,
+  isDashboardDragEnabled,
   isDatePast,
+  normalizeDashboardLayout,
+  normalizeDashboardWidgets,
+  reorderDashboardLayout,
+  type DashboardLayoutEntry,
+  type DashboardWidgetKey,
+  type DashboardWidgetSize,
+  updateDashboardWidget,
 } from "@/lib/dashboard";
 import { hasOperatorAccess } from "@/lib/roles";
-import { MyTasksWidget } from "@/components/MyTasksWidget";
 import { useAuthStore } from "@/store/auth";
-
-type WidgetCardProps = {
-  title: string;
-  children: ReactNode;
-};
 
 type DistributionEntry = {
   label: string;
@@ -45,9 +53,14 @@ const DASHBOARD_SCROLL_FRAME_CLASS = "h-full min-h-0 max-h-[39rem] overflow-y-au
 const DASHBOARD_SCROLL_LIST_CLASS = "space-y-2";
 const DASHBOARD_SCROLL_ITEM_CLASS = "tone-child mr-4 rounded-2xl border border-line px-4 py-3";
 
+/** The summary strip carries five figures, so its inner columns follow the module's own width. */
+const SUMMARY_COLUMNS_CLASS = dashboardSummaryColumnsClass;
+
 export function DashboardPage() {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
+  const setUser = useAuthStore((state) => state.setUser);
+  const isWideScreen = useIsWideScreen();
   const selectedFolderIds = useMemo(
     () => getDashboardFolderIds(user),
     [user],
@@ -61,6 +74,66 @@ export function DashboardPage() {
     [canViewRecentEvents, user?.dashboardWidgets],
   );
   const recentDateFrom = useMemo(() => getDateDaysAgoIso(30), []);
+
+  const storedLayout = useMemo(
+    () => normalizeDashboardLayout(user?.dashboardLayout),
+    [user?.dashboardLayout],
+  );
+  const [layout, setLayout] = useState<DashboardLayoutEntry[]>(storedLayout);
+  const [editing, setEditing] = useState(false);
+  const [layoutError, setLayoutError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLayout(storedLayout);
+  }, [storedLayout]);
+
+  const layoutMutation = useMutation({
+    mutationFn: (next: DashboardLayoutEntry[]) =>
+      updateProfile(token ?? "", { dashboardLayout: next }),
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      setLayoutError(null);
+    },
+    onError: (error) => {
+      // Put the arrangement the server still holds back on screen, so the page never shows a
+      // change that was not saved.
+      setLayout(storedLayout);
+      setLayoutError(
+        error instanceof Error ? error.message : "Не удалось сохранить раскладку модулей.",
+      );
+    },
+  });
+
+  function commitLayout(next: DashboardLayoutEntry[]) {
+    setLayout(next);
+    setLayoutError(null);
+    layoutMutation.mutate(next);
+  }
+
+  const dragEnabled = isDashboardDragEnabled(editing, isWideScreen);
+
+  function handleReorder(activeKey: DashboardWidgetKey, overKey: DashboardWidgetKey) {
+    const next = reorderDashboardLayout(layout, activeKey, overKey);
+    if (next !== layout) {
+      commitLayout(next);
+    }
+  }
+
+  function handleSizeChange(key: DashboardWidgetKey, size: DashboardWidgetSize) {
+    commitLayout(updateDashboardWidget(layout, key, { size }));
+  }
+
+  function handleToggleCollapsed(key: DashboardWidgetKey) {
+    const entry = layout.find((item) => item.key === key);
+    if (!entry) {
+      return;
+    }
+    commitLayout(updateDashboardWidget(layout, key, { collapsed: !entry.collapsed }));
+  }
+
+  function resetLayout() {
+    commitLayout(defaultDashboardLayout);
+  }
 
   const foldersQuery = useQuery({
     queryKey: ["equipment-folders", "dashboard"],
@@ -208,6 +281,16 @@ export function DashboardPage() {
     [archivedRepairItems, archivedVerificationItems],
   );
 
+  // "Мои задачи" needs a signed-in user; the rest of the arrangement is untouched by that.
+  const renderableWidgets = useMemo(
+    () => visibleWidgets.filter((widget) => widget !== "my_tasks" || Boolean(user)),
+    [user, visibleWidgets],
+  );
+  const plan = useMemo(
+    () => buildDashboardPlan(layout, renderableWidgets),
+    [layout, renderableWidgets],
+  );
+
   const isLoading =
     foldersQuery.isLoading
     || equipmentQuery.isLoading
@@ -225,6 +308,196 @@ export function DashboardPage() {
     ?? archivedRepairsQuery.error
     ?? archivedVerificationsQuery.error
     ?? (canViewRecentEvents ? eventsQuery.error : null);
+
+  function renderWidgetBody(key: DashboardWidgetKey, size: DashboardWidgetSize): ReactNode {
+    switch (key) {
+      case "summary_cards":
+        return (
+          <div className={`grid gap-4 ${SUMMARY_COLUMNS_CLASS[size]}`}>
+            {summary.map((item) => (
+              <article
+                key={item.title}
+                className="tone-child rounded-2xl border border-line px-4 py-4"
+              >
+                <p className="text-sm font-medium text-steel">{item.title}</p>
+                <p className="mt-3 text-3xl font-semibold text-ink">{item.value}</p>
+                <p className="mt-2 text-xs text-steel">{item.hint}</p>
+              </article>
+            ))}
+          </div>
+        );
+
+      case "my_tasks":
+        return user ? <MyTasksWidget token={token ?? ""} userId={user.id} /> : null;
+
+      case "status_distribution":
+        return <DonutCard entries={statusEntries} emptyLabel="Нет приборов в папке" />;
+
+      case "type_distribution":
+        return <DonutCard entries={typeEntries} emptyLabel="Нет приборов в папке" />;
+
+      case "top_locations":
+        return (
+          <div className={DASHBOARD_SCROLL_FRAME_CLASS}>
+            {topLocations.length ? (
+              <div className={DASHBOARD_SCROLL_LIST_CLASS}>
+                {topLocations.map((entry) => (
+                  entry.folderId ? (
+                    <Link
+                      key={entry.label}
+                      className={`${DASHBOARD_SCROLL_ITEM_CLASS} block space-y-2 transition hover:border-signal-info hover:bg-[var(--accent-soft)]/35`}
+                      to={buildEquipmentLocationTarget(entry)}
+                    >
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate text-ink">{entry.label}</span>
+                        <span className="shrink-0 text-steel">{entry.value}</span>
+                      </div>
+                      <div className="tone-child h-2 rounded-full border border-line">
+                        <div
+                          className="h-full rounded-full bg-[var(--accent)]"
+                          style={{ width: `${entry.percent}%` }}
+                        />
+                      </div>
+                    </Link>
+                  ) : (
+                    <div key={entry.label} className={`${DASHBOARD_SCROLL_ITEM_CLASS} space-y-2`}>
+                      <div className="flex items-center justify-between gap-3 text-sm">
+                        <span className="min-w-0 truncate text-ink">{entry.label}</span>
+                        <span className="shrink-0 text-steel">{entry.value}</span>
+                      </div>
+                      <div className="tone-child h-2 rounded-full border border-line">
+                        <div
+                          className="h-full rounded-full bg-[var(--accent)]"
+                          style={{ width: `${entry.percent}%` }}
+                        />
+                      </div>
+                    </div>
+                  )
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-steel">Для приборов этой папки еще не указаны местонахождения.</p>
+            )}
+          </div>
+        );
+
+      case "verification_expiry":
+        return (
+          <div className={DASHBOARD_SCROLL_FRAME_CLASS}>
+            {upcomingVerifications.length ? (
+              <div className={DASHBOARD_SCROLL_LIST_CLASS}>
+                {upcomingVerifications.map((item) => (
+                  <Link
+                    key={item.id}
+                    className={`${DASHBOARD_SCROLL_ITEM_CLASS} flex items-center justify-between gap-3 transition hover:border-signal-info`}
+                    to={`/equipment/${item.id}`}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-ink">
+                        {item.name}
+                        {item.modification ? ` · ${item.modification}` : ""}
+                      </p>
+                      <p className="mt-1 text-xs text-steel">
+                        {[item.kindLabel, item.serialNumber ? `зав. № ${item.serialNumber}` : null]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </p>
+                    </div>
+                    <div className="text-right text-xs text-steel">
+                      <p>{formatDisplayDate(item.validDate)}</p>
+                      <p
+                        className={
+                          item.daysLeft < 0
+                            ? "mt-1 font-semibold text-[color:var(--danger)]"
+                            : "mt-1"
+                        }
+                      >
+                        {item.daysLeft < 0 ? "просрочено" : `${item.daysLeft} дн.`}
+                      </p>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-steel">Для приборов этой папки пока нет ближайших сроков контроля.</p>
+            )}
+          </div>
+        );
+
+      case "completed_processes":
+        return (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {completedProcessEntries.map((entry) => (
+              <div
+                key={entry.label}
+                className="tone-child rounded-2xl border border-line px-4 py-3"
+              >
+                <p className="text-xs text-steel">{entry.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-ink">{entry.value}</p>
+                <p className="mt-1 text-xs text-steel">{entry.hint}</p>
+              </div>
+            ))}
+          </div>
+        );
+
+      case "average_durations":
+        return (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {averageDurationEntries.map((entry) => (
+              <div
+                key={entry.label}
+                className="tone-child rounded-2xl border border-line px-4 py-3"
+              >
+                <p className="text-xs text-steel">{entry.label}</p>
+                <p className="mt-2 text-2xl font-semibold text-ink">{entry.value}</p>
+                <p className="mt-1 text-xs text-steel">{entry.hint}</p>
+              </div>
+            ))}
+          </div>
+        );
+
+      case "recent_events":
+        return (
+          <div className="space-y-3">
+            {recentEvents.length ? (
+              recentEvents.map((item) => (
+                <Link
+                  key={item.id}
+                  className="tone-child flex items-start justify-between gap-3 rounded-2xl border border-line px-4 py-3 transition hover:border-signal-info"
+                  to={buildEventTarget(item)}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-ink">{item.title}</p>
+                    <p className="mt-1 text-xs text-steel">
+                      {item.equipmentName
+                        ? [
+                            item.equipmentName,
+                            item.equipmentModification,
+                            item.equipmentSerialNumber
+                              ? `зав. № ${item.equipmentSerialNumber}`
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ")
+                        : item.description || "Событие без привязки к прибору"}
+                    </p>
+                  </div>
+                  <div className="shrink-0 text-right text-xs text-steel">
+                    <p>{formatDateTime(item.createdAt)}</p>
+                    <p className="mt-1">{item.userDisplayName}</p>
+                  </div>
+                </Link>
+              ))
+            ) : (
+              <p className="text-sm text-steel">За последние 30 дней по этой папке событий не было.</p>
+            )}
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  }
 
   return (
     <section className="space-y-6">
@@ -262,11 +535,34 @@ export function DashboardPage() {
               </Link>
             ))}
           </div>
-          <Link className="btn-secondary btn-sm" to="/settings">
-            Настроить виджеты
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {editing ? (
+              <button className="btn-secondary btn-sm" type="button" onClick={resetLayout}>
+                Сбросить раскладку
+              </button>
+            ) : null}
+            <button
+              className={editing ? "btn-primary btn-sm" : "btn-secondary btn-sm"}
+              type="button"
+              onClick={() => setEditing((value) => !value)}
+            >
+              {editing ? "Готово" : "Настроить раскладку"}
+            </button>
+            <Link className="btn-secondary btn-sm" to="/settings">
+              Настроить виджеты
+            </Link>
+          </div>
         </div>
       ) : null}
+
+      {selectedFolderIds.length > 0 && selectedFolders.length > 0 && editing ? (
+        <p className="text-sm text-steel">
+          Перетаскивайте модули за ручку, выбирайте ширину 1/3, 1/2 или 1/1 и сворачивайте лишнее.
+          Изменения сохраняются сразу.
+        </p>
+      ) : null}
+
+      {layoutError ? <p className="text-sm text-[#b04c43]">{layoutError}</p> : null}
 
       {selectedFolderIds.length > 0 && isLoading ? (
         <p className="text-sm text-steel">Собираем аналитику по выбранным папкам...</p>
@@ -279,230 +575,17 @@ export function DashboardPage() {
       ) : null}
 
       {selectedFolderIds.length > 0 && !isLoading && !error ? (
-        <div className="grid gap-4 xl:grid-cols-12">
-          {visibleWidgets.includes("summary_cards") ? (
-            <div className="grid gap-4 md:grid-cols-2 xl:col-span-12 xl:grid-cols-5">
-              {summary.map((item) => (
-                <article
-                  key={item.title}
-                  className="tone-parent rounded-3xl border border-line px-5 py-4 shadow-panel"
-                >
-                  <p className="text-sm font-medium text-steel">{item.title}</p>
-                  <p className="mt-3 text-3xl font-semibold text-ink">{item.value}</p>
-                  <p className="mt-2 text-xs text-steel">{item.hint}</p>
-                </article>
-              ))}
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("my_tasks") && user ? (
-            <div className="xl:col-span-12">
-              <WidgetCard title="Мои задачи">
-                <MyTasksWidget token={token ?? ""} userId={user.id} />
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("status_distribution") ? (
-            <div className="xl:col-span-4">
-              <WidgetCard title="Статусы оборудования">
-                <DonutCard entries={statusEntries} emptyLabel="Нет приборов в папке" />
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("type_distribution") ? (
-            <div className="xl:col-span-4">
-              <WidgetCard title="Категории оборудования">
-                <DonutCard entries={typeEntries} emptyLabel="Нет приборов в папке" />
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("top_locations") ? (
-            <div className="min-h-0 xl:col-span-6">
-              <WidgetCard title="Количество приборов">
-                <div className={DASHBOARD_SCROLL_FRAME_CLASS}>
-                  {topLocations.length ? (
-                    <div className={DASHBOARD_SCROLL_LIST_CLASS}>
-                      {topLocations.map((entry) => (
-                        entry.folderId ? (
-                          <Link
-                            key={entry.label}
-                            className={`${DASHBOARD_SCROLL_ITEM_CLASS} block space-y-2 transition hover:border-signal-info hover:bg-[var(--accent-soft)]/35`}
-                            to={buildEquipmentLocationTarget(entry)}
-                          >
-                            <div className="flex items-center justify-between gap-3 text-sm">
-                              <span className="min-w-0 truncate text-ink">{entry.label}</span>
-                              <span className="shrink-0 text-steel">{entry.value}</span>
-                            </div>
-                            <div className="tone-child h-2 rounded-full border border-line">
-                              <div
-                                className="h-full rounded-full bg-[var(--accent)]"
-                                style={{ width: `${entry.percent}%` }}
-                              />
-                            </div>
-                          </Link>
-                        ) : (
-                          <div key={entry.label} className={`${DASHBOARD_SCROLL_ITEM_CLASS} space-y-2`}>
-                            <div className="flex items-center justify-between gap-3 text-sm">
-                              <span className="min-w-0 truncate text-ink">{entry.label}</span>
-                              <span className="shrink-0 text-steel">{entry.value}</span>
-                            </div>
-                            <div className="tone-child h-2 rounded-full border border-line">
-                              <div
-                                className="h-full rounded-full bg-[var(--accent)]"
-                                style={{ width: `${entry.percent}%` }}
-                              />
-                            </div>
-                          </div>
-                        )
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-steel">Для приборов этой папки еще не указаны местонахождения.</p>
-                  )}
-                </div>
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("verification_expiry") ? (
-            <div className="min-h-0 xl:col-span-6">
-              <WidgetCard title="Ближайшие сроки контроля">
-                <div className={DASHBOARD_SCROLL_FRAME_CLASS}>
-                  {upcomingVerifications.length ? (
-                    <div className={DASHBOARD_SCROLL_LIST_CLASS}>
-                      {upcomingVerifications.map((item) => (
-                        <Link
-                          key={item.id}
-                          className={`${DASHBOARD_SCROLL_ITEM_CLASS} flex items-center justify-between gap-3 transition hover:border-signal-info`}
-                          to={`/equipment/${item.id}`}
-                        >
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-medium text-ink">
-                              {item.name}
-                              {item.modification ? ` · ${item.modification}` : ""}
-                            </p>
-                            <p className="mt-1 text-xs text-steel">
-                              {[item.kindLabel, item.serialNumber ? `зав. № ${item.serialNumber}` : null]
-                                .filter(Boolean)
-                                .join(" · ")}
-                            </p>
-                          </div>
-                          <div className="text-right text-xs text-steel">
-                            <p>{formatDisplayDate(item.validDate)}</p>
-                            <p
-                              className={
-                                item.daysLeft < 0
-                                  ? "mt-1 font-semibold text-[color:var(--danger)]"
-                                  : "mt-1"
-                              }
-                            >
-                              {item.daysLeft < 0 ? "просрочено" : `${item.daysLeft} дн.`}
-                            </p>
-                          </div>
-                        </Link>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-steel">Для приборов этой папки пока нет ближайших сроков контроля.</p>
-                  )}
-                </div>
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("completed_processes") ? (
-            <div className="xl:col-span-6">
-              <WidgetCard title="Завершенные процессы">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {completedProcessEntries.map((entry) => (
-                    <div
-                      key={entry.label}
-                      className="tone-child rounded-2xl border border-line px-4 py-3"
-                    >
-                      <p className="text-xs text-steel">{entry.label}</p>
-                      <p className="mt-2 text-2xl font-semibold text-ink">{entry.value}</p>
-                      <p className="mt-1 text-xs text-steel">{entry.hint}</p>
-                    </div>
-                  ))}
-                </div>
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("average_durations") ? (
-            <div className="xl:col-span-6">
-              <WidgetCard title="Средняя длительность">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {averageDurationEntries.map((entry) => (
-                    <div
-                      key={entry.label}
-                      className="tone-child rounded-2xl border border-line px-4 py-3"
-                    >
-                      <p className="text-xs text-steel">{entry.label}</p>
-                      <p className="mt-2 text-2xl font-semibold text-ink">{entry.value}</p>
-                      <p className="mt-1 text-xs text-steel">{entry.hint}</p>
-                    </div>
-                  ))}
-                </div>
-              </WidgetCard>
-            </div>
-          ) : null}
-
-          {visibleWidgets.includes("recent_events") ? (
-            <div className="xl:col-span-12">
-              <WidgetCard title="Последние события">
-                <div className="space-y-3">
-                  {recentEvents.length ? (
-                    recentEvents.map((item) => (
-                      <Link
-                        key={item.id}
-                        className="tone-child flex items-start justify-between gap-3 rounded-2xl border border-line px-4 py-3 transition hover:border-signal-info"
-                        to={buildEventTarget(item)}
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium text-ink">{item.title}</p>
-                          <p className="mt-1 text-xs text-steel">
-                            {item.equipmentName
-                              ? [
-                                  item.equipmentName,
-                                  item.equipmentModification,
-                                  item.equipmentSerialNumber
-                                    ? `зав. № ${item.equipmentSerialNumber}`
-                                    : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ")
-                              : item.description || "Событие без привязки к прибору"}
-                          </p>
-                        </div>
-                        <div className="shrink-0 text-right text-xs text-steel">
-                          <p>{formatDateTime(item.createdAt)}</p>
-                          <p className="mt-1">{item.userDisplayName}</p>
-                        </div>
-                      </Link>
-                    ))
-                  ) : (
-                    <p className="text-sm text-steel">За последние 30 дней по этой папке событий не было.</p>
-                  )}
-                </div>
-              </WidgetCard>
-            </div>
-          ) : null}
-        </div>
+        <DashboardWidgetGrid
+          dragEnabled={dragEnabled}
+          editing={editing}
+          plan={plan}
+          renderBody={renderWidgetBody}
+          onReorder={handleReorder}
+          onSizeChange={handleSizeChange}
+          onToggleCollapsed={handleToggleCollapsed}
+        />
       ) : null}
     </section>
-  );
-}
-
-function WidgetCard({ title, children }: WidgetCardProps) {
-  return (
-    <article className="tone-parent flex h-full min-h-0 flex-col rounded-3xl border border-line px-5 py-4 shadow-panel">
-      <h2 className="text-base font-semibold text-ink">{title}</h2>
-      <div className="mt-4 min-h-0 flex-1">{children}</div>
-    </article>
   );
 }
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -124,6 +125,8 @@ class AuthService:
             user.dashboard_widget_options = _normalize_dashboard_widget_options(
                 payload.dashboard_widget_options
             )
+        if "dashboard_layout" in payload.model_fields_set:
+            user.dashboard_layout = _normalize_dashboard_layout(payload.dashboard_layout)
         if "mention_email_notifications_enabled" in payload.model_fields_set:
             user.mention_email_notifications_enabled = bool(
                 payload.mention_email_notifications_enabled
@@ -328,6 +331,58 @@ def _normalize_dashboard_widget_options(values: list[str] | None) -> list[str] |
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Хотя бы один виджет информационной панели должен оставаться включенным.",
+        )
+
+    return normalized
+
+
+# The dashboard arrangement is stored per user as an ordered list of entries. The keys and the
+# default widths mirror the frontend catalogue in `frontend/src/lib/dashboard.ts`; keep the two in
+# sync when a widget is added or removed.
+_DASHBOARD_WIDGET_DEFAULT_SIZES: dict[str, str] = {
+    "summary_cards": "full",
+    "my_tasks": "full",
+    "status_distribution": "third",
+    "type_distribution": "third",
+    "top_locations": "half",
+    "verification_expiry": "half",
+    "completed_processes": "half",
+    "average_durations": "half",
+    "recent_events": "full",
+}
+
+_DASHBOARD_WIDGET_SIZES = frozenset({"third", "half", "full"})
+
+
+def _normalize_dashboard_layout(
+    values: list[dict[str, Any]] | None,
+) -> list[dict[str, Any]] | None:
+    """Keep only known widgets, one entry each, with a valid width preset.
+
+    An unreadable width falls back to the widget's default; an unknown widget is dropped. A stored
+    arrangement is never rejected, so an older or newer client can always save its own view.
+    """
+    if values is None:
+        return None
+
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for value in values:
+        if not isinstance(value, dict):
+            continue
+        key = str(value.get("key", "")).strip()
+        if key not in _DASHBOARD_WIDGET_DEFAULT_SIZES or key in seen:
+            continue
+        size = str(value.get("size", "")).strip()
+        if size not in _DASHBOARD_WIDGET_SIZES:
+            size = _DASHBOARD_WIDGET_DEFAULT_SIZES[key]
+        seen.add(key)
+        normalized.append(
+            {
+                "key": key,
+                "size": size,
+                "collapsed": bool(value.get("collapsed", False)),
+            }
         )
 
     return normalized

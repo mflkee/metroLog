@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -30,6 +31,7 @@ class UserRead(BaseModel):
     hidden_equipment_folder_ids: list[int] | None
     folder_order_ids: list[int] | None
     dashboard_widget_options: list[str] | None
+    dashboard_layout: list[dict[str, Any]] | None
     mention_email_notifications_enabled: bool
     theme_preference: UserThemePreference | None
     enabled_theme_options: list[UserThemePreference] | None
@@ -80,6 +82,7 @@ class UserProfileUpdateRequest(BaseModel):
     hidden_equipment_folder_ids: list[int] | None = None
     folder_order_ids: list[int] | None = None
     dashboard_widget_options: list[str] | None = None
+    dashboard_layout: list[dict[str, Any]] | None = None
     mention_email_notifications_enabled: bool | None = None
     theme_preference: UserThemePreference | None = None
     enabled_theme_options: list[UserThemePreference] | None = None

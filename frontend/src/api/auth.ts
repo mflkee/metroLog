@@ -1,10 +1,10 @@
 import { apiRequest } from "@/api/client";
-import type { DashboardWidgetKey } from "@/lib/dashboard";
+import { type DashboardLayoutEntry, type DashboardWidgetKey, normalizeDashboardLayout } from "@/lib/dashboard";
 import type { ThemeName } from "@/store/theme";
 
 export type UserRole = "DEVELOPER" | "ADMINISTRATOR" | "MKAIR" | "CUSTOMER";
 
-type RawUser = {
+export type RawUser = {
   id: number;
   first_name: string;
   last_name: string;
@@ -24,6 +24,7 @@ type RawUser = {
   hidden_equipment_folder_ids: number[] | null;
   folder_order_ids: number[] | null;
   dashboard_widget_options: DashboardWidgetKey[] | null;
+  dashboard_layout: unknown;
   mention_email_notifications_enabled: boolean;
   theme_preference: ThemeName | null;
   enabled_theme_options: ThemeName[] | null;
@@ -60,6 +61,7 @@ export type AuthUser = {
   hiddenEquipmentFolderIds: number[] | null;
   folderOrderIds: number[] | null;
   dashboardWidgets: DashboardWidgetKey[] | null;
+  dashboardLayout: DashboardLayoutEntry[];
   mentionEmailNotificationsEnabled: boolean;
   themePreference: ThemeName | null;
   enabledThemes: ThemeName[] | null;
@@ -101,6 +103,7 @@ export type UpdateProfilePayload = {
   hiddenEquipmentFolderIds?: number[] | null;
   folderOrderIds?: number[] | null;
   dashboardWidgets?: DashboardWidgetKey[] | null;
+  dashboardLayout?: DashboardLayoutEntry[] | null;
   mentionEmailNotificationsEnabled?: boolean;
   themePreference?: ThemeName | null;
   enabledThemes?: ThemeName[] | null;
@@ -153,6 +156,7 @@ export async function updateProfile(
     hidden_equipment_folder_ids: payload.hiddenEquipmentFolderIds,
     folder_order_ids: payload.folderOrderIds,
     dashboard_widget_options: payload.dashboardWidgets,
+    dashboard_layout: payload.dashboardLayout,
     mention_email_notifications_enabled: payload.mentionEmailNotificationsEnabled,
     theme_preference: payload.themePreference,
     enabled_theme_options: payload.enabledThemes,
@@ -220,6 +224,7 @@ export function mapUser(user: RawUser): AuthUser {
     hiddenEquipmentFolderIds: user.hidden_equipment_folder_ids,
     folderOrderIds: user.folder_order_ids,
     dashboardWidgets: user.dashboard_widget_options,
+    dashboardLayout: normalizeDashboardLayout(user.dashboard_layout),
     mentionEmailNotificationsEnabled: user.mention_email_notifications_enabled,
     themePreference: user.theme_preference,
     enabledThemes: user.enabled_theme_options,

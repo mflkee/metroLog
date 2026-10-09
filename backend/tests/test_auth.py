@@ -875,3 +875,50 @@ async def test_folder_order_keeps_only_known_unique_ids(
 
     assert response.status_code == 200, response.text
     assert response.json()["folder_order_ids"] == [folder["id"]]
+
+
+def test_dashboard_layout_keeps_known_widgets_and_valid_sizes() -> None:
+    from app.services.auth_service import _normalize_dashboard_layout
+
+    assert _normalize_dashboard_layout(
+        [
+            {"key": "top_locations", "size": "third", "collapsed": True},
+            {"key": "unknown_widget", "size": "full", "collapsed": False},
+            {"key": "status_distribution", "size": "enormous", "collapsed": False},
+            {"key": "top_locations", "size": "full", "collapsed": False},
+        ]
+    ) == [
+        {"key": "top_locations", "size": "third", "collapsed": True},
+        {"key": "status_distribution", "size": "third", "collapsed": False},
+    ]
+
+    assert _normalize_dashboard_layout([{"key": "unknown_widget"}]) == []
+    assert _normalize_dashboard_layout(None) is None
+
+
+@pytest.mark.anyio
+async def test_dashboard_layout_round_trips_through_the_profile(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    layout = [
+        {"key": "my_tasks", "size": "half", "collapsed": True},
+        {"key": "summary_cards", "size": "full", "collapsed": False},
+    ]
+
+    response = await client.patch(
+        "/api/v1/auth/me",
+        headers=headers,
+        json={"dashboard_layout": layout},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["dashboard_layout"] == layout
+
+    me = await client.get("/api/v1/auth/me", headers=headers)
+    assert me.status_code == 200
+    assert me.json()["dashboard_layout"] == layout

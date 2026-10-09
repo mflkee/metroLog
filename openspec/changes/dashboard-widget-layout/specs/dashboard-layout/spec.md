@@ -34,13 +34,14 @@ every later visit and on another device.
 
 ### Requirement: Default arrangement
 
-The default arrangement SHALL match the layout that existed before this change: the same widget
-order and the same widths.
+The default arrangement SHALL tile the wide grid without leaving an empty gap: a fixed widget order
+in which every row is filled, by full-width modules or by a pair of half-width modules.
 
-#### Scenario: Nothing moves on release
+#### Scenario: A user who never arranged anything
 
-- **WHEN** an existing user who never arranged the dashboard opens it after this change
-- **THEN** every widget keeps the position and the width it had before
+- **WHEN** a user who never arranged the dashboard opens it
+- **THEN** the modules appear in the default order, each with its default width, and the wide grid
+  has no empty gap
 
 ### Requirement: Reordering widgets
 
@@ -71,7 +72,22 @@ wide screens.
 #### Scenario: Default widths
 
 - **WHEN** a user has never changed widths
-- **THEN** each widget uses the width it had before this change
+- **THEN** each widget uses its default width
+
+### Requirement: A dragged widget keeps its own size
+
+While a widget is being dragged, its own width and height SHALL stay unchanged; only its position
+follows the pointer. The same SHALL hold when a folder card is dragged in the equipment list.
+
+#### Scenario: Dragging a narrow widget over a wide one
+
+- **WHEN** the user drags a module over a module of a different width
+- **THEN** the dragged module keeps its own size until it is dropped
+
+#### Scenario: Dragging a short folder card over a tall one
+
+- **WHEN** the user drags a folder card over a taller folder card
+- **THEN** the dragged card keeps its own height until it is dropped
 
 ### Requirement: Collapsing widgets
 

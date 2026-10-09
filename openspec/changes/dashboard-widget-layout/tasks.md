@@ -19,7 +19,7 @@
 ## 4. Frontend: edit mode
 
 - [x] 4.1 Add the dashboard edit mode: a toggle in the header that reveals drag handles, the size control, the collapse control and a reset, with the content non-interactive while editing and normal again on exit; verify with a component test that the controls appear and disappear with the mode.
-- [x] 4.2 Make widgets reorderable in edit mode with `@dnd-kit` (`DndContext` + `SortableContext` + `useSortable`, `KeyboardSensor` registered) and persist the new order through `PATCH /auth/me`, with an optimistic order that survives the refetch and an error message that restores the previous arrangement when the save fails; verify with a test of the reorder logic (the manual keyboard drag is part of the Stage check in 6.2).
+- [x] 4.2 Make widgets reorderable in edit mode with `@dnd-kit` (`DndContext` + `SortableContext` + `useSortable`, `KeyboardSensor` registered) and persist the new order through `PATCH /auth/me`, with an optimistic order that survives the refetch and an error message that restores the previous arrangement when the save fails; verify with a test of the reorder logic (the manual keyboard drag is part of the Stage check in 8.2).
 - [x] 4.3 Wire the size presets, the collapse toggle and the reset action to the same save path, each keeping the rest of the arrangement intact; verify with tests that changing a size, collapsing and resetting each produce the expected stored arrangement.
 - [x] 4.4 Document the feature in `AGENTS.md` (dashboard arrangement, edit mode, the stored column, the default arrangement rule) and in the user guide (`src/content/user-guide.ru.txt`, the dashboard section); verify the wording matches the shipped behaviour and that `npm run build:frontend` still bundles the guide.
 
@@ -28,8 +28,14 @@
 - [x] 5.1 Make the wide-screen-only rules explicit: below the wide breakpoint the widgets stack full width in the chosen order and edit mode offers no dragging; verify with a test that the stacked order follows the arrangement and that drag is not enabled on a narrow viewport.
 - [x] 5.2 Keep the Settings visibility switches as the only place that shows or hides widgets, and make a hidden widget keep its arrangement; verify with a test that switching a widget off and on again restores its saved position, size and collapsed state, and that the Settings wording still describes visibility only.
 
-## 6. Integration
+## 7. Owner feedback round
 
-- [x] 6.1 Run `npm run check` (ruff, pytest, eslint, vitest, frontend build) and confirm it is green.
-- [ ] 6.2 Push to `main`, confirm the CI run and the Stage deploy succeed, then verify on Stage with two accounts: rearrange, resize, collapse and reset as one account, reload, and confirm the other account still sees the default arrangement.
-- [ ] 6.3 Verify on Stage that nothing moved for a user who never edited the dashboard, and that a narrow viewport stacks the widgets in the chosen order without offering dragging.
+- [x] 7.1 A dragged item must keep its own size: use `CSS.Translate` instead of `CSS.Transform` in the dashboard widget cell and in the folder card; verify with a test that the drag style carries no scale (the visual pass is part of the Stage check in 8.2/8.3).
+- [x] 7.2 Give the default arrangement a clean tiling (the two distribution modules become halves, so no row is left with an empty third) in the frontend catalogue and the backend default map; verify with a test that the default spans fill whole rows and that the clamp still lands on the new defaults.
+- [x] 7.3 Reset the owner's Stage arrangement (`makeevgb@mkair.ru`) to the default so the new default is what the next check shows; verify `users.dashboard_layout` is `null` for that account on Stage.
+
+## 8. Integration
+
+- [x] 8.1 Run `npm run check` (ruff, pytest, eslint, vitest, frontend build) and confirm it is green.
+- [ ] 8.2 Push to `main`, confirm the CI run and the Stage deploy succeed, then verify on Stage with two accounts: rearrange, resize, collapse and reset as one account, reload, and confirm the other account still sees the default arrangement.
+- [ ] 8.3 Verify on Stage that nothing moved for a user who never edited the dashboard, and that a narrow viewport stacks the widgets in the chosen order without offering dragging.

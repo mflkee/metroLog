@@ -84,13 +84,16 @@ describe("DashboardWidgetGrid", () => {
     expect(cells.map((cell) => cell.className)).toEqual([
       "xl:col-span-12 min-h-0",
       "xl:col-span-12 min-h-0",
-      "xl:col-span-4 min-h-0",
-      "xl:col-span-4 min-h-0",
+      "xl:col-span-6 min-h-0",
+      "xl:col-span-6 min-h-0",
       "xl:col-span-6 min-h-0",
       "xl:col-span-6 min-h-0",
       "xl:col-span-6 min-h-0",
       "xl:col-span-6 min-h-0",
       "xl:col-span-12 min-h-0",
     ]);
+    // The default tiles the twelve-column grid without leaving a gap.
+    const spans = cells.map((cell) => Number(cell.className.match(/col-span-(\d+)/)?.[1] ?? 0));
+    expect(spans.reduce((sum, span) => sum + span, 0)).toBe(72);
   });
 });

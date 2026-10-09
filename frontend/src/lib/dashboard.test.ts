@@ -75,7 +75,7 @@ describe("normalizeDashboardLayout", () => {
       ]),
     ).toEqual([
       { key: "top_locations", size: "third", collapsed: true },
-      { key: "status_distribution", size: "third", collapsed: true },
+      { key: "status_distribution", size: dashboardWidgetDefaultSizes.status_distribution, collapsed: true },
       ...defaultDashboardWidgetOrder
         .filter((key) => key !== "top_locations" && key !== "status_distribution")
         .map((key) => ({ key, size: dashboardWidgetDefaultSizes[key], collapsed: false })),

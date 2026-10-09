@@ -1,9 +1,9 @@
 import { type ReactNode } from "react";
 
 import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 import { DashboardWidgetShell } from "@/components/dashboard/DashboardWidgetShell";
+import { dragTransformStyle } from "@/lib/dragTransform";
 import type { DashboardWidgetKey, DashboardWidgetSize } from "@/lib/dashboard";
 
 type SortableDashboardWidgetProps = {
@@ -36,7 +36,7 @@ export function SortableDashboardWidget({
     <div
       ref={setNodeRef}
       className={[spanClass, "min-h-0", isDragging ? "z-10 opacity-80" : ""].filter(Boolean).join(" ")}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ ...dragTransformStyle(transform), transition }}
     >
       <DashboardWidgetShell
         {...shellProps}

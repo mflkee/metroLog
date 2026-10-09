@@ -889,7 +889,7 @@ def test_dashboard_layout_keeps_known_widgets_and_valid_sizes() -> None:
         ]
     ) == [
         {"key": "top_locations", "size": "third", "collapsed": True},
-        {"key": "status_distribution", "size": "third", "collapsed": False},
+        {"key": "status_distribution", "size": "half", "collapsed": False},
     ]
 
     assert _normalize_dashboard_layout([{"key": "unknown_widget"}]) == []

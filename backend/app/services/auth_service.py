@@ -342,8 +342,8 @@ def _normalize_dashboard_widget_options(values: list[str] | None) -> list[str] |
 _DASHBOARD_WIDGET_DEFAULT_SIZES: dict[str, str] = {
     "summary_cards": "full",
     "my_tasks": "full",
-    "status_distribution": "third",
-    "type_distribution": "third",
+    "status_distribution": "half",
+    "type_distribution": "half",
     "top_locations": "half",
     "verification_expiry": "half",
     "completed_processes": "half",

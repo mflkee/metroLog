@@ -7,6 +7,7 @@ import { useSiImportExport } from "@/hooks/useSiImportExport";
 import { useFolderActions } from "@/hooks/useFolderActions";
 import { ActiveModal, DeleteTarget, EquipmentFormState, EquipmentSortState, RepairBatchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
 import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
+import { dragTransformStyle } from "@/lib/dragTransform";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
@@ -20,7 +21,6 @@ import {
   type DragEndEvent,
 } from "@dnd-kit/core";
 import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -104,7 +104,7 @@ function SortableFolderCard({
     <button
       ref={setNodeRef}
       className={["folder-list__item", isDragging ? "z-10 opacity-70" : ""].filter(Boolean).join(" ")}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{ ...dragTransformStyle(transform), transition }}
       type="button"
       {...attributes}
       {...listeners}

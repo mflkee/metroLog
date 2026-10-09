@@ -94,8 +94,8 @@ export const defaultDashboardWidgetOrder: DashboardWidgetKey[] = [
 export const dashboardWidgetDefaultSizes: Record<DashboardWidgetKey, DashboardWidgetSize> = {
   summary_cards: "full",
   my_tasks: "full",
-  status_distribution: "third",
-  type_distribution: "third",
+  status_distribution: "half",
+  type_distribution: "half",
   top_locations: "half",
   verification_expiry: "half",
   completed_processes: "half",
@@ -134,7 +134,7 @@ export const dashboardWidgetTitles: Record<DashboardWidgetKey, string> = {
   recent_events: "Последние события",
 };
 
-/** The layout a user sees before they arrange anything: the same order and widths as before. */
+/** The layout a user sees before they arrange anything: a clean full-width tiling of the grid. */
 export const defaultDashboardLayout: DashboardLayoutEntry[] = defaultDashboardWidgetOrder.map((key) => ({
   key,
   size: dashboardWidgetDefaultSizes[key],

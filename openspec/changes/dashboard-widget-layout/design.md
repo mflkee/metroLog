@@ -25,8 +25,7 @@ See `proposal.md` — Why. What shapes the approach:
 
 - One arrangement per user — order, width preset, collapsed state — stored on the server.
 - An explicit edit mode on the dashboard that never interferes with normal reading and clicking.
-- A default arrangement identical to today's layout, so the release is visually a no-op until a
-  user edits.
+- A default arrangement that tiles the wide grid cleanly, so a fresh dashboard has no gap.
 - A stored arrangement that cannot break the page across releases.
 
 **Non-Goals:**
@@ -54,11 +53,30 @@ spec requires (a hidden widget keeps its arrangement).
 ### Three presets mapping to the existing grid
 
 `third` → `xl:col-span-4`, `half` → `xl:col-span-6`, `full` → `xl:col-span-12`. The presets are the
-three widths the page already uses, so the default arrangement is a pure data translation of the
-current JSX.
+three widths the page already uses.
+
+The default widths were adjusted so the grid tiles without a gap: the two distribution modules were
+a third each, which left a third of their row empty, so they became halves. The default is therefore
+`full, full, half+half, half+half, half+half, full` — six full rows of twelve columns. Every user
+without a stored arrangement gets it, and the reset button restores it.
+
+*Alternatives:* keep the original ragged widths. Rejected: the owner asked for a proper default
+distribution, and a gap in the first screen of the dashboard is what a new user sees.
 
 *Alternatives:* drag-resize of the widget edge. Rejected: fiddly on touch, hard to test, and the
 grid is discrete anyway — a continuous width would have to snap to columns to look right.
+
+### Dragging translates, it never scales
+
+Both sortable surfaces (`@dnd-kit/sortable`) use `CSS.Translate.toString(transform)`, not
+`CSS.Transform.toString(transform)`. `rectSortingStrategy` returns `scaleX: newRect.width /
+oldRect.width` (and the same for the height), and `CSS.Transform` applies it, so a dragged item was
+stretched or squeezed to the size of the slot it was heading into: a module changed width while it
+passed a module of another width, and a short folder card grew to the height of a taller one. The
+sorting strategy is still used — the neighbours make room — only the scale is dropped.
+
+*Alternatives:* a custom sorting strategy returning `scaleX/scaleY: 1`. Rejected: it duplicates the
+strategy for no gain, and `CSS.Translate` already says exactly what we want.
 
 ### Edit mode toggled on the dashboard
 
@@ -122,5 +140,5 @@ the existing settings-style error surfacing is reused for a failed save.
 - Additive, nullable Alembic migration `0057` (`users.dashboard_layout`); no backfill — a missing
   value means "default arrangement".
 - Rollback: the older code ignores the column, so a rollback needs no data change and no user sees
-  a broken dashboard. The default arrangement is identical to the pre-change layout, so the feature
-  needs no flag.
+  a broken dashboard. The feature needs no flag: a user without a stored arrangement simply gets the
+  default, and the arrangement is only written when the user edits it.

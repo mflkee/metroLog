@@ -15,8 +15,12 @@ on the layout at all.
 - The arrangement SHALL be stored per user on the server, so it survives a reload and follows the
   user to another device, and it SHALL never affect anybody else.
 - Edit mode SHALL offer a reset that restores the default arrangement.
-- The default arrangement SHALL reproduce the layout that exists today — the same order and the
-  same widths — so nothing moves for a user who never edits it.
+- The default arrangement SHALL be a clean tiling of the wide grid — full-width modules and pairs of
+  half-width modules — so it leaves no empty gap, and it SHALL apply to every user who has not
+  arranged the dashboard.
+- A dragged module SHALL keep its own size while it moves: only its position follows the pointer.
+  The same fix SHALL apply to the folder cards in the equipment list, which grew to the height of
+  the card they passed.
 - Widget visibility SHALL stay in Settings. A widget that is switched off SHALL keep its saved
   position, width and collapsed state, and SHALL return with them when switched back on.
 - Below the wide breakpoint the widgets SHALL stack full width in the chosen order, and drag

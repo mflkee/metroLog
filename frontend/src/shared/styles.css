@@ -2128,6 +2128,16 @@ input[type="number"]::-webkit-inner-spin-button {
     box-shadow 0.18s ease;
 }
 
+.folder-list__placeholder {
+  border-style: dashed;
+  background: color-mix(in srgb, var(--accent-soft) 45%, transparent);
+  box-shadow: none;
+}
+
+.folder-list__item--floating {
+  box-shadow: 0 18px 40px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
 .folder-list__item:hover {
   border-color: var(--accent);
   background: color-mix(in srgb, var(--panel-bg) 88%, var(--accent-soft));

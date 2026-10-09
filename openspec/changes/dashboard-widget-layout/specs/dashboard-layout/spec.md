@@ -74,20 +74,28 @@ wide screens.
 - **WHEN** a user has never changed widths
 - **THEN** each widget uses its default width
 
-### Requirement: A dragged widget keeps its own size
+### Requirement: Dragging rearranges without resizing
 
-While a widget is being dragged, its own width and height SHALL stay unchanged; only its position
-follows the pointer. The same SHALL hold when a folder card is dragged in the equipment list.
+While an item is being dragged, its own width and height SHALL stay unchanged — only its position
+follows the pointer — and the other items SHALL move to make room as the pointer passes them, with
+the place the item will land in shown as an empty dashed slot. This SHALL hold for dashboard widgets
+of different widths and for folder cards of different widths and heights.
 
 #### Scenario: Dragging a narrow widget over a wide one
 
 - **WHEN** the user drags a module over a module of a different width
-- **THEN** the dragged module keeps its own size until it is dropped
+- **THEN** the dragged module keeps its own size, the neighbours move aside, and the landing place
+  is shown as a dashed slot
 
 #### Scenario: Dragging a short folder card over a tall one
 
 - **WHEN** the user drags a folder card over a taller folder card
-- **THEN** the dragged card keeps its own height until it is dropped
+- **THEN** the dragged card keeps its own height and the other cards take the places they will hold
+
+#### Scenario: Dropping an item where it already was
+
+- **WHEN** the user drags an item and drops it in the place it already occupied
+- **THEN** the order stays as it was and the item is not opened by the drop
 
 ### Requirement: Collapsing widgets
 

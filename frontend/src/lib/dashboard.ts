@@ -182,23 +182,6 @@ export function normalizeDashboardLayout(values: unknown): DashboardLayoutEntry[
   return entries;
 }
 
-/** Move a widget to another widget's position, keeping everything else in order. */
-export function reorderDashboardLayout(
-  entries: DashboardLayoutEntry[],
-  activeKey: DashboardWidgetKey,
-  overKey: DashboardWidgetKey,
-): DashboardLayoutEntry[] {
-  const from = entries.findIndex((entry) => entry.key === activeKey);
-  const to = entries.findIndex((entry) => entry.key === overKey);
-  if (from < 0 || to < 0 || from === to) {
-    return entries;
-  }
-  const next = [...entries];
-  const [moved] = next.splice(from, 1);
-  next.splice(to, 0, moved);
-  return next;
-}
-
 /** Apply a width or collapsed change to one widget, leaving the rest of the arrangement intact. */
 export function updateDashboardWidget(
   entries: DashboardLayoutEntry[],
@@ -239,6 +222,22 @@ export function buildDashboardPlan(
 /** Dragging is offered only while editing and only where the multi-column grid exists. */
 export function isDashboardDragEnabled(editing: boolean, isWideScreen: boolean): boolean {
   return editing && isWideScreen;
+}
+
+/**
+ * Puts the visible widgets into the given order inside the full arrangement. A hidden widget keeps
+ * its own slot, so switching it back on returns it to the place it had.
+ */
+export function applyVisibleOrder(
+  layout: DashboardLayoutEntry[],
+  visibleOrder: DashboardWidgetKey[],
+): DashboardLayoutEntry[] {
+  const visible = new Set(visibleOrder);
+  const queue = visibleOrder.flatMap(
+    (key) => layout.find((entry) => entry.key === key) ?? [],
+  );
+  let index = 0;
+  return layout.map((entry) => (visible.has(entry.key) ? (queue[index++] ?? entry) : entry));
 }
 
 export function getDashboardFolderIds(

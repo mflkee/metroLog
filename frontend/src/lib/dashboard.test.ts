@@ -1,4 +1,5 @@
 import {
+  applyVisibleOrder,
   buildDashboardPlan,
   dashboardSummaryColumnsClass,
   dashboardWidgetDefaultSizes,
@@ -8,7 +9,6 @@ import {
   isDashboardDragEnabled,
   isDatePast,
   normalizeDashboardLayout,
-  reorderDashboardLayout,
   updateDashboardWidget,
 } from "@/lib/dashboard";
 
@@ -98,24 +98,6 @@ describe("normalizeDashboardLayout", () => {
   });
 });
 
-describe("reorderDashboardLayout", () => {
-  it("moves a widget to another widget's position", () => {
-    const reordered = reorderDashboardLayout(defaultDashboardLayout, "recent_events", "summary_cards");
-
-    expect(reordered.map((entry) => entry.key).slice(0, 2)).toEqual(["recent_events", "summary_cards"]);
-    expect(reordered).toHaveLength(defaultDashboardLayout.length);
-  });
-
-  it("keeps the arrangement when the move cannot be resolved", () => {
-    expect(reorderDashboardLayout(defaultDashboardLayout, "summary_cards", "summary_cards")).toBe(
-      defaultDashboardLayout,
-    );
-    expect(
-      reorderDashboardLayout(defaultDashboardLayout, "summary_cards", "not_a_widget" as never),
-    ).toBe(defaultDashboardLayout);
-  });
-});
-
 describe("updateDashboardWidget", () => {
   it("changes only the addressed widget", () => {
     const resized = updateDashboardWidget(defaultDashboardLayout, "top_locations", { size: "full" });
@@ -175,5 +157,34 @@ describe("dashboardSummaryColumnsClass", () => {
     expect(dashboardSummaryColumnsClass.half).toContain("sm:grid-cols-2");
     expect(dashboardSummaryColumnsClass.half).not.toContain("xl:grid-cols-5");
     expect(dashboardSummaryColumnsClass.full).toContain("xl:grid-cols-5");
+  });
+});
+
+describe("applyVisibleOrder", () => {
+  it("reorders the visible widgets and leaves a hidden one in its own slot", () => {
+    const layout = defaultDashboardLayout;
+    const reordered = applyVisibleOrder(layout, [
+      "recent_events",
+      "summary_cards",
+      "top_locations",
+    ]);
+
+    // The visible widgets take the slots the visible widgets had, in the new order; every hidden
+    // widget keeps its own slot.
+    expect(reordered.map((entry) => entry.key)).toEqual([
+      "recent_events",
+      "my_tasks",
+      "status_distribution",
+      "type_distribution",
+      "summary_cards",
+      "verification_expiry",
+      "completed_processes",
+      "average_durations",
+      "top_locations",
+    ]);
+    // A widget that was not in the visible order keeps its arrangement untouched.
+    expect(reordered.find((entry) => entry.key === "my_tasks")).toEqual(
+      layout.find((entry) => entry.key === "my_tasks"),
+    );
   });
 });

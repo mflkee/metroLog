@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   DndContext,
@@ -86,7 +86,13 @@ function TaskCard({ task }: { task: TaskListItem }) {
   );
 }
 
-function DraggableTaskCard({ task }: { task: TaskListItem }) {
+function DraggableTaskCard({
+  task,
+  shouldSuppressClick,
+}: {
+  task: TaskListItem;
+  shouldSuppressClick: (taskId: number) => boolean;
+}) {
   // Dragging changes the status, so it stays disabled on cards the API marks read-only.
   const { attributes, isDragging, listeners, setNodeRef, transform } = useDraggable({
     id: task.id,
@@ -103,6 +109,13 @@ function DraggableTaskCard({ task }: { task: TaskListItem }) {
       style={style}
       {...attributes}
       {...listeners}
+      onClickCapture={(event) => {
+        // Dropping a card must not also open it: the click that follows a drag is swallowed.
+        if (shouldSuppressClick(task.id)) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+      }}
     >
       <Link className="block" draggable={false} to={`/tasks/${task.id}`}>
         <TaskCard task={task} />
@@ -114,11 +127,13 @@ function DraggableTaskCard({ task }: { task: TaskListItem }) {
 function BoardColumn({
   count,
   dragging,
+  shouldSuppressClick,
   status,
   tasks,
 }: {
   count: number;
   dragging: boolean;
+  shouldSuppressClick: (taskId: number) => boolean;
   status: TaskStatus;
   tasks: TaskListItem[];
 }) {
@@ -138,7 +153,7 @@ function BoardColumn({
       </StatusBadge>
       <div className="space-y-2 px-1">
         {tasks.map((task) => (
-          <DraggableTaskCard key={task.id} task={task} />
+          <DraggableTaskCard key={task.id} task={task} shouldSuppressClick={shouldSuppressClick} />
         ))}
         {isOver && dragging ? (
           <div className="h-24 rounded-2xl border border-dashed border-line" aria-hidden="true" />
@@ -162,6 +177,7 @@ export function TasksPage() {
   const [query, setQuery] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState<number | null>(null);
+  const justDraggedTaskRef = useRef<number | null>(null);
   const [optimisticStatus, setOptimisticStatus] = useState<Record<number, TaskStatus>>({});
 
   const foldersQuery = useQuery({
@@ -246,6 +262,7 @@ export function TasksPage() {
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    justDraggedTaskRef.current = Number(event.active.id);
     setActiveTaskId(null);
     const drop = resolveBoardDrop(event.active.id, event.over?.id, tasks);
     if (!drop) {
@@ -253,6 +270,20 @@ export function TasksPage() {
     }
     setOptimisticStatus((current) => ({ ...current, [drop.id]: drop.status }));
     statusMutation.mutate(drop);
+  }
+
+  function handleDragCancel() {
+    justDraggedTaskRef.current = activeTaskId;
+    setActiveTaskId(null);
+  }
+
+  /** True once, for the card that was just dragged: a drop must not also open it. */
+  function shouldSuppressTaskClick(taskId: number): boolean {
+    if (justDraggedTaskRef.current !== taskId) {
+      return false;
+    }
+    justDraggedTaskRef.current = null;
+    return true;
   }
 
   function toggleStatus(status: TaskStatus) {
@@ -366,7 +397,7 @@ export function TasksPage() {
         <DndContext
           collisionDetection={closestCorners}
           sensors={sensors}
-          onDragCancel={() => setActiveTaskId(null)}
+          onDragCancel={handleDragCancel}
           onDragEnd={handleDragEnd}
           onDragStart={handleDragStart}
         >
@@ -378,6 +409,7 @@ export function TasksPage() {
                   count={columnTasks.length}
                   dragging={activeTaskId !== null}
                   key={status}
+                  shouldSuppressClick={shouldSuppressTaskClick}
                   status={status}
                   tasks={columnTasks}
                 />

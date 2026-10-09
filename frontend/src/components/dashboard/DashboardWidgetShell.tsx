@@ -28,6 +28,8 @@ type DashboardWidgetShellProps = {
   dragHandle?: DashboardWidgetDragHandle;
   onSizeChange?: (size: DashboardWidgetSize) => void;
   onToggleCollapsed: () => void;
+  /** Arrow keys move the module, so it can be arranged without a pointer. */
+  onHandleKeyDown?: (event: React.KeyboardEvent<HTMLElement>) => void;
   children: ReactNode;
 };
 
@@ -44,6 +46,7 @@ export function DashboardWidgetShell({
   dragHandle,
   onSizeChange,
   onToggleCollapsed,
+  onHandleKeyDown,
   children,
 }: DashboardWidgetShellProps) {
   return (
@@ -58,6 +61,7 @@ export function DashboardWidgetShell({
               type="button"
               {...dragHandle?.attributes}
               {...dragHandle?.listeners}
+              onKeyDown={onHandleKeyDown}
             >
               <svg
                 aria-hidden="true"

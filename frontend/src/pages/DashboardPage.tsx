@@ -24,6 +24,7 @@ import { MyTasksWidget } from "@/components/MyTasksWidget";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { useIsWideScreen } from "@/hooks/useIsWideScreen";
 import {
+  applyVisibleOrder,
   buildDashboardPlan,
   dashboardSummaryColumnsClass,
   defaultDashboardLayout,
@@ -34,7 +35,6 @@ import {
   isDatePast,
   normalizeDashboardLayout,
   normalizeDashboardWidgets,
-  reorderDashboardLayout,
   type DashboardLayoutEntry,
   type DashboardWidgetKey,
   type DashboardWidgetSize,
@@ -110,14 +110,21 @@ export function DashboardPage() {
     layoutMutation.mutate(next);
   }
 
-  const dragEnabled = isDashboardDragEnabled(editing, isWideScreen);
-
-  function handleReorder(activeKey: DashboardWidgetKey, overKey: DashboardWidgetKey) {
-    const next = reorderDashboardLayout(layout, activeKey, overKey);
-    if (next !== layout) {
-      commitLayout(next);
-    }
+  /** Live arrangement while a module is dragged: rendered at once, saved only on drop. */
+  function previewLayout(next: DashboardLayoutEntry[]) {
+    setLayout(next);
+    setLayoutError(null);
   }
+
+  function handleReorderLive(order: DashboardWidgetKey[]) {
+    previewLayout(applyVisibleOrder(layout, order));
+  }
+
+  function handleReorderCommit() {
+    commitLayout(layout);
+  }
+
+  const dragEnabled = isDashboardDragEnabled(editing, isWideScreen);
 
   function handleSizeChange(key: DashboardWidgetKey, size: DashboardWidgetSize) {
     commitLayout(updateDashboardWidget(layout, key, { size }));
@@ -580,7 +587,8 @@ export function DashboardPage() {
           editing={editing}
           plan={plan}
           renderBody={renderWidgetBody}
-          onReorder={handleReorder}
+          onReorderCommit={handleReorderCommit}
+          onReorderLive={handleReorderLive}
           onSizeChange={handleSizeChange}
           onToggleCollapsed={handleToggleCollapsed}
         />

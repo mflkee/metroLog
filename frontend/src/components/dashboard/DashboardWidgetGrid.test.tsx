@@ -27,7 +27,8 @@ describe("DashboardWidgetGrid", () => {
         editing={false}
         plan={PLAN}
         renderBody={(key) => <p>{`тело ${key}`}</p>}
-        onReorder={NOOP}
+        onReorderLive={NOOP}
+        onReorderCommit={NOOP}
         onSizeChange={NOOP}
         onToggleCollapsed={NOOP}
       />,
@@ -35,9 +36,9 @@ describe("DashboardWidgetGrid", () => {
 
     const cells = Array.from(container.querySelectorAll<HTMLDivElement>(".grid > div"));
     expect(cells.map((cell) => cell.className)).toEqual([
-      "xl:col-span-6 min-h-0",
-      "xl:col-span-12 min-h-0",
-      "xl:col-span-4 min-h-0",
+      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-12 min-h-0 transition-transform duration-200",
+      "xl:col-span-4 min-h-0 transition-transform duration-200",
     ]);
     expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
       "Ближайшие сроки контроля",
@@ -56,7 +57,8 @@ describe("DashboardWidgetGrid", () => {
         editing
         plan={PLAN}
         renderBody={(key) => <p>{`тело ${key}`}</p>}
-        onReorder={NOOP}
+        onReorderLive={NOOP}
+        onReorderCommit={NOOP}
         onSizeChange={NOOP}
         onToggleCollapsed={NOOP}
       />,
@@ -74,7 +76,8 @@ describe("DashboardWidgetGrid", () => {
         editing={false}
         plan={buildDashboardPlan(defaultDashboardLayout, defaultDashboardWidgetOrder)}
         renderBody={(key) => <p>{`тело ${key}`}</p>}
-        onReorder={NOOP}
+        onReorderLive={NOOP}
+        onReorderCommit={NOOP}
         onSizeChange={NOOP}
         onToggleCollapsed={NOOP}
       />,
@@ -82,15 +85,15 @@ describe("DashboardWidgetGrid", () => {
 
     const cells = Array.from(container.querySelectorAll<HTMLDivElement>(".grid > div"));
     expect(cells.map((cell) => cell.className)).toEqual([
-      "xl:col-span-12 min-h-0",
-      "xl:col-span-12 min-h-0",
-      "xl:col-span-6 min-h-0",
-      "xl:col-span-6 min-h-0",
-      "xl:col-span-6 min-h-0",
-      "xl:col-span-6 min-h-0",
-      "xl:col-span-6 min-h-0",
-      "xl:col-span-6 min-h-0",
-      "xl:col-span-12 min-h-0",
+      "xl:col-span-12 min-h-0 transition-transform duration-200",
+      "xl:col-span-12 min-h-0 transition-transform duration-200",
+      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-12 min-h-0 transition-transform duration-200",
     ]);
     // The default tiles the twelve-column grid without leaving a gap.
     const spans = cells.map((cell) => Number(cell.className.match(/col-span-(\d+)/)?.[1] ?? 0));

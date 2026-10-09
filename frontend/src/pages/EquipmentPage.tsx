@@ -7,20 +7,19 @@ import { useSiImportExport } from "@/hooks/useSiImportExport";
 import { useFolderActions } from "@/hooks/useFolderActions";
 import { ActiveModal, DeleteTarget, EquipmentFormState, EquipmentSortState, RepairBatchFormState, VerificationBatchFormState, complianceIntervalOptions, defaultEquipmentForm, defaultFolderForm, defaultRepairBatchForm, defaultSIImportForm, defaultSISearchForm, defaultVerificationBatchForm, equipmentPageSize, equipmentStatusOptions, equipmentTypeOptions, extractArshinResultCertificateNumber, formatRefreshWindow, getFolderRefreshRowStatusLabel, getFolderRefreshRowTargetLabel, getFolderRefreshStatusBadgeClass, getFolderRefreshTaskStatusLabel, getInitialSortDirection, getMutationErrorMessage, getOnSiteProcessRouteValue, getPreferredDeadlinePresetId, getVerificationStartDateLabel, isVerificationFlowOnSite, mapEquipmentFormToPayload, subtleButtonClass, subtleButtonWithIconClass } from "@/lib/equipmentRegistry";
 import { EquipmentRow, SortableTableHeader } from "@/components/equipment-registry/EquipmentTable";
-import { dragTransformStyle } from "@/lib/dragTransform";
+import { useDragReorder } from "@/lib/useDragReorder";
 import { type ChangeEvent, type FormEvent, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import {
   DndContext,
-  KeyboardSensor,
+  DragOverlay,
   PointerSensor,
   closestCenter,
+  useDraggable,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from "@dnd-kit/core";
-import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -80,36 +79,19 @@ import { insertEmojiAtCursor } from "@/lib/textarea";
 import { useAuthStore } from "@/store/auth";
 import { useFolderRefreshStore } from "@/store/folderRefresh";
 
-function SortableFolderCard({
+function FolderCardBody({
   canManage,
-  disabled,
   folder,
   onDelete,
   onEdit,
-  onSelect,
 }: {
   canManage: boolean;
-  disabled: boolean;
   folder: EquipmentFolder;
   onDelete: (folder: EquipmentFolder) => void;
   onEdit: (folder: EquipmentFolder) => void;
-  onSelect: (folderId: number) => void;
 }) {
-  const { attributes, isDragging, listeners, setNodeRef, transform, transition } = useSortable({
-    id: folder.id,
-    disabled,
-  });
-
   return (
-    <button
-      ref={setNodeRef}
-      className={["folder-list__item", isDragging ? "z-10 opacity-70" : ""].filter(Boolean).join(" ")}
-      style={{ ...dragTransformStyle(transform), transition }}
-      type="button"
-      {...attributes}
-      {...listeners}
-      onClick={() => onSelect(folder.id)}
-    >
+    <>
       <div className="folder-list__content">
         <div className="folder-list__title">{folder.name}</div>
         <p className="folder-list__description">
@@ -146,6 +128,88 @@ function SortableFolderCard({
           />
         </div>
       ) : null}
+    </>
+  );
+}
+
+function FolderCard({
+  canManage,
+  disabled,
+  dragging,
+  placeholderSize,
+  folder,
+  onDelete,
+  onEdit,
+  onMoveBy,
+  onSelect,
+  onSuppressClick,
+}: {
+  canManage: boolean;
+  disabled: boolean;
+  dragging: boolean;
+  placeholderSize: { width: number; height: number } | null;
+  folder: EquipmentFolder;
+  onDelete: (folder: EquipmentFolder) => void;
+  onEdit: (folder: EquipmentFolder) => void;
+  onMoveBy: (folderId: number, delta: number) => void;
+  onSelect: (folderId: number) => void;
+  onSuppressClick: (folderId: number) => boolean;
+}) {
+  const { attributes, listeners, setNodeRef } = useDraggable({ id: folder.id, disabled });
+
+  if (dragging) {
+    // The card that is being dragged keeps its slot as a dashed placeholder of the same size, and
+    // the copy that follows the pointer is drawn by the overlay.
+    return (
+      <div
+        ref={setNodeRef}
+        className="folder-list__item folder-list__placeholder"
+        data-drag-key={folder.id}
+        data-flip-key={folder.id}
+        style={placeholderSize ?? undefined}
+      />
+    );
+  }
+
+  return (
+    <button
+      ref={setNodeRef}
+      className="folder-list__item"
+      data-drag-key={folder.id}
+      data-flip-key={folder.id}
+      type="button"
+      {...attributes}
+      {...listeners}
+      onClick={() => {
+        // A drop must not also open the folder.
+        if (onSuppressClick(folder.id)) {
+          return;
+        }
+        onSelect(folder.id);
+      }}
+      onKeyDown={(event) => {
+        if (!event.altKey) {
+          return;
+        }
+        const delta =
+          event.key === "ArrowDown" || event.key === "ArrowRight"
+            ? 1
+            : event.key === "ArrowUp" || event.key === "ArrowLeft"
+              ? -1
+              : 0;
+        if (!delta) {
+          return;
+        }
+        event.preventDefault();
+        onMoveBy(folder.id, delta);
+      }}
+    >
+      <FolderCardBody
+        canManage={canManage}
+        folder={folder}
+        onDelete={onDelete}
+        onEdit={onEdit}
+      />
     </button>
   );
 }
@@ -911,29 +975,35 @@ export function EquipmentPage() {
     }
     return ordered;
   }, [filteredFolders, orderedFolderIds]);
+  const folderListRef = useRef<HTMLDivElement>(null);
   const folderSensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(KeyboardSensor),
   );
   const reorderFoldersMutation = useMutation({
     mutationFn: (folderIds: number[]) => updateProfile(token ?? "", { folderOrderIds: folderIds }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["equipment-folders"] }),
   });
 
-  function handleFolderDragEnd(event: DragEndEvent) {
-    const { active, over } = event;
-    if (!over || active.id === over.id || folderReorderDisabled) {
-      return;
-    }
-    const from = orderedFolderIds.indexOf(Number(active.id));
-    const to = orderedFolderIds.indexOf(Number(over.id));
-    if (from < 0 || to < 0) {
-      return;
-    }
-    const next = arrayMove(orderedFolderIds, from, to);
-    setFolderOrderOverride({ ids: next, stamp: foldersQuery.dataUpdatedAt });
-    reorderFoldersMutation.mutate(next);
-  }
+  // The order changes in the list while the user drags, so the cards make room for real; it is
+  // saved once, on drop. The positions used to decide the new place are measured when the drag
+  // starts, which keeps the answer stable while the cards move underneath the pointer.
+  const folderDrag = useDragReorder<number>({
+    order: orderedFolderIds,
+    containerRef: folderListRef,
+    onChange: (next) =>
+      setFolderOrderOverride({ ids: next, stamp: foldersQuery.dataUpdatedAt }),
+    onCommit: (next) => reorderFoldersMutation.mutate(next),
+  });
+  const draggedFolder =
+    folderDrag.activeKey === null
+      ? null
+      : orderedFolders.find((folder) => folder.id === folderDrag.activeKey) ?? null;
+  const draggedFolderSize = folderDrag.activeRect
+    ? {
+        width: Math.round(folderDrag.activeRect.right - folderDrag.activeRect.left),
+        height: Math.round(folderDrag.activeRect.bottom - folderDrag.activeRect.top),
+      }
+    : null;
   const isSiCreateFlow =
     activeModal?.kind === "equipment" &&
     activeModal.mode === "create" &&
@@ -1620,31 +1690,48 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           {filteredFolders.length > 0 ? (
             <DndContext
               collisionDetection={closestCenter}
-              onDragEnd={handleFolderDragEnd}
+              onDragCancel={folderDrag.handleDragCancel}
+              onDragEnd={folderDrag.handleDragEnd}
+              onDragMove={folderDrag.handleDragMove}
+              onDragStart={folderDrag.handleDragStart}
               sensors={folderSensors}
             >
-              <SortableContext items={orderedFolderIds} strategy={rectSortingStrategy}>
-                <div className="folder-list">
-                  {orderedFolders.map((folder) => (
-                    <SortableFolderCard
-                      key={folder.id}
+              <div className="folder-list" ref={folderListRef}>
+                {orderedFolders.map((folder) => (
+                  <FolderCard
+                    key={folder.id}
+                    canManage={canManage}
+                    disabled={folderReorderDisabled}
+                    dragging={folder.id === folderDrag.activeKey}
+                    folder={folder}
+                    placeholderSize={draggedFolderSize}
+                    onDelete={(target) =>
+                      setDeleteTarget({
+                        kind: "folder",
+                        id: target.id,
+                        title: "Удалить папку",
+                        message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
+                      })
+                    }
+                    onEdit={openEditFolderModal}
+                    onMoveBy={folderDrag.moveKeyBy}
+                    onSelect={setFolderSelection}
+                    onSuppressClick={folderDrag.shouldSuppressClick}
+                  />
+                ))}
+              </div>
+              <DragOverlay dropAnimation={null}>
+                {draggedFolder ? (
+                  <div className="folder-list__item folder-list__item--floating">
+                    <FolderCardBody
                       canManage={canManage}
-                      disabled={folderReorderDisabled}
-                      folder={folder}
-                      onDelete={(target) =>
-                        setDeleteTarget({
-                          kind: "folder",
-                          id: target.id,
-                          title: "Удалить папку",
-                          message: "Удалить эту папку? Все приборы внутри нее тоже будут удалены.",
-                        })
-                      }
-                      onEdit={openEditFolderModal}
-                      onSelect={setFolderSelection}
+                      folder={draggedFolder}
+                      onDelete={() => undefined}
+                      onEdit={() => undefined}
                     />
-                  ))}
-                </div>
-              </SortableContext>
+                  </div>
+                ) : null}
+              </DragOverlay>
             </DndContext>
           ) : null}
         </section>

@@ -25,6 +25,10 @@ renamable, reorderable and removable while the task is not terminal.
 - **WHEN** a participant removes a checklist item
 - **THEN** the item is deleted and the remaining order is preserved
 
+#### Scenario: Observer may not touch the checklist
+- **WHEN** an observer who is neither the author, an operator nor a RESPONSIBLE/ASSIGNEE participant adds, renames, reorders or completes an item
+- **THEN** the system responds with 403 and the checklist is unchanged
+
 ### Requirement: Checklist progress
 
 The system SHALL expose checklist progress as completed-count over total-count.

@@ -65,9 +65,11 @@ SHALL retain association with the live equipment record.
 ### Requirement: Task participants and roles
 
 A task SHALL have exactly one responsible participant, any number of assignees,
-and any number of observers. Participants SHALL be existing active users. The
-responsible participant and assignees SHALL be able to change the task; the
-author and administrators SHALL be able to change participants.
+and any number of observers. Participants SHALL be existing active users.
+Operators (`MKAIR` and above), the task author and the participants holding the
+`RESPONSIBLE` or `ASSIGNEE` role SHALL be able to change the task, including its
+participants, links and checklist. Observers SHALL NOT change any of it; reading,
+commenting, attaching files and subscribing stay available to them.
 
 #### Scenario: Assign a responsible and assignees
 - **WHEN** a user sets one responsible participant and two assignees on a task
@@ -81,12 +83,17 @@ author and administrators SHALL be able to change participants.
 - **WHEN** an observer who is neither the author, an operator, nor an administrator attempts to change the task status
 - **THEN** the system responds with 403 and the status is unchanged
 
+#### Scenario: Reads carry the caller's permission
+- **WHEN** a user reads a task they may change, or the task list entry for it
+- **THEN** the payload reports `can_mutate: true`, and it reports `can_mutate: false` for an observer who is neither the author nor an operator, so screens can hide the controls instead of letting a click fail
+
 ### Requirement: Task status lifecycle
 
 A task SHALL have a status of `NEW`, `IN_PROGRESS`, `ON_HOLD`, `DONE`,
 `CANCELLED` or `ARCHIVED`. Moving to `DONE` or `CANCELLED` SHALL require the
-task to be otherwise valid and SHALL record a completion timestamp. Any
-participant or operator SHALL be able to change the status.
+task to be otherwise valid and SHALL record a completion timestamp. Operators,
+the task author and the `RESPONSIBLE`/`ASSIGNEE` participants SHALL be able to
+change the status; observers SHALL NOT.
 
 #### Scenario: Start and finish a task
 - **WHEN** an assignee moves a task from `NEW` to `IN_PROGRESS` and later to `DONE`
@@ -105,6 +112,10 @@ an optional due date.
 #### Scenario: Priority defaults
 - **WHEN** a user creates a task without specifying priority
 - **THEN** the task priority is `NORMAL`
+
+#### Scenario: Due date on creation
+- **WHEN** a user creates a task and supplies a due date
+- **THEN** the task is stored with that due date, and it can be changed or cleared later in the task card
 
 #### Scenario: Filtering by due date
 - **WHEN** a user filters tasks by an overdue due date

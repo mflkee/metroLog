@@ -65,18 +65,24 @@
 
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  --bg-layer-1: #9ca3af;
-  --bg-layer-2: #7b8390;
-  --bg-glow: rgba(55, 65, 81, 0.16);
-  --text-primary: #111827;
-  --text-muted: #374151;
-  --placeholder-color: color-mix(in srgb, var(--text-muted) 78%, transparent);
-  --border-color: #6b7280;
-  --panel-bg: #c6ccd4;
-  --panel-ghost: rgba(198, 204, 212, 0.9);
-  --panel-hover: #b5bcc6;
-  --accent: #1f2937;
-  --accent-soft: rgba(31, 41, 55, 0.1);
+  /*
+   * The light theme is a light canvas with white cards, not grey on grey: the old page (#9ca3af)
+   * and panel (#c6ccd4) sat at a contrast of 1.57, so cards did not separate from the page and the
+   * input (#aab2bd) was *darker* than the panel it sat on — the fields read as holes. The accent is
+   * a colour now, so active navigation, focus and links read as interactive instead of as text.
+   */
+  --bg-layer-1: #eef1f5;
+  --bg-layer-2: #dfe5ec;
+  --bg-glow: rgba(37, 99, 235, 0.07);
+  --text-primary: #0f172a;
+  --text-muted: #4b5563;
+  --placeholder-color: color-mix(in srgb, var(--text-muted) 62%, transparent);
+  --border-color: #d7dce3;
+  --panel-bg: #ffffff;
+  --panel-ghost: rgba(255, 255, 255, 0.9);
+  --panel-hover: #f1f4f8;
+  --accent: #2563eb;
+  --accent-soft: rgba(37, 99, 235, 0.1);
   --success: #29493d;
   /*
    * These three are read as text (priority labels, «просрочено», links), so they have to clear
@@ -87,10 +93,12 @@
   --info: #2f5079;
   --button-primary-bg: #111827;
   --button-primary-text: #ffffff;
-  --input-bg: #aab2bd;
+  --input-bg: #ffffff;
   --switch-track: color-mix(in oklab, var(--text-muted) 45%, transparent);
   --switch-thumb: oklch(1 0 0);
-  --panel-shadow-value: 0 18px 44px rgba(31, 41, 55, 0.16);
+  --panel-shadow-value:
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 10px 30px rgba(16, 24, 40, 0.08);
   --control-height: 40px;
   --control-height-sm: 34px;
   /* The top bar is deliberately compact: its own controls are shorter than the page ones. */
@@ -126,7 +134,7 @@
   --status-archived: #68707c;
   --chart-repaired: #2f7d46;
   --chart-not-repairable: #a03a34;
-  --timeline-progress: #2f5f96;
+  --timeline-progress: #2563eb;
   --timeline-current-outline: var(--panel-bg);
   color-scheme: light;
   background: var(--bg-layer-1);

@@ -85,3 +85,9 @@ on.
 
 - **WHEN** a status colour is used for text (a priority label, «просрочено»)
 - **THEN** it has a contrast ratio of at least 4.5 against the surface behind it
+
+#### Scenario: Surfaces on the light theme
+
+- **WHEN** a card or a field is shown on the light theme
+- **THEN** it is lighter than the page behind it and reads as a surface of its own, rather than the
+  page, the cards and the fields all being shades of the same grey

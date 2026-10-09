@@ -44,6 +44,6 @@
 ## 9. Integration
 
 - [x] 9.1 Run `npm run check` (ruff, pytest, eslint, vitest, frontend build) and confirm it is green.
-- [ ] 9.2 Push to `main`, confirm the CI run and the Stage deploy succeed, and verify the deployed bundle carries the new drag engine (no sorting strategy, the live reorder helper).
+- [x] 9.2 Push to `main`, confirm the CI run and the Stage deploy succeed, and verify the deployed bundle carries the new drag engine (no sorting strategy, the live reorder helper).
 - [ ] 9.3 Owner check on Stage with two accounts: rearrange, resize, collapse and reset as one account, reload, and confirm the other account still sees the default arrangement (and that a dragged module keeps its own width).
 - [ ] 9.4 Owner check on Stage: nothing moved for a user who never edited the dashboard, and a narrow viewport stacks the widgets in the chosen order without offering dragging.

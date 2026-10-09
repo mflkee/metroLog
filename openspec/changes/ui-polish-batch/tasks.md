@@ -39,3 +39,10 @@
 - [x] 7.1 Every displayed date is `dd.mm.yyyy`: added `src/lib/dates.ts` (`formatDateRu`, `formatDateTimeRu`, ISO date-only read as a calendar date so the day never shifts), fixed the developer dashboard (`dateStyle: medium` showed `8 окт. 2026 г.`), formatted the ESI monitoring verification window (it printed raw ISO) and replaced the task due-date native picker with the app's `DateInput`. The remaining screens already formatted through `Intl` with `2-digit` parts.
 - [ ] 7.2 Verify on Stage that no screen shows an ISO date: equipment card and registry, repairs, verifications, tasks, events, dashboard, developer dashboard, ESI monitoring.
 
+
+## 8. Compact shell (owner request)
+
+- [x] 8.1 One account control: drop the standalone `Выйти` button and show `Аккаунт` at every width, so signing out is reachable from the account menu only (`AccountMenu.tsx`).
+- [x] 8.2 Version and channel as part of the wordmark: `AppVersionBadge` is plain text on the wordmark's baseline (no chip, no border, `beta` without a background), and the top bar lays out as three parts with the Arshin status centred (`Topbar.tsx`).
+- [x] 8.3 Slim the shell: the top bar's own controls are `--control-height-topbar` (30px) with `py-1.5` padding (~58px → ~42px tall), and the collapsed rail is 78px → 68px with matching paddings (`AppShell.tsx`, `Sidebar.tsx`, `styles.css`).
+- [ ] 8.4 Verify on Stage that the bar and the rail look right in both themes, that the wordmark reads `metroLog vX.Y.Z beta`, that the Arshin status is centred and that signing out works from the account menu.

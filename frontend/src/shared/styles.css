@@ -89,6 +89,8 @@
   --panel-shadow-value: 0 18px 44px rgba(31, 41, 55, 0.16);
   --control-height: 40px;
   --control-height-sm: 34px;
+  /* The top bar is deliberately compact: its own controls are shorter than the page ones. */
+  --control-height-topbar: 30px;
   --control-padding-x: 14px;
   --control-padding-x-sm: 12px;
   --radius-input: 10px;
@@ -1805,6 +1807,19 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .shell-topbar {
   background: var(--surface-1);
+}
+
+/* Compact controls in the top bar: the bar is as short as the layout allows. */
+.shell-topbar .btn-sm {
+  min-height: var(--control-height-topbar);
+  height: var(--control-height-topbar);
+}
+
+.shell-topbar .mobile-nav-toggle {
+  height: var(--control-height-topbar);
+  width: var(--control-height-topbar);
+  min-height: var(--control-height-topbar);
+  min-width: var(--control-height-topbar);
 }
 
 .shell-status-banner {

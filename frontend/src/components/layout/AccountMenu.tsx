@@ -28,28 +28,16 @@ export function AccountMenu() {
           Профиль
         </Link>
         {user ? (
+          // Logout lives in this menu, so the top bar needs no separate «Выйти» button.
           <button
-            className="btn-danger btn-sm hidden shrink-0 xl:inline-flex"
-            type="button"
-            onClick={() => setLogoutConfirmOpen(true)}
-          >
-            Выйти
-          </button>
-        ) : (
-          <Link className="btn-primary btn-sm hidden shrink-0 xl:inline-flex" to="/login">
-            Войти
-          </Link>
-        )}
-        {user ? (
-          <button
-            className="btn-secondary btn-sm shrink-0 xl:hidden"
+            className="btn-secondary btn-sm shrink-0"
             type="button"
             onClick={() => setMobileAccountOpen(true)}
           >
             Аккаунт
           </button>
         ) : (
-          <Link className="btn-primary btn-sm shrink-0 xl:hidden" to="/login">
+          <Link className="btn-primary btn-sm shrink-0" to="/login">
             Войти
           </Link>
         )}

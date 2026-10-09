@@ -25,7 +25,7 @@ export function Sidebar({
       <aside
         className={[
           "sidebar-shell hidden lg:sticky lg:top-0 lg:block lg:self-start lg:h-screen lg:overflow-y-auto lg:py-5 lg:backdrop-blur-sm lg:transition-[padding] lg:duration-300",
-          collapsed ? "lg:px-2" : "lg:px-4",
+          collapsed ? "lg:px-1.5" : "lg:px-4",
         ].join(" ")}
       >
         <SidebarContent
@@ -148,7 +148,7 @@ function NavItem({
       className={({ isActive }) =>
         [
           "sidebar-nav-item block rounded-2xl border transition",
-          collapsed ? "px-2.5 py-3 lg:px-2" : "px-4 py-3",
+          collapsed ? "px-2.5 py-3 lg:px-1.5" : "px-4 py-3",
           isActive
             ? "sidebar-nav-item--active border-signal-info text-ink"
             : "border-transparent bg-transparent text-steel hover:border-line",

@@ -38,3 +38,22 @@ SHALL remain a checkbox or a selection list, never a switch.
 #### Scenario: Selecting rows
 - **WHEN** the user selects several rows in a table
 - **THEN** the selection is made with checkboxes, not switches
+
+### Requirement: Compact application shell
+
+The application shell SHALL stay compact: the top bar SHALL carry one account control (a menu that
+contains signing out) instead of a separate sign-out button, the product version and release channel
+SHALL read as part of the wordmark rather than as chips of their own, the Arshin status SHALL sit in
+the middle of the bar, and the collapsed navigation rail SHALL be narrow while every control stays
+legible and reachable.
+
+#### Scenario: The top bar
+
+- **WHEN** an authenticated user looks at the top bar
+- **THEN** the wordmark carries the version and the channel on its own line, the Arshin status is
+  centred, and the only account control is the account menu, which offers signing out
+
+#### Scenario: The collapsed rail
+
+- **WHEN** the user collapses the navigation
+- **THEN** the rail is narrower than before and the icons stay centred and clickable

@@ -5,21 +5,25 @@ type AppVersionBadgeProps = {
   onClick?: () => void;
 };
 
+/**
+ * The version and the release channel, set next to the wordmark and on its baseline rather than in
+ * a chip of their own.
+ */
 export function AppVersionBadge({ className, onClick }: AppVersionBadgeProps) {
   return (
     <button
       className={[
-        "inline-flex h-7 shrink-0 items-center gap-1.5 rounded-full border border-line px-3 text-[10px] font-semibold uppercase tracking-[0.12em] text-steel",
-        onClick ? "transition hover:border-signal-info" : "",
+        "shrink-0 whitespace-nowrap text-[10px] font-semibold tracking-[0.08em] text-steel",
+        onClick ? "transition hover:text-ink" : "",
         className ?? "",
       ].join(" ")}
       onClick={onClick}
       title={`metroLog ${APP_VERSION} (${APP_STAGE}) — что нового`}
       type="button"
     >
-      <span className="whitespace-nowrap normal-case">v{APP_VERSION}</span>
+      <span className="whitespace-nowrap">v{APP_VERSION}</span>
       <span
-        className="rounded-full bg-[var(--accent-soft)] px-1.5 py-0.5 text-[9px] leading-none text-ink"
+        className="ml-1.5 text-[9px] uppercase tracking-[0.16em] text-steel/70"
         data-testid="app-stage"
       >
         {APP_STAGE}

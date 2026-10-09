@@ -68,9 +68,9 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
         };
 
   return (
-    <header className="shell-topbar z-20 border-b border-line px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-2.5 lg:sticky lg:top-0 lg:px-8 lg:py-3">
-      <div className="flex min-w-0 items-center justify-between gap-2 sm:gap-4">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+    <header className="shell-topbar z-20 border-b border-line px-3 py-1.5 backdrop-blur-sm sm:px-4 lg:sticky lg:top-0 lg:px-6">
+      <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
           <button
             aria-expanded={mobileNavigationOpen}
             aria-label={mobileNavigationOpen ? "Закрыть навигацию" : "Открыть навигацию"}
@@ -88,28 +88,30 @@ export function Topbar({ mobileNavigationOpen, onToggleMobileNavigation }: Topba
               </svg>
             )}
           </button>
-          <Link className="shrink-0 text-sm font-semibold text-ink sm:text-base" to="/dashboard">
-            metroLog
-          </Link>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex min-w-0 items-baseline gap-1.5">
+            <Link className="shrink-0 text-sm font-semibold text-ink sm:text-base" to="/dashboard">
+              metroLog
+            </Link>
             <AppVersionBadge onClick={() => setWhatsNewOpen(true)} />
-            <div
-              aria-label={arshinStatusIndicator.title}
-              className={[
-                "hidden shrink-0 items-center gap-2 text-xs font-medium sm:inline-flex",
-                arshinStatusIndicator.toneClassName,
-              ].join(" ")}
-              title={arshinStatusIndicator.title}
-            >
-              <span
-                aria-hidden="true"
-                className={["h-2 w-2 rounded-full", arshinStatusIndicator.dotClassName].join(" ")}
-              />
-              <span className="whitespace-nowrap">Аршин</span>
-            </div>
           </div>
         </div>
-        <AccountMenu />
+        <div
+          aria-label={arshinStatusIndicator.title}
+          className={[
+            "hidden shrink-0 items-center gap-2 text-xs font-medium sm:inline-flex",
+            arshinStatusIndicator.toneClassName,
+          ].join(" ")}
+          title={arshinStatusIndicator.title}
+        >
+          <span
+            aria-hidden="true"
+            className={["h-2 w-2 rounded-full", arshinStatusIndicator.dotClassName].join(" ")}
+          />
+          <span className="whitespace-nowrap">Аршин</span>
+        </div>
+        <div className="flex min-w-0 flex-1 justify-end">
+          <AccountMenu />
+        </div>
       </div>
       {mustChangePassword ? (
         <div className="shell-status-banner mt-2 rounded-2xl border border-signal-info px-4 py-2.5 text-sm text-ink">

@@ -66,21 +66,31 @@
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
   /*
-   * The light theme is a light canvas with white cards, not grey on grey: the old page (#9ca3af)
-   * and panel (#c6ccd4) sat at a contrast of 1.57, so cards did not separate from the page and the
-   * input (#aab2bd) was *darker* than the panel it sat on — the fields read as holes. The accent is
-   * a colour now, so active navigation, focus and links read as interactive instead of as text.
+   * The light theme follows the surface ladder of the systems that get this right: a light canvas
+   * with white cards (shadcn's default light theme uses the same colour for both) and *two* border
+   * strengths, the way Radix Colors splits them — step 6 for cards and separators, steps 7–8 for the
+   * border of an interactive control, deliberately darker so a field or a button reads as something
+   * you can use.
+   *
+   * The previous grey theme put the page (#9ca3af) and the panel (#c6ccd4) at a contrast of 1.57 and
+   * made the input (#aab2bd) *darker* than the panel it sat on, so nothing separated and the fields
+   * looked like holes. The first white version then used a single faint border for everything, which
+   * left the dense screens (tasks) with no visible structure at all.
    */
-  --bg-layer-1: #eef1f5;
-  --bg-layer-2: #dfe5ec;
-  --bg-glow: rgba(37, 99, 235, 0.07);
-  --text-primary: #0f172a;
-  --text-muted: #4b5563;
+  --bg-layer-1: #eef1f6;
+  --bg-layer-2: #e3e9f0;
+  --bg-glow: transparent;
+  --text-primary: #1f2328;
+  --text-muted: #5b6673;
   --placeholder-color: color-mix(in srgb, var(--text-muted) 62%, transparent);
-  --border-color: #d7dce3;
+  /* Cards are drawn by their border alone in this app, so it has to be visible on white and on
+     the canvas — the old grey theme sat at 1.9 there and the first white version dropped to 1.29. */
+  --border-color: #bfc9d4;
+  /* Radix steps 7–8: the border of an interactive control, clearly darker than a card's. */
+  --border-strong: #a3aeba;
   --panel-bg: #ffffff;
   --panel-ghost: rgba(255, 255, 255, 0.9);
-  --panel-hover: #f1f4f8;
+  --panel-hover: #e5ebf3;
   --accent: #2563eb;
   --accent-soft: rgba(37, 99, 235, 0.1);
   --success: #29493d;
@@ -149,6 +159,7 @@
   --text-muted: oklch(0.708 0 0);
   --placeholder-color: color-mix(in oklab, var(--text-muted) 45%, transparent);
   --border-color: oklch(1 0 0 / 10%);
+  --border-strong: var(--border-color);
   --panel-bg: oklch(0.205 0 0);
   --panel-ghost: color-mix(in oklab, var(--panel-bg) 92%, transparent);
   --panel-hover: oklch(0.269 0 0);
@@ -193,6 +204,7 @@
   --text-primary: #c0caf5;
   --text-muted: #9aa5ce;
   --border-color: #414868;
+  --border-strong: var(--border-color);
   --panel-bg: #24283b;
   --panel-ghost: rgba(36, 40, 59, 0.9);
   --panel-hover: #2f354d;
@@ -229,6 +241,7 @@
   --text-muted: #a6adc8;
   --placeholder-color: color-mix(in srgb, var(--text-muted) 38%, var(--input-bg));
   --border-color: #45475a;
+  --border-strong: var(--border-color);
   --panel-bg: #313244;
   --panel-ghost: rgba(49, 50, 68, 0.9);
   --panel-hover: #3a3d52;
@@ -265,6 +278,7 @@
   --text-muted: #a6a69c;
   --placeholder-color: color-mix(in srgb, var(--text-muted) 42%, var(--input-bg));
   --border-color: #54546d;
+  --border-strong: var(--border-color);
   --panel-bg: #2a2a37;
   --panel-ghost: rgba(42, 42, 55, 0.92);
   --panel-hover: #313244;
@@ -301,6 +315,7 @@
   --text-muted: #d8dee9;
   --placeholder-color: color-mix(in srgb, var(--text-muted) 34%, var(--input-bg));
   --border-color: #4c566a;
+  --border-strong: var(--border-color);
   --panel-bg: #3b4252;
   --panel-ghost: rgba(59, 66, 82, 0.92);
   --panel-hover: #434c5e;
@@ -337,6 +352,7 @@
   --text-muted: #bdc0cc;
   --placeholder-color: color-mix(in srgb, var(--text-muted) 34%, var(--input-bg));
   --border-color: #44475a;
+  --border-strong: var(--border-color);
   --panel-bg: #303341;
   --panel-ghost: rgba(48, 51, 65, 0.92);
   --panel-hover: #383b4a;
@@ -373,6 +389,7 @@
   --text-muted: #bdae93;
   --placeholder-color: color-mix(in srgb, var(--text-muted) 40%, var(--input-bg));
   --border-color: #665c54;
+  --border-strong: var(--border-color);
   --panel-bg: #32302f;
   --panel-ghost: rgba(50, 48, 47, 0.92);
   --panel-hover: #3c3836;
@@ -409,6 +426,7 @@
   --text-muted: #9e9e9e;
   --placeholder-color: color-mix(in srgb, var(--text-muted) 36%, var(--input-bg));
   --border-color: #323437;
+  --border-strong: var(--border-color);
   --panel-bg: #171717;
   --panel-ghost: rgba(23, 23, 23, 0.92);
   --panel-hover: #1f1f1f;
@@ -488,7 +506,7 @@ body {
   display: block;
   width: 100%;
   margin-top: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-input);
   background: var(--input-bg);
   min-height: var(--control-height);
@@ -532,7 +550,7 @@ textarea.form-input {
   justify-content: space-between;
   gap: 8px;
   margin-top: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-input);
   background: var(--input-bg);
   min-height: var(--control-height);
@@ -576,7 +594,7 @@ textarea.form-input {
   /* The wheel must scroll this list, not chain to the page behind it. */
   overscroll-behavior: contain;
   max-height: 384px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-xl);
   background: color-mix(in srgb, var(--tone-child-bg) 96%, transparent);
   box-shadow: var(--panel-shadow-value);
@@ -636,7 +654,7 @@ textarea.form-input {
   height: var(--control-height);
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-input);
   background: color-mix(in srgb, var(--tone-child-bg) 92%, transparent);
   color: var(--text-secondary);
@@ -710,7 +728,7 @@ textarea.form-input {
   /* Radix modal dialogs set `pointer-events: none` on the body, and this popover is a body child. */
   pointer-events: auto;
   min-width: 272px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-2xl);
   background: color-mix(in srgb, var(--tone-child-bg) 94%, transparent);
   box-shadow: var(--panel-shadow-value);
@@ -751,7 +769,7 @@ textarea.form-input {
   width: 28px;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--tone-grandchild-bg) 86%, transparent);
   color: var(--text-primary);
@@ -916,7 +934,7 @@ input[type="number"]::-webkit-inner-spin-button {
   gap: 8px;
   min-height: var(--control-height);
   border-radius: var(--radius-input);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   padding: 0 var(--control-padding-x);
   font: inherit;
   font-size: 0.875rem;
@@ -1012,7 +1030,7 @@ input[type="number"]::-webkit-inner-spin-button {
   min-height: var(--control-height);
   align-items: center;
   gap: 8px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-input);
   background: color-mix(in srgb, var(--tone-child-bg) 92%, transparent);
   padding: 0 var(--control-padding-x);
@@ -1051,7 +1069,7 @@ input[type="number"]::-webkit-inner-spin-button {
   flex: 1 1 320px;
   align-items: center;
   gap: 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-input);
   background: var(--tone-child-bg);
   padding: 0 var(--control-padding-x);
@@ -1390,7 +1408,7 @@ input[type="number"]::-webkit-inner-spin-button {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-input);
   background: var(--panel-bg);
   color: var(--text-primary);
@@ -1438,7 +1456,7 @@ input[type="number"]::-webkit-inner-spin-button {
   align-items: center;
   justify-content: center;
   padding: 0;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-input);
   background: var(--surface-1);
   color: var(--text-muted);
@@ -1706,7 +1724,7 @@ input[type="number"]::-webkit-inner-spin-button {
   min-height: var(--control-height);
   align-items: center;
   gap: 0.625rem;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--surface-1);
   padding: 0 1rem;
@@ -1919,7 +1937,7 @@ input[type="number"]::-webkit-inner-spin-button {
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-lg);
   background: var(--surface-1);
   color: var(--text-primary);
@@ -2253,7 +2271,7 @@ input[type="number"]::-webkit-inner-spin-button {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: 999px;
   background: var(--panel-bg);
   color: var(--text-primary);
@@ -2297,7 +2315,7 @@ input[type="number"]::-webkit-inner-spin-button {
   top: calc(100% + 8px);
   z-index: 20;
   min-width: 220px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-strong);
   border-radius: 20px;
   background: color-mix(in srgb, var(--panel-bg) 96%, transparent);
   box-shadow: var(--panel-shadow-value);

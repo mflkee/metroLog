@@ -549,7 +549,12 @@ textarea.form-input {
   display: flex;
   width: 100%;
   min-width: 0;
-  align-items: stretch;
+  /*
+   * `flex-end`, not `stretch`: the field carries `.form-input`'s 8px top margin while the
+   * «Сегодня» button does not, so stretching pinned the button 8px above the field. Aligning the
+   * bottom edges keeps them level whatever the field's margin turns out to be.
+   */
+  align-items: flex-end;
   gap: 6px;
 }
 

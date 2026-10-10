@@ -43,6 +43,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { buildMentionSuggestionOptions } from "@/lib/autocomplete";
 import { resolveBoardDrop } from "@/lib/taskBoard";
+import { formatTaskDate, taskPriorityTone } from "@/lib/taskTable";
 import { hasOperatorAccess } from "@/lib/roles";
 import { applySubsetOrder } from "@/lib/sortableOrder";
 import { useDragReorder } from "@/lib/useDragReorder";
@@ -52,34 +53,19 @@ import { useAuthStore } from "@/store/auth";
 
 const BOARD_STATUSES: TaskStatus[] = ["NEW", "IN_PROGRESS", "ON_HOLD", "DONE", "CANCELLED"];
 
-const PRIORITY_TONE: Record<TaskPriority, string> = {
-  LOW: "text-steel",
-  NORMAL: "text-ink",
-  HIGH: "text-[color:var(--warning)]",
-  CRITICAL: "text-[color:var(--danger)]",
-};
-
-function formatDate(value: string | null): string {
-  if (!value) {
-    return "без срока";
-  }
-  const [year, month, day] = value.slice(0, 10).split("-");
-  return `${day}.${month}.${year}`;
-}
-
 function TaskCard({ task }: { task: TaskListItem }) {
   return (
     <div className="w-full cursor-pointer rounded-2xl border border-line p-3 text-left transition hover:bg-[var(--accent-soft)]/40">
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-ink">{task.title}</span>
-        <span className={`shrink-0 text-[11px] font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
+        <span className={`shrink-0 text-[11px] font-semibold uppercase ${taskPriorityTone[task.priority]}`}>
           {TASK_PRIORITY_LABELS[task.priority]}
         </span>
       </div>
       <p className="mt-1 text-xs text-steel">{task.folderName ?? "Без папки"}</p>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-steel">
         <span className={task.isOverdue ? "text-[color:var(--danger)]" : ""}>
-          Срок: {formatDate(task.dueDate)}
+          Срок: {formatTaskDate(task.dueDate)}
         </span>
         {task.responsibleDisplayName ? <span>Отв.: {task.responsibleDisplayName}</span> : null}
         {task.equipmentCount > 0 ? <span>Приборов: {task.equipmentCount}</span> : null}
@@ -588,12 +574,12 @@ export function TasksPage() {
                       {TASK_STATUS_LABELS[task.status]}
                     </StatusBadge>
                   </td>
-                  <td className={`px-3 py-2 ${PRIORITY_TONE[task.priority]}`}>
+                  <td className={`px-3 py-2 ${taskPriorityTone[task.priority]}`}>
                     {TASK_PRIORITY_LABELS[task.priority]}
                   </td>
                   <td className="px-3 py-2 text-steel">{task.responsibleDisplayName ?? "—"}</td>
                   <td className={`px-3 py-2 ${task.isOverdue ? "text-[color:var(--danger)]" : "text-steel"}`}>
-                    {formatDate(task.dueDate)}
+                    {formatTaskDate(task.dueDate)}
                   </td>
                   <td className="px-3 py-2 text-steel">{task.equipmentCount}</td>
                 </tr>

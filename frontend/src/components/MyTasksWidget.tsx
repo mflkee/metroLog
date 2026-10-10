@@ -6,30 +6,24 @@ import {
   TASK_STATUS_LABELS,
   fetchTasks,
   type TaskListItem,
-  type TaskPriority,
 } from "@/api/tasks";
+import { StatusBadge } from "@/components/ui/status-badge";
 import {
   dashboardWidgetRowLimit,
   isCondensedWidget,
   type DashboardWidgetSize,
 } from "@/lib/dashboard";
+import {
+  TASK_TABLE_COLUMNS,
+  TASK_TABLE_ROW_CLASS,
+  formatTaskDate,
+  taskPriorityTone,
+  taskTableCellClass,
+  taskTableHeaderClass,
+} from "@/lib/taskTable";
+import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
 
 const TERMINAL_STATUSES = new Set(["DONE", "CANCELLED", "ARCHIVED"]);
-
-const PRIORITY_TONE: Record<TaskPriority, string> = {
-  LOW: "text-steel",
-  NORMAL: "text-ink",
-  HIGH: "text-[color:var(--warning)]",
-  CRITICAL: "text-[color:var(--danger)]",
-};
-
-function formatDate(value: string | null): string {
-  if (!value) {
-    return "без срока";
-  }
-  const [year, month, day] = value.slice(0, 10).split("-");
-  return `${day}.${month}.${year}`;
-}
 
 type MyTasksWidgetProps = {
   token: string;
@@ -66,9 +60,55 @@ export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
     return <p className="text-sm text-steel">Активных задач, где ты ответственный или исполнитель, нет.</p>;
   }
 
-  // A third-wide module keeps the identity of the task and the one fact that matters (the deadline);
-  // a half adds the priority and the folder, and only a full-width module has room for the people,
-  // the checklist and the equipment.
+  // Full width is a table: one row per task, the columns filling the width, so nothing is left empty
+  // in the middle and the module is *shorter* than the cards while showing more (see `taskTable.ts`).
+  if (size === "full") {
+    return (
+      <div className="max-h-[20rem] overflow-y-auto">
+        <ul>
+          <li
+            className={[
+              TASK_TABLE_ROW_CLASS,
+              "border-b border-line px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-steel",
+            ].join(" ")}
+          >
+            {TASK_TABLE_COLUMNS.map((column) => (
+              <span className={taskTableHeaderClass(column)} key={column.key}>
+                {column.label}
+              </span>
+            ))}
+          </li>
+          {items.map((task) => (
+            <li className="border-b border-line last:border-b-0" key={task.id}>
+              <Link
+                className={[
+                  TASK_TABLE_ROW_CLASS,
+                  "px-2 py-2 transition hover:bg-[var(--accent-soft)]/40",
+                ].join(" ")}
+                title={task.title}
+                to={`/tasks/${task.id}`}
+              >
+                {TASK_TABLE_COLUMNS.map((column) => (
+                  <span className={taskTableCellClass(column, task)} key={column.key}>
+                    {column.key === "status" ? (
+                      <StatusBadge tone={TASK_STATUS_TONES[task.status]}>
+                        {column.value(task)}
+                      </StatusBadge>
+                    ) : (
+                      column.value(task)
+                    )}
+                  </span>
+                ))}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+  }
+
+  // A third keeps the identity of the task and the one fact that matters (the deadline); a half adds
+  // the priority and the folder.
   const condensed = isCondensedWidget(size);
 
   return (
@@ -83,27 +123,13 @@ export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
               <span className="block truncate font-medium text-ink">{task.title}</span>
               {condensed ? null : (
                 <span className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-steel">
-                  <span className={`font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
+                  <span className={`font-semibold uppercase ${taskPriorityTone[task.priority]}`}>
                     {TASK_PRIORITY_LABELS[task.priority]}
                   </span>
                   <span aria-hidden="true">·</span>
                   <span className="min-w-0 truncate">{task.folderName ?? "Без папки"}</span>
                 </span>
               )}
-              {size === "full" ? (
-                <span className="mt-1 block text-xs text-steel">
-                  {[
-                    task.responsibleDisplayName ? `Отв.: ${task.responsibleDisplayName}` : null,
-                    task.assigneeCount > 0 ? `исполнителей: ${task.assigneeCount}` : null,
-                    task.checklistTotal > 0
-                      ? `чек-лист ${task.checklistDone}/${task.checklistTotal}`
-                      : null,
-                    task.equipmentCount > 0 ? `приборов: ${task.equipmentCount}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </span>
-              ) : null}
             </span>
             <span className="shrink-0 text-right text-xs text-steel">
               <span className="block">{TASK_STATUS_LABELS[task.status]}</span>
@@ -114,7 +140,7 @@ export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
                     : "mt-1 block"
                 }
               >
-                {formatDate(task.dueDate)}
+                {formatTaskDate(task.dueDate)}
               </span>
             </span>
           </Link>

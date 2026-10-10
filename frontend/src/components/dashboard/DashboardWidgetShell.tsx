@@ -130,7 +130,10 @@ export function DashboardWidgetShell({
 
       {collapsed ? null : (
         <div
-          className={["mt-4 min-h-0 flex-1", editing ? "pointer-events-none select-none" : ""]
+          className={[
+            "mt-4 min-h-0 flex-1 @container",
+            editing ? "pointer-events-none select-none" : "",
+          ]
             .filter(Boolean)
             .join(" ")}
           data-testid="dashboard-widget-body"

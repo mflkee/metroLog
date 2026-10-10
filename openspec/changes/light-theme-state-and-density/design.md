@@ -80,7 +80,23 @@ Density ladder used by the list modules (tasks is the model):
 |---|---|---|---|
 | `third` | title, status, due date | one line of meta | one column |
 | `half` | + priority, folder | + the next field (serial/user/kind) | two columns |
-| `full` | + responsible, participants, checklist, equipment | + the remaining fields, more rows | two columns |
+| `full` | the task table (see below) | + the remaining fields, more rows | two columns |
+
+**A full-width tasks module is a table, not a card.** A card at twelve columns leaves its middle
+empty — the title on the left, the deadline on the right, nothing between them — and is three lines
+tall. The module reuses the table the task list page already renders: the same seven columns in the
+same order, and the same `StatusBadge` for the status. That is both *fuller* (the width is used) and
+*more compact* (one row per task instead of three lines), which is exactly the pair the owner asked
+for. The columns appear as the **module** widens, measured with a container query — the module body
+is a `@container` and the steps are `@xl` (36rem) and `@5xl` (64rem) — because a viewport breakpoint
+would read a full-width module on a narrow screen as wide.
+
+**Tailwind reads the source text, so the table classes are literal.** A `grid-cols-[…]` template or
+a `hidden @xl:block` assembled at runtime is never seen by the scanner and no CSS is emitted for it
+(verified: without the literals there is no `@container (min-width:…)` in the bundle at all). The row
+template and the per-column visibility are therefore two halves of one contract, written twice by
+hand. `taskTable.test.ts` compares them — the track count at each step must equal the number of
+columns visible at that step — and the build is checked to emit the container rules.
 
 ## Risks / Trade-offs
 

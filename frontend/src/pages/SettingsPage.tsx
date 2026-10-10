@@ -19,6 +19,7 @@ import {
   type VerificationStageTemplates,
 } from "@/api/equipment";
 import { Icon } from "@/components/Icon";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
 import { PageHeader } from "@/components/layout/PageHeader";
@@ -124,6 +125,7 @@ export function SettingsPage() {
   const [presetFeedback, setPresetFeedback] = useState<string | null>(null);
   const [presetError, setPresetError] = useState<string | null>(null);
   const [presetModal, setPresetModal] = useState<PresetModalState>(null);
+  const [presetToDelete, setPresetToDelete] = useState<DeadlinePreset | null>(null);
   const [presetForm, setPresetForm] = useState<DeadlinePresetFormState>(() =>
     createEmptyDeadlinePresetFormState(),
   );
@@ -582,25 +584,31 @@ export function SettingsPage() {
     }
   }
 
-  async function handleDeletePreset(preset: DeadlinePreset) {
+  function handleDeletePreset(preset: DeadlinePreset) {
     if (!token) {
       setPresetError("Сессия неактивна. Войди заново.");
       return;
     }
-    const confirmed = window.confirm(`Удалить пресет «${preset.name}»?`);
-    if (!confirmed) {
-      return;
-    }
     setPresetError(null);
     setPresetFeedback(null);
-    try {
-      await deletePresetMutation.mutateAsync(preset.id);
-      setPresetFeedback(`Пресет «${preset.name}» удалён.`);
-    } catch (submitError) {
-      setPresetError(
-        submitError instanceof Error ? submitError.message : "Не удалось удалить пресет.",
-      );
+    setPresetToDelete(preset);
+  }
+
+  /*
+   * The API refuses to delete a system preset and a preset a folder still selects, so the refusal
+   * is shown inside the dialog that asked the question - not on the section's error line behind it.
+   */
+  function confirmDeletePreset() {
+    if (!presetToDelete) {
+      return;
     }
+    const preset = presetToDelete;
+    deletePresetMutation.mutate(preset.id, {
+      onSuccess: () => {
+        setPresetFeedback(`Пресет «${preset.name}» удалён.`);
+        setPresetToDelete(null);
+      },
+    });
   }
 
   const selectedDashboardFolderNames = useMemo(
@@ -1065,6 +1073,32 @@ export function SettingsPage() {
           {presetError ? <p className="text-sm text-[#b04c43]">{presetError}</p> : null}
         </form>
       </Modal>
+
+      <DeleteConfirmModal
+        confirmLabel="Удалить пресет"
+        description={
+          presetToDelete
+            ? `Пресет «${presetToDelete.name}» будет удалён. Если его выбрала папка, сначала назначь папке другой пресет.`
+            : undefined
+        }
+        errorMessage={
+          deletePresetMutation.isError
+            ? deletePresetMutation.error instanceof Error
+              ? deletePresetMutation.error.message
+              : "Не удалось удалить пресет."
+            : null
+        }
+        isOpen={presetToDelete !== null}
+        isPending={deletePresetMutation.isPending}
+        title="Удалить пресет?"
+        onClose={() => {
+          if (deletePresetMutation.isPending) {
+            return;
+          }
+          setPresetToDelete(null);
+        }}
+        onConfirm={confirmDeletePreset}
+      />
     </section>
   );
 }

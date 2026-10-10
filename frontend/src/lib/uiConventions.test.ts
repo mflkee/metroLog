@@ -101,3 +101,20 @@ describe("the theme catalogue is curated and dark-only", () => {
     expect(STYLES).toContain("color-scheme: dark");
   });
 });
+
+/*
+ * The app draws its own dialogs: a browser dialog cannot carry our theme, our wording or a pending
+ * state, and on some platforms the OS draws it. `beforeunload` is the one deliberate exception —
+ * the browser owns the unsaved-edit warning — so this guard looks only at the three dialog calls.
+ */
+describe("the app draws its own dialogs", () => {
+  it("never calls a browser confirm, alert or prompt", () => {
+    const browserDialog =
+      /(?<![\w.$])(?:window|globalThis)\.(?:confirm|alert|prompt)\s*\(|(?<![\w.$])(?:confirm|alert|prompt)\s*\(/;
+    const offenders = SOURCE_FILES.filter(([, source]) => browserDialog.test(source)).map(
+      ([file]) => file,
+    );
+
+    expect(offenders).toEqual([]);
+  });
+});

@@ -34,6 +34,7 @@ import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { Select } from "@/components/ui/select";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { DateInput } from "@/components/DateInput";
+import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
@@ -99,6 +100,7 @@ export function TaskDetailsPage() {
   const [attachmentFiles, setAttachmentFiles] = useState<File[]>([]);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
 
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const messageFilesInputRef = useRef<HTMLInputElement | null>(null);
@@ -240,9 +242,12 @@ export function TaskDetailsPage() {
     onError: (error) => reportError("Не удалось изменить подписку.", error),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-subscription", taskId] }),
   });
+  /*
+   * The failure belongs to the confirmation dialog, which stays open above the page: reporting it
+   * on the page's own error line would put it behind the dialog the user is looking at.
+   */
   const deleteMutation = useMutation({
     mutationFn: () => deleteTask(token, taskId),
-    onError: (error) => reportError("Не удалось удалить задачу.", error),
     onSuccess: () => navigate("/tasks"),
   });
 
@@ -330,11 +335,7 @@ export function TaskDetailsPage() {
             {canMutate ? (
               <button
                 className="btn-danger btn-sm"
-                onClick={() => {
-                  if (window.confirm("Удалить задачу?")) {
-                    deleteMutation.mutate();
-                  }
-                }}
+                onClick={() => setDeleteConfirmOpen(true)}
                 type="button"
               >
                 Удалить
@@ -740,6 +741,27 @@ export function TaskDetailsPage() {
           }}
         />
       ) : null}
+      <DeleteConfirmModal
+        confirmLabel="Удалить задачу"
+        description="Задача, её пункты чек-листа, сообщения и вложения будут удалены безвозвратно."
+        errorMessage={
+          deleteMutation.isError
+            ? deleteMutation.error instanceof Error
+              ? deleteMutation.error.message
+              : "Не удалось удалить задачу."
+            : null
+        }
+        isOpen={deleteConfirmOpen}
+        isPending={deleteMutation.isPending}
+        title="Удалить задачу?"
+        onClose={() => {
+          if (deleteMutation.isPending) {
+            return;
+          }
+          setDeleteConfirmOpen(false);
+        }}
+        onConfirm={() => void deleteMutation.mutateAsync()}
+      />
     </section>
   );
 }

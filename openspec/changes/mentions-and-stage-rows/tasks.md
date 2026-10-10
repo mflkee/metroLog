@@ -14,9 +14,12 @@
 - [x] 2.2 Remove the «Статус» caption from the same four rows, and let the verification status read as primary text (`text-sm text-ink`) with the deadline as its small note.
 - [x] 2.3 Drop the padding that only compensated for the caption height on the actions cell (`xl:pt-5` / `md:pt-5`), so the whole row aligns at the top.
 - [x] 2.4 Keep the «Дедлайн» caption of the repair rows and the captions of the read-only archive row: the owner named «Дата» and «Статус», and two bare dates in a row would be ambiguous. Left for the owner to confirm on Stage.
+- [x] 2.5 Colour the status of every stage row by its tone: `getProcessStageTone` (done / waiting / late) and `PROCESS_STAGE_TONE_CLASS` in `src/lib/processStages.ts`, used by the four expanded-card rows and by the read-only archive row of a repair. Unit-tested for the three tones, for lateness with and without a date, and for each class coming from a theme token.
+- [x] 2.6 Replace the hardcoded `#b04c43` of the status and overdue lines with the theme's `--danger`, and drop the now-dead `accent` field from `RepairStageRow`. Measured on the panel: the hardcoded red sits at 1.90-3.38, the token at 3.48-6.19, so every theme gains.
 
 ## 3. Checks
 
-- [x] 3.1 `npm run check` is green, the mention tests included. Done: ruff clean, backend 153 passed, eslint 0 errors, frontend 155 passed (28 files), build ok.
+- [x] 3.1 `npm run check` is green, the mention and tone tests included. Done: ruff clean, backend 153 passed, eslint 0 errors, frontend 159 passed (28 files), build ok; the three tone utilities are present in the built stylesheet.
 - [ ] 3.2 On Stage, writing `@БулашевАН` in a comment or a message shows the name in the theme's blue; an email address in the text stays plain.
 - [ ] 3.3 On Stage, expanding a repair and a verification card shows stage rows without «Дата»/«Статус», the row is shorter, and the actions align with the date field.
+- [ ] 3.4 On Stage, a completed stage reads green and a waiting one yellow in both a repair and a verification, a late stage stays red, and every colour follows the chosen theme.

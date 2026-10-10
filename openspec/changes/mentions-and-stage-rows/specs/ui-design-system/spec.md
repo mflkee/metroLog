@@ -38,3 +38,29 @@ placeholder and the status text carry the meaning. The cells of the row SHALL al
 
 - **WHEN** a stage has no deadline
 - **THEN** the row keeps its shape and the other cells stay aligned
+
+### Requirement: A stage status carries its tone
+
+The status of a process stage SHALL be shown with the theme's colour for its tone - done, waiting or
+late - as a second cue beside the words, never instead of them. The tone SHALL be derived from the
+stage's own data, not from matching the text of its label.
+
+#### Scenario: A completed stage
+
+- **WHEN** a stage has a date
+- **THEN** its status reads in the theme's success colour
+
+#### Scenario: A stage still waiting
+
+- **WHEN** a stage has no date
+- **THEN** its status reads in the theme's warning colour
+
+#### Scenario: A late stage
+
+- **WHEN** a stage is past its deadline
+- **THEN** its status reads in the theme's danger colour, whether or not the date is filled
+
+#### Scenario: Reading a status in another theme
+
+- **WHEN** the user switches the theme
+- **THEN** every status keeps its tone and takes the theme's own colour

@@ -79,9 +79,11 @@ import { validateVerificationMilestoneOrder } from "@/lib/milestoneValidation";
 import { useQueuedAutoSave } from "@/lib/useQueuedAutoSave";
 import { handleTextareaSubmitShortcut, insertEmojiAtCursor } from "@/lib/textarea";
 import {
+  PROCESS_STAGE_TONE_CLASS,
   applyStageDateChange,
   areProcessCustomStagesEqual,
   canMoveProcessCustomStage,
+  getProcessStageTone,
   getStageRowsProgressLabel,
   insertProcessCustomStage,
   moveProcessCustomStage,
@@ -1467,7 +1469,7 @@ function VerificationBatchCard({
                         value={row.actualValue}
                       />
                     </div>
-                    <div className="min-w-0 text-sm text-ink">
+                    <div className={`min-w-0 text-sm ${PROCESS_STAGE_TONE_CLASS[getProcessStageTone(row)]}`}>
                       <span>{row.statusLabel}</span>
                       {row.deadline ? (
                         <p className="mt-1 text-xs text-steel">до {formatDateOnly(row.deadline)}</p>
@@ -2609,7 +2611,7 @@ function VerificationQueueRow({
                         value={row.actualValue}
                       />
                     </div>
-                    <div className="min-w-0 text-sm text-ink">
+                    <div className={`min-w-0 text-sm ${PROCESS_STAGE_TONE_CLASS[getProcessStageTone(row)]}`}>
                       <span>{row.statusLabel}</span>
                       {row.deadline ? (
                         <p className="mt-1 text-xs text-steel">до {formatDateOnly(row.deadline)}</p>

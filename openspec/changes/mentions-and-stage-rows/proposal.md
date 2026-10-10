@@ -19,6 +19,9 @@ expanded card longer than it needs to be.
 - The stage rows of an expanded repair or verification card SHALL NOT carry the «Дата» and
   «Статус» captions: the field's own placeholder and the status text carry the meaning, and the
   row aligns at the top.
+- A stage's status SHALL carry its meaning in colour as a second cue: done (a date is filled) is
+  green, still waiting (no date) is yellow, and lateness is red - in the theme's own tokens, never
+  a hardcoded colour, and derived from the row's data rather than from matching the label text.
 - The mention colour SHALL be a token per theme (`--mention`), so it stays readable (WCAG AA) on a
   card in every theme - including the two whose blue is too dim to be text.
 

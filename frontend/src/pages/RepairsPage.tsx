@@ -81,9 +81,11 @@ import { validateMilestoneOrder } from "@/lib/milestoneValidation";
 import { useQueuedAutoSave } from "@/lib/useQueuedAutoSave";
 import { handleTextareaSubmitShortcut, insertEmojiAtCursor } from "@/lib/textarea";
 import {
+  PROCESS_STAGE_TONE_CLASS,
   applyStageDateChange,
   areProcessCustomStagesEqual,
   canMoveProcessCustomStage,
+  getProcessStageTone,
   getStageRowsProgressLabel,
   insertProcessCustomStage,
   moveProcessCustomStage,
@@ -140,7 +142,6 @@ type RepairStageRow = {
   deadline: string | null;
   overdueDays: number;
   statusLabel: string;
-  accent: "danger" | "normal";
 };
 
 type RepairGroup = {
@@ -1222,11 +1223,11 @@ function RepairQueueRow({
                       )}
 
                       <div className="min-w-0">
-                        <p className={`text-sm ${row.accent === "danger" ? "text-[#b04c43]" : "text-ink"}`}>
+                        <p className={`text-sm ${PROCESS_STAGE_TONE_CLASS[getProcessStageTone(row)]}`}>
                           {row.statusLabel}
                         </p>
                         {row.overdueDays > 0 ? (
-                          <p className="text-xs text-[#b04c43]">{formatOverdueLabel(row.overdueDays)}</p>
+                          <p className="text-xs text-[color:var(--danger)]">{formatOverdueLabel(row.overdueDays)}</p>
                         ) : null}
                       </div>
 
@@ -2555,11 +2556,11 @@ function RepairBatchCard({
                       )}
 
                       <div className="min-w-0">
-                        <p className={`text-sm ${row.accent === "danger" ? "text-[#b04c43]" : "text-ink"}`}>
+                        <p className={`text-sm ${PROCESS_STAGE_TONE_CLASS[getProcessStageTone(row)]}`}>
                           {row.statusLabel}
                         </p>
                         {row.overdueDays > 0 ? (
-                          <p className="text-xs text-[#b04c43]">{formatOverdueLabel(row.overdueDays)}</p>
+                          <p className="text-xs text-[color:var(--danger)]">{formatOverdueLabel(row.overdueDays)}</p>
                         ) : null}
                       </div>
 
@@ -2985,9 +2986,13 @@ function ArchiveRepairStageRow({
         )}
         <div className="min-w-0">
           <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Статус</p>
-          <p className={`text-sm ${overdueDays > 0 ? "text-[#b04c43]" : "text-ink"}`}>{statusLabel}</p>
+          <p
+            className={`text-sm ${PROCESS_STAGE_TONE_CLASS[getProcessStageTone({ actualValue: value, overdueDays })]}`}
+          >
+            {statusLabel}
+          </p>
           {overdueDays > 0 ? (
-            <p className="text-xs text-[#b04c43]">{formatOverdueLabel(overdueDays)}</p>
+            <p className="text-xs text-[color:var(--danger)]">{formatOverdueLabel(overdueDays)}</p>
           ) : null}
         </div>
       </div>
@@ -3473,7 +3478,6 @@ function buildRepairStageRows(
       deadline: formKey ? getRepairStageDeadline(item, formKey) : null,
       overdueDays,
       statusLabel: baseStatusLabel,
-      accent: overdueDays > 0 ? "danger" : "normal",
     });
 
     const extras = customByAnchor.get(stage.key);
@@ -3494,7 +3498,6 @@ function buildRepairStageRows(
         deadline: getCustomStageDeadline(item.sentToRepairAt, extra.deadlineDays),
         overdueDays: 0,
         statusLabel: extra.date ? "Выполнено" : "Ждет",
-        accent: "normal",
       });
     }
   }

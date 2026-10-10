@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { applyStageDateChange } from "@/lib/processStages";
+import {
+  PROCESS_STAGE_TONE_CLASS,
+  applyStageDateChange,
+  getProcessStageTone,
+} from "@/lib/processStages";
 import type { ProcessCustomStage } from "@/api/equipment";
 
 function stage(overrides: Partial<ProcessCustomStage> = {}): ProcessCustomStage {
@@ -14,6 +18,29 @@ function stage(overrides: Partial<ProcessCustomStage> = {}): ProcessCustomStage 
     ...overrides,
   };
 }
+
+describe("getProcessStageTone", () => {
+  it("marks a stage that has a date as done", () => {
+    expect(getProcessStageTone({ actualValue: "2026-05-01" })).toBe("success");
+  });
+
+  it("marks a stage without a date as still waiting", () => {
+    expect(getProcessStageTone({ actualValue: "" })).toBe("warning");
+  });
+
+  it("turns lateness red, whether or not the date is filled", () => {
+    expect(getProcessStageTone({ actualValue: "", overdueDays: 3 })).toBe("danger");
+    expect(getProcessStageTone({ actualValue: "2026-05-01", overdueDays: 3 })).toBe("danger");
+    expect(getProcessStageTone({ actualValue: "", overdueDays: 0 })).toBe("warning");
+  });
+
+  it("draws every tone from a theme token", () => {
+    expect(Object.keys(PROCESS_STAGE_TONE_CLASS).sort()).toEqual(["danger", "success", "warning"]);
+    for (const className of Object.values(PROCESS_STAGE_TONE_CLASS)) {
+      expect(className).toMatch(/^text-\[color:var\(--(success|warning|danger)\)\]$/);
+    }
+  });
+});
 
 describe("applyStageDateChange", () => {
   it("writes to the template field when the row has a formKey", () => {

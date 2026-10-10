@@ -5,6 +5,31 @@ import type { ProcessCustomStage, ProcessStageTemplateItem } from "@/api/equipme
  * They were duplicated verbatim in the two pages before this module existed.
  */
 
+export type ProcessStageTone = "success" | "warning" | "danger";
+
+/**
+ * The tone of a stage's status text. The label says the same thing in words («Выполнено»,
+ * «Ожидает»), so the colour is a second cue and never the only one: a stage that has a date is
+ * done (green), one without a date is still waiting (yellow), and lateness is the only thing that
+ * turns red - whether or not the date is filled.
+ */
+export function getProcessStageTone(row: {
+  actualValue: string;
+  overdueDays?: number;
+}): ProcessStageTone {
+  if ((row.overdueDays ?? 0) > 0) {
+    return "danger";
+  }
+  return row.actualValue ? "success" : "warning";
+}
+
+/** One class per tone, and every class comes from the theme's own token. */
+export const PROCESS_STAGE_TONE_CLASS: Record<ProcessStageTone, string> = {
+  success: "text-[color:var(--success)]",
+  warning: "text-[color:var(--warning)]",
+  danger: "text-[color:var(--danger)]",
+};
+
 export function createLocalProcessCustomStageId(): string {
   return `cs-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }

@@ -38,6 +38,7 @@ import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
+import { MentionText } from "@/components/MentionText";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
 import { EquipmentPickerModal } from "@/components/EquipmentPickerModal";
@@ -503,7 +504,7 @@ export function TaskDetailsPage() {
                   </div>
                   {message.text ? (
                     <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                      {message.text}
+                      <MentionText text={message.text} />
                     </p>
                   ) : null}
                   <AttachmentPreviewList

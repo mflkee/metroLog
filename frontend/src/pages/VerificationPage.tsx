@@ -50,6 +50,7 @@ import { IconActionButton } from "@/components/IconActionButton";
 import { IconActionLink } from "@/components/IconActionLink";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { PaginationControls } from "@/components/PaginationControls";
+import { MentionText } from "@/components/MentionText";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import {
   ProcessStageActions,
@@ -1449,8 +1450,7 @@ function VerificationBatchCard({
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">{row.label}</p>
                     </div>
-                    <div className="min-w-0 space-y-1">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Дата</p>
+                    <div className="min-w-0">
                       <ProcessStageDateControl
                         disabled={!canManage || !row.editable}
                         onChange={(value) => {
@@ -1467,14 +1467,13 @@ function VerificationBatchCard({
                         value={row.actualValue}
                       />
                     </div>
-                    <div className="min-w-0 space-y-1 text-xs text-steel">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Статус</p>
+                    <div className="min-w-0 text-sm text-ink">
                       <span>{row.statusLabel}</span>
                       {row.deadline ? (
-                        <p className="mt-1 text-ink">до {formatDateOnly(row.deadline)}</p>
+                        <p className="mt-1 text-xs text-steel">до {formatDateOnly(row.deadline)}</p>
                       ) : null}
                     </div>
-                    <div className="min-w-0 md:pt-5">
+                    <div className="min-w-0">
                       {canManage ? (
                         <ProcessStageActions
                           addLabel={`Добавить этап после «${row.label}»`}
@@ -1718,7 +1717,7 @@ function VerificationBatchCard({
                   ) : null}
                   {editingMessageId !== message.id && message.text ? (
                     <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                      {message.text}
+                      <MentionText text={message.text} />
                     </p>
                   ) : null}
                   <AttachmentPreviewList
@@ -2593,8 +2592,7 @@ function VerificationQueueRow({
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-ink">{row.label}</p>
                     </div>
-                    <div className="min-w-0 space-y-1">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Дата</p>
+                    <div className="min-w-0">
                       <ProcessStageDateControl
                         disabled={!canManage || !row.editable}
                         onChange={(value) => {
@@ -2611,14 +2609,13 @@ function VerificationQueueRow({
                         value={row.actualValue}
                       />
                     </div>
-                    <div className="min-w-0 space-y-1 text-xs text-steel">
-                      <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Статус</p>
+                    <div className="min-w-0 text-sm text-ink">
                       <span>{row.statusLabel}</span>
                       {row.deadline ? (
-                        <p className="mt-1 text-ink">до {formatDateOnly(row.deadline)}</p>
+                        <p className="mt-1 text-xs text-steel">до {formatDateOnly(row.deadline)}</p>
                       ) : null}
                     </div>
-                    <div className="min-w-0 md:pt-5">
+                    <div className="min-w-0">
                       {canManage ? (
                         <ProcessStageActions
                           addLabel={`Добавить этап после «${row.label}»`}
@@ -2844,7 +2841,7 @@ function VerificationQueueRow({
                     ) : null}
                     {editingMessageId !== message.id && message.text ? (
                       <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                        {message.text}
+                        <MentionText text={message.text} />
                       </p>
                     ) : null}
                     <AttachmentPreviewList

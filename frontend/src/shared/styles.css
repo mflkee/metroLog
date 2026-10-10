@@ -122,6 +122,12 @@
   --warning: oklch(0.8 0.14 75);
   --info: oklch(0.72 0.14 250);
   /*
+   * A mention is text: it keeps the theme's blue and has to stay readable on a card (WCAG AA).
+   * `--info` is that blue, so the default is `--info`; the two themes whose blue is too dim on a
+   * card lighten it in their own block.
+   */
+  --mention: var(--info);
+  /*
    * The chart palette keeps every slice apart by hue *and* lightness: a blue and a teal at the same
    * lightness read as one colour on a dark panel, which is what made «В работе» and «В поверке»
    * indistinguishable. Lightness now descends from the teal through the blue to the purple.
@@ -300,6 +306,8 @@
   --accent-soft: rgba(136, 192, 208, 0.14);
   --success: #a3be8c;
   --info: #81a1c1;
+  /* nord8: nord's info is too dim on a card to read as a mention. */
+  --mention: #88c0d0;
   --chart-work: #81a1c1;
   --chart-repair: #d08770;
   --chart-verification: #8fbcbb;
@@ -374,6 +382,8 @@
   --accent-soft: rgba(250, 189, 47, 0.12);
   --success: #b8bb26;
   --info: #83a598;
+  /* gruvbox's aqua, lightened for text: the raw aqua sits just under AA on a card. */
+  --mention: color-mix(in srgb, var(--info) 84%, var(--text-primary));
   --chart-work: #83a598;
   --chart-repair: #fe8019;
   --chart-verification: #458588;
@@ -562,6 +572,15 @@ textarea.form-input {
 .autocomplete-input__option--active {
   background: color-mix(in srgb, var(--tone-grandchild-bg) 72%, var(--accent-soft));
   color: var(--text-primary);
+}
+
+/*
+ * A mention in a message: the theme's blue (see `--mention`) plus a little weight, so the meaning
+ * does not rest on colour alone.
+ */
+.mention {
+  color: var(--mention);
+  font-weight: 600;
 }
 
 .date-input {

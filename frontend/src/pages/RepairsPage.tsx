@@ -51,6 +51,7 @@ import { IconActionButton } from "@/components/IconActionButton";
 import { IconActionLink } from "@/components/IconActionLink";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { PaginationControls } from "@/components/PaginationControls";
+import { MentionText } from "@/components/MentionText";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import {
   ProcessStageActions,
@@ -1190,8 +1191,7 @@ function RepairQueueRow({
                         {row.note ? <p className="mt-1 text-xs text-steel">{row.note}</p> : null}
                       </div>
 
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Дата</p>
+                      <div className="min-w-0">
                         {row.editable && !isArchived && canManage ? (
                           <ProcessStageDateControl
                             onChange={(value) => {
@@ -1221,8 +1221,7 @@ function RepairQueueRow({
                         <div aria-hidden="true" />
                       )}
 
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Статус</p>
+                      <div className="min-w-0">
                         <p className={`text-sm ${row.accent === "danger" ? "text-[#b04c43]" : "text-ink"}`}>
                           {row.statusLabel}
                         </p>
@@ -1231,7 +1230,7 @@ function RepairQueueRow({
                         ) : null}
                       </div>
 
-                      <div className="min-w-0 xl:pt-5">
+                      <div className="min-w-0">
                         {canManage && !isArchived ? (
                           <ProcessStageActions
                             addLabel={`Добавить этап после «${row.label}»`}
@@ -1474,7 +1473,7 @@ function RepairQueueRow({
                           </div>
                         </form>
                       ) : message.text ? (
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">{message.text}</p>
+                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink"><MentionText text={message.text} /></p>
                       ) : null}
 
                       <AttachmentPreviewList
@@ -2525,8 +2524,7 @@ function RepairBatchCard({
                         {row.note ? <p className="mt-1 text-xs text-steel">{row.note}</p> : null}
                       </div>
 
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Дата</p>
+                      <div className="min-w-0">
                         {canManage ? (
                           <ProcessStageDateControl
                             onChange={(value) => {
@@ -2556,8 +2554,7 @@ function RepairBatchCard({
                         <div aria-hidden="true" />
                       )}
 
-                      <div className="min-w-0 space-y-1">
-                        <p className="text-[11px] uppercase tracking-[0.14em] text-steel">Статус</p>
+                      <div className="min-w-0">
                         <p className={`text-sm ${row.accent === "danger" ? "text-[#b04c43]" : "text-ink"}`}>
                           {row.statusLabel}
                         </p>
@@ -2566,7 +2563,7 @@ function RepairBatchCard({
                         ) : null}
                       </div>
 
-                      <div className="min-w-0 xl:pt-5">
+                      <div className="min-w-0">
                         {canManage ? (
                           <ProcessStageActions
                             addLabel={`Добавить этап после «${row.label}»`}
@@ -2808,7 +2805,7 @@ function RepairBatchCard({
                         </div>
                       </form>
                     ) : message.text ? (
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">{message.text}</p>
+                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink"><MentionText text={message.text} /></p>
                     ) : null}
 
                     <AttachmentPreviewList

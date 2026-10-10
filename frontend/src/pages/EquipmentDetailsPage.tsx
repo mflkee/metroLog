@@ -64,6 +64,7 @@ import { useEquipmentArshinEsi } from "@/hooks/useEquipmentArshinEsi";
 import { useEquipmentProcessActions } from "@/hooks/useEquipmentProcessActions";
 import { invalidateEquipmentRegistryQueries } from "@/lib/equipmentQueries";
 import { Switch } from "@/components/ui/switch";
+import { MentionText } from "@/components/MentionText";
 import { Modal } from "@/components/Modal";
 import { NumberInput } from "@/components/NumberInput";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
@@ -1826,7 +1827,7 @@ export function EquipmentDetailsPage() {
                             </form>
                           ) : message.text ? (
                             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                              {message.text}
+                              <MentionText text={message.text} />
                             </p>
                           ) : null}
                           <AttachmentPreviewList
@@ -2185,7 +2186,7 @@ export function EquipmentDetailsPage() {
                             </form>
                           ) : message.text ? (
                             <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                              {message.text}
+                              <MentionText text={message.text} />
                             </p>
                           ) : null}
                           <AttachmentPreviewList
@@ -2923,7 +2924,7 @@ export function EquipmentDetailsPage() {
                             </form>
                           ) : comment.text.trim() ? (
                             <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                              {comment.text}
+                              <MentionText text={comment.text} />
                             </p>
                           ) : null}
                           <AttachmentPreviewList

@@ -50,3 +50,8 @@
 - [x] 7.5 Guard the round. Done: `uiConventions.test.ts` pins the dark-only catalogue (no `light`, no `moonfly`, `dark` first), that an option carries nothing but value+label, that a retired preference coerces to `dark`, that an unknown one stays unknown, and that the stylesheet has no light palette and no moonfly block.
 - [ ] 7.6 Verify on Stage that the theme list offers seven dark themes by name only, that a stale `light` preference lands on `dark` without an error, that the collapsed rail's highlight is a square, and that the dashboard's default layout is the owner's.
 
+## 8. The tasks module is a reminder: three tasks (owner request)
+
+- [x] 8.1 Show at most three tasks, whatever the module's width, and choose them by importance first and by nearest deadline second. Done: `src/lib/myTasks.ts` (`MY_TASKS_LIMIT`, `selectMyTasks`) ranks `CRITICAL` → `LOW`, then the nearest `dueDate` with an undated task last, breaks ties by id so the order does not drift between renders, and drops the terminal statuses; `MyTasksWidget` no longer slices by the width preset. The rule is covered by `src/lib/myTasks.test.ts` (8 cases: the cap, importance above the deadline, the deadline among equals, undated last, closed tasks left out, stability, and that the caller's array is not reordered).
+- [ ] 8.2 Verify on Stage that the tasks module shows three rows at every width, with the most important task on top and the nearest deadline next.
+

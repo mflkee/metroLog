@@ -90,6 +90,12 @@ made from the module's width preset, not from a viewport breakpoint.
 - **THEN** it drops its least important fields and shows fewer rows, instead of squeezing the full
   content into the narrow preset
 
+#### Scenario: The tasks module is a reminder, not a list
+
+- **WHEN** the tasks module has more than three open tasks, at any width
+- **THEN** it shows the three most important ones, and among equally important ones those with the
+  nearest deadline, with a task that has no deadline after every dated one of the same importance
+
 ### Requirement: Everything is on by default
 
 A user who has not chosen SHALL get every dashboard widget and every theme. A stored `null` SHALL

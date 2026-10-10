@@ -9,10 +9,10 @@ import {
 } from "@/api/tasks";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
-  dashboardWidgetRowLimit,
   isCondensedWidget,
   type DashboardWidgetSize,
 } from "@/lib/dashboard";
+import { selectMyTasks } from "@/lib/myTasks";
 import {
   TASK_TABLE_COLUMNS,
   formatTaskDate,
@@ -21,8 +21,6 @@ import {
   taskTableHeaderClass,
 } from "@/lib/taskTable";
 import { TASK_STATUS_TONES } from "@/lib/taskStatusTone";
-
-const TERMINAL_STATUSES = new Set(["DONE", "CANCELLED", "ARCHIVED"]);
 
 type MyTasksWidgetProps = {
   token: string;
@@ -51,10 +49,8 @@ export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
   ]) {
     byId.set(item.id, item);
   }
-  const items = Array.from(byId.values())
-    .filter((task) => !TERMINAL_STATUSES.has(task.status))
-    .sort((left, right) => (left.dueDate ?? "9999").localeCompare(right.dueDate ?? "9999"))
-    .slice(0, dashboardWidgetRowLimit[size]);
+  // The most important, then the nearest deadline; never more than three (see `selectMyTasks`).
+  const items = selectMyTasks(Array.from(byId.values()));
 
   if (items.length === 0) {
     return <p className="text-sm text-steel">Активных задач, где ты ответственный или исполнитель, нет.</p>;

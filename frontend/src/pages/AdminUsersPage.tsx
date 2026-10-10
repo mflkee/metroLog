@@ -484,6 +484,16 @@ export function AdminUsersPage() {
               const roleActionDisabled = isUpdatingUser || isProtectedDeveloper;
               const accountActionDisabled = isUpdatingUser || isResettingPassword || isProtectedDeveloper;
               const canDeleteUserAccount = currentUser?.id !== user.id && user.role !== "DEVELOPER";
+              // One line for everything that is not the name or a badge: the card used to stack four
+              // of these, and the position was printed twice (here and inside the extra info).
+              const metaLine = [
+                user.email,
+                buildUserExtraInfo(user),
+                user.phone,
+                canManageFolderAccess ? `папок: ${user.allowedFolderIds?.length ?? 0}` : null,
+              ]
+                .filter(Boolean)
+                .join(" · ");
 
               return (
                 <article
@@ -492,13 +502,13 @@ export function AdminUsersPage() {
                 >
                   <button
                     aria-expanded={isExpanded}
-                    className="flex w-full items-start justify-between gap-4 px-5 py-4 text-left transition hover:bg-black/5"
+                    className="flex w-full items-start justify-between gap-4 px-5 py-3 text-left transition hover:bg-black/5"
                     type="button"
                     onClick={() => toggleUserCard(user.id)}
                   >
-                    <div className="min-w-0 space-y-2">
+                    <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-lg font-semibold text-ink">{user.fullName}</span>
+                        <span className="text-base font-semibold text-ink">{user.fullName}</span>
                         <span className="rounded-full bg-[#edf2f5] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-steel">
                           {roleLabels[user.role]}
                         </span>
@@ -528,23 +538,9 @@ export function AdminUsersPage() {
                           </span>
                         ) : null}
                       </div>
-                      <p className="text-sm text-steel">{user.email}</p>
-                      {buildUserExtraInfo(user) ? (
-                        <p className="text-xs text-steel">{buildUserExtraInfo(user)}</p>
-                      ) : null}
-                      <p className="text-xs text-steel">
-                        {user.position || "Должность не указана"} · {user.phone || "Телефон не указан"}
+                      <p className="truncate text-sm text-steel" title={metaLine}>
+                        {metaLine}
                       </p>
-                      {canManageFolderAccess ? (
-                        <p className="text-xs text-steel">
-                          Разрешено папок: {user.allowedFolderIds?.length ?? 0}
-                        </p>
-                      ) : null}
-                      {isProtectedDeveloper ? (
-                        <p className="text-xs text-steel">
-                          Управление пользователем с ролью «Разработчик» доступно только разработчику.
-                        </p>
-                      ) : null}
                     </div>
                     <svg
                       className={["mt-1 h-5 w-5 shrink-0 text-steel transition-transform", isExpanded ? "rotate-180" : ""].join(" ")}
@@ -559,6 +555,11 @@ export function AdminUsersPage() {
 
                   {isExpanded ? (
                     <div className="space-y-4 border-t border-line px-5 py-4">
+                      {isProtectedDeveloper ? (
+                        <p className="text-xs text-steel">
+                          Управление пользователем с ролью «Разработчик» доступно только разработчику.
+                        </p>
+                      ) : null}
                       <div className="flex flex-wrap gap-2">
                         <Link
                           className="btn-secondary btn-sm"

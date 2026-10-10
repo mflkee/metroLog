@@ -99,6 +99,26 @@ made from the module's width preset, not from a viewport breakpoint.
 - **WHEN** the module is a third wide
 - **THEN** it shows three tasks, six at a half and nine full width
 
+### Requirement: Review surfaces stay compact
+
+A surface whose job is to let a reader scan rows — the Arshin refresh review, the user list — SHALL
+spend its room on the rows rather than on the chrome around them: one toolbar instead of stacked
+sections, counts carried by the filters they filter rather than repeated, one line of meta
+information per list item, and a table that fills the width and height it is given.
+
+#### Scenario: The Arshin refresh review
+
+- **WHEN** the user opens the refresh review
+- **THEN** the status counts are the filters themselves, the search and the bulk actions share one
+  row, the table is sized by the browser to the width it has, and each row carries its current and
+  matched document with its own verification window under it
+
+#### Scenario: The user list
+
+- **WHEN** the user list is shown
+- **THEN** a collapsed entry is the name with its badges and a single line of meta information, and
+  the notes explaining why an action is unavailable sit with the actions
+
 ### Requirement: Everything is on by default
 
 A user who has not chosen SHALL get every dashboard widget and every theme. A stored `null` SHALL

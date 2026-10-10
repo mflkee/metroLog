@@ -254,9 +254,6 @@ export function EquipmentPage() {
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
   const [equipmentPage, setEquipmentPage] = useState(1);
   const [sortState, setSortState] = useState<EquipmentSortState | null>(null);
-  const folderRefreshTableScrollRef = useRef<HTMLDivElement | null>(null);
-  const folderRefreshBottomScrollbarRef = useRef<HTMLDivElement | null>(null);
-  const folderRefreshBottomScrollbarInnerRef = useRef<HTMLDivElement | null>(null);
   const repairInitialMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const verificationInitialMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const repairInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
@@ -1064,75 +1061,6 @@ export function EquipmentPage() {
       current.filter((rowId) => folderRefreshRowIds.includes(rowId)),
     );
   }, [folderRefreshRowIds]);
-
-  useEffect(() => {
-    const tableScroller = folderRefreshTableScrollRef.current;
-    const bottomScroller = folderRefreshBottomScrollbarRef.current;
-    const bottomInner = folderRefreshBottomScrollbarInnerRef.current;
-
-    if (
-      !folderRefreshModalOpen
-      || !folderRefreshRows.length
-      || !tableScroller
-      || !bottomScroller
-      || !bottomInner
-    ) {
-      return;
-    }
-
-    let syncingFromTable = false;
-    let syncingFromBottom = false;
-
-    const syncDimensions = () => {
-      bottomInner.style.width = `${tableScroller.scrollWidth}px`;
-      bottomScroller.scrollLeft = tableScroller.scrollLeft;
-    };
-
-    const handleTableScroll = () => {
-      if (syncingFromBottom) {
-        syncingFromBottom = false;
-        return;
-      }
-      syncingFromTable = true;
-      bottomScroller.scrollLeft = tableScroller.scrollLeft;
-    };
-
-    const handleBottomScroll = () => {
-      if (syncingFromTable) {
-        syncingFromTable = false;
-        return;
-      }
-      syncingFromBottom = true;
-      tableScroller.scrollLeft = bottomScroller.scrollLeft;
-    };
-
-    const resizeObserver =
-      typeof ResizeObserver !== "undefined"
-        ? new ResizeObserver(() => {
-            syncDimensions();
-          })
-        : null;
-
-    resizeObserver?.observe(tableScroller);
-    if (tableScroller.firstElementChild instanceof HTMLElement) {
-      resizeObserver?.observe(tableScroller.firstElementChild);
-    }
-
-    window.addEventListener("resize", syncDimensions);
-    tableScroller.addEventListener("scroll", handleTableScroll);
-    bottomScroller.addEventListener("scroll", handleBottomScroll);
-
-    syncDimensions();
-    const timeoutId = window.setTimeout(syncDimensions, 0);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      window.removeEventListener("resize", syncDimensions);
-      tableScroller.removeEventListener("scroll", handleTableScroll);
-      bottomScroller.removeEventListener("scroll", handleBottomScroll);
-      resizeObserver?.disconnect();
-    };
-  }, [folderRefreshModalOpen, folderRefreshRows]);
 
   const folderDeadlinePresetOptions = useMemo(
     () =>
@@ -3582,9 +3510,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
       <Modal
         description={
           folderRefreshFolder ?? selectedFolder
-            ? `Поиск возможных обновлений для ${folderRefreshScopeDescriptionLabel} «${
-                (folderRefreshFolder ?? selectedFolder)?.name
-              }». Обновления применяются только вручную по отмеченным строкам.`
+            ? `${folderRefreshScopeDescriptionLabel} «${(folderRefreshFolder ?? selectedFolder)?.name}»: поиск обновлений. Применяются только отмеченные строки.`
             : "Сначала выбери папку."
         }
         footer={
@@ -3658,46 +3584,26 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           ) : null}
 
           {folderRefreshTask ? (
-            <section className="tone-parent space-y-3 rounded-3xl border border-line p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-ink">
-                    Статус: {getFolderRefreshTaskStatusLabel(folderRefreshTask.status)}
-                  </div>
-                  <div className="mt-1 text-xs text-steel">
-                    Обработано {folderRefreshTask.processedRows} из {folderRefreshTask.totalRows}.
-                  </div>
-                </div>
-                <div className="text-sm font-semibold text-ink">{folderRefreshTask.progress}%</div>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[var(--accent-soft)]">
+            <div className="tone-parent flex flex-wrap items-center gap-x-3 gap-y-2 rounded-2xl border border-line px-4 py-3">
+              <span className="text-sm font-semibold text-ink">
+                {getFolderRefreshTaskStatusLabel(folderRefreshTask.status)}
+              </span>
+              <span className="text-xs text-steel">
+                {folderRefreshTask.totalRows > 0
+                  ? `Обработано ${folderRefreshTask.processedRows} из ${folderRefreshTask.totalRows}`
+                  : "Готовим список приборов"}
+              </span>
+              <div className="h-1.5 min-w-[8rem] flex-1 overflow-hidden rounded-full bg-[var(--accent-soft)]">
                 <div
                   className="h-full rounded-full bg-[var(--accent)] transition-all"
                   style={{ width: `${folderRefreshTask.progress}%` }}
                 />
               </div>
-              {folderRefreshTask.summary ? (
-                <div className="flex flex-wrap gap-2">
-                  {[
-                    ["Обновить", folderRefreshTask.summary.updated ?? 0],
-                    ["Обновить?", folderRefreshTask.summary.updatedUncertain ?? 0],
-                    ["Без изменений", folderRefreshTask.summary.unchanged ?? 0],
-                    ["Не найдено", folderRefreshTask.summary.notFound ?? 0],
-                    ["Ошибки", folderRefreshTask.summary.error ?? 0],
-                  ].map(([label, value]) => (
-                    <span
-                      key={label}
-                      className="tone-child rounded-full border border-line px-3 py-1 text-xs text-ink"
-                    >
-                      {label}: {value}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
+              <span className="text-sm font-semibold text-ink">{folderRefreshTask.progress}%</span>
               {folderRefreshTask.errorMessage ? (
-                <p className="text-sm text-[#b04c43]">{folderRefreshTask.errorMessage}</p>
+                <span className="w-full text-sm text-[#b04c43]">{folderRefreshTask.errorMessage}</span>
               ) : null}
-            </section>
+            </div>
           ) : null}
 
           {applyFolderRefreshMutation.isError ? (
@@ -3745,8 +3651,9 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
 
           {folderRefreshRows.length ? (
             <div className="space-y-3">
-              <section className="tone-parent space-y-3 rounded-2xl border border-line p-4">
-                <div className="flex flex-wrap gap-2">
+              {/* One toolbar instead of two stacked sections: the table below needs the room. */}
+              <section className="tone-parent flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl border border-line px-4 py-3">
+                <div className="flex flex-wrap items-center gap-2">
                   {[
                     ["ALL", "Все", folderRefreshRows.length],
                     ["UPDATED", "Обновить", folderRefreshTask?.summary?.updated ?? 0],
@@ -3760,10 +3667,10 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                       <button
                         key={value}
                         className={[
-                          "rounded-full border px-3 py-1 text-xs transition",
+                          "rounded-full border border-line px-3 py-1 text-xs transition",
                           active
-                            ? "border-line bg-[var(--accent-soft)] text-ink"
-                            : "border-line text-steel hover:bg-[var(--accent-soft)] hover:text-ink",
+                            ? "bg-[var(--accent-soft)] text-ink"
+                            : "text-steel hover:bg-[var(--accent-soft)] hover:text-ink",
                         ].join(" ")}
                         type="button"
                         onClick={() =>
@@ -3776,165 +3683,150 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                   })}
                 </div>
 
-                <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-                  <label className="block min-w-[280px] flex-1 text-sm text-steel">
-                    Фильтр
-                    <input
-                      className="form-input mt-1"
-                      placeholder="Прибор, документ, реестр, примечание"
-                      type="text"
-                      value={folderRefreshSearchQuery}
-                      onChange={(event) => setFolderRefreshSearchQuery(event.target.value)}
-                    />
-                  </label>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      className={subtleButtonClass}
-                      disabled={filteredFolderRefreshRowIds.length === 0}
-                      type="button"
-                      onClick={toggleSelectAllFolderRefreshRows}
-                    >
-                      {filteredFolderRefreshRowIds.length > 0
-                        && selectedFilteredFolderRefreshRowIds.length === filteredFolderRefreshRowIds.length
-                        ? "Снять выделение с отфильтрованных"
-                        : "Выделить отфильтрованные"}
-                    </button>
-                    <button
-                      className={subtleButtonClass}
-                      disabled={selectedFolderRefreshRowIds.length === 0}
-                      type="button"
-                      onClick={() => setSelectedFolderRefreshRowIds([])}
-                    >
-                      Очистить выделение
-                    </button>
-                  </div>
-                </div>
-
-                <div className="text-xs text-steel">
-                  Показано: {filteredFolderRefreshRows.length} из {folderRefreshRows.length}. Выбрано строк: {selectedFolderRefreshRowIds.length}. К обновлению: {applicableSelectedFolderRefreshRowIds.length}. К исключению: {selectedFolderRefreshEquipmentIds.length}.
+                <div className="flex min-w-[18rem] flex-1 flex-wrap items-center gap-2">
+                  <input
+                    className="form-input form-input--compact min-w-[14rem] flex-1"
+                    placeholder="Поиск: прибор, документ, реестр, примечание"
+                    type="text"
+                    value={folderRefreshSearchQuery}
+                    onChange={(event) => setFolderRefreshSearchQuery(event.target.value)}
+                  />
+                  <button
+                    className="btn-secondary btn-sm"
+                    disabled={filteredFolderRefreshRowIds.length === 0}
+                    type="button"
+                    onClick={toggleSelectAllFolderRefreshRows}
+                  >
+                    {filteredFolderRefreshRowIds.length > 0
+                      && selectedFilteredFolderRefreshRowIds.length === filteredFolderRefreshRowIds.length
+                      ? "Снять выделение"
+                      : "Выделить отфильтрованные"}
+                  </button>
+                  <button
+                    className="btn-secondary btn-sm"
+                    disabled={selectedFolderRefreshRowIds.length === 0}
+                    type="button"
+                    onClick={() => setSelectedFolderRefreshRowIds([])}
+                  >
+                    Очистить
+                  </button>
+                  <span className="text-xs text-steel">
+                    Показано {filteredFolderRefreshRows.length} из {folderRefreshRows.length} · выбрано{" "}
+                    {selectedFolderRefreshRowIds.length}
+                  </span>
                 </div>
               </section>
 
-              <div
-                ref={folderRefreshTableScrollRef}
-                className="max-h-[calc(100dvh-24rem)] overflow-auto rounded-2xl border border-line bg-white"
-              >
-                <table className="min-w-[1160px] w-full table-fixed border-collapse text-left text-sm">
-                <colgroup>
-                  <col className="w-12" />
-                  <col className="w-[18rem]" />
-                  <col className="w-[13rem]" />
-                  <col className="w-[13rem]" />
-                  <col className="w-[16rem]" />
-                  <col className="w-[8rem]" />
-                  <col className="w-auto" />
-                </colgroup>
-                <thead className="tone-child text-[11px] uppercase tracking-[0.12em] text-steel">
-                  <tr>
-                    <th className="border-b border-line px-3 py-2 font-semibold">
-                      <input
-                        checked={
-                          filteredFolderRefreshRowIds.length > 0
-                          && selectedFilteredFolderRefreshRowIds.length === filteredFolderRefreshRowIds.length
-                        }
-                        className="h-4 w-4 accent-[var(--accent)]"
-                        disabled={filteredFolderRefreshRowIds.length === 0}
-                        type="checkbox"
-                        onChange={toggleSelectAllFolderRefreshRows}
-                      />
-                    </th>
-                    <th className="border-b border-line px-3 py-2 font-semibold">Прибор / цель</th>
-                    <th className="border-b border-line px-3 py-2 font-semibold">Текущий документ</th>
-                    <th className="border-b border-line px-3 py-2 font-semibold">Найдено в Аршине</th>
-                    <th className="border-b border-line px-3 py-2 font-semibold">Поверка</th>
-                    <th className="border-b border-line px-3 py-2 font-semibold whitespace-nowrap">Статус</th>
-                    <th className="border-b border-line px-3 py-2 font-semibold">Примечание</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredFolderRefreshRows.map((row) => {
-                    const currentWindow = formatRefreshWindow(
-                      row.currentVerificationDate,
-                      row.currentValidDate,
-                    );
-                    const matchedWindow = formatRefreshWindow(
-                      row.matchedVerificationDate,
-                      row.matchedValidDate,
-                    );
-                    const hasVerificationChange = currentWindow !== matchedWindow;
-                    const hasCurrentSecondaryLine = Boolean(
-                      row.targetRegistryNumber
-                      && row.targetRegistryNumber !== row.currentCertificateNumber,
-                    );
-                    const hasMatchedSecondaryLine = Boolean(
-                      row.matchedRegistryNumber
-                      && row.matchedRegistryNumber !== row.matchedCertificateNumber,
-                    );
-                    return (
-                      <tr key={row.id} className="tone-parent align-top text-ink">
-                        <td className="border-b border-line px-3 py-2.5">
-                          <input
-                            checked={selectedFolderRefreshRowIds.includes(row.id)}
-                            className="h-4 w-4 accent-[var(--accent)]"
-                            type="checkbox"
-                            onChange={() => toggleFolderRefreshRowSelection(row.id)}
-                          />
-                        </td>
-                        <td className="border-b border-line px-3 py-2.5">
-                          <div className="font-semibold text-ink">{row.equipmentName}</div>
-                          <div className="mt-1 text-xs leading-4 text-steel">
-                            {getFolderRefreshRowTargetLabel(row)}
-                          </div>
-                        </td>
-                        <td className="border-b border-line px-3 py-2.5 text-xs leading-5">
-                          <div className="break-all font-mono text-ink">
-                            {row.currentCertificateNumber ?? "—"}
-                          </div>
-                          {hasCurrentSecondaryLine ? (
-                            <div className="mt-1 break-all font-mono text-steel">{row.targetRegistryNumber}</div>
-                          ) : null}
-                        </td>
-                        <td className="border-b border-line px-3 py-2.5 text-xs leading-5">
-                          <div className="break-all font-mono text-ink">
-                            {row.matchedCertificateNumber ?? "—"}
-                          </div>
-                          {hasMatchedSecondaryLine ? (
-                            <div className="mt-1 break-all font-mono text-steel">{row.matchedRegistryNumber}</div>
-                          ) : null}
-                        </td>
-                        <td className="border-b border-line px-3 py-2.5 text-xs text-ink">
-                          <div className="whitespace-nowrap">{currentWindow}</div>
-                          {hasVerificationChange ? (
-                            <div className="mt-1 whitespace-nowrap text-steel">
-                              → {matchedWindow}
+              {/*
+                `w-full` and the browser's own column sizing: the fixed widths forced a 1160px table
+                into a narrower modal, so the reader got a small window onto it and a second, fake
+                horizontal scrollbar to reach the rest. The verification window sits under its own
+                document now instead of in a column of its own, so a row carries two documents and two
+                dates rather than three columns of them.
+              */}
+              <div className="max-h-[calc(100dvh-15rem)] overflow-auto rounded-2xl border border-line bg-white">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead className="tone-child text-[11px] uppercase tracking-[0.12em] text-steel">
+                    <tr>
+                      <th className="w-10 border-b border-line px-3 py-2">
+                        <input
+                          checked={
+                            filteredFolderRefreshRowIds.length > 0
+                            && selectedFilteredFolderRefreshRowIds.length === filteredFolderRefreshRowIds.length
+                          }
+                          className="h-4 w-4 accent-[var(--accent)]"
+                          disabled={filteredFolderRefreshRowIds.length === 0}
+                          type="checkbox"
+                          onChange={toggleSelectAllFolderRefreshRows}
+                        />
+                      </th>
+                      <th className="border-b border-line px-3 py-2 font-semibold">Прибор / цель</th>
+                      <th className="border-b border-line px-3 py-2 font-semibold">Текущий документ</th>
+                      <th className="border-b border-line px-3 py-2 font-semibold">Найдено в Аршине</th>
+                      <th className="border-b border-line px-3 py-2 font-semibold whitespace-nowrap">
+                        Статус
+                      </th>
+                      <th className="border-b border-line px-3 py-2 font-semibold">Примечание</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredFolderRefreshRows.map((row) => {
+                      const currentWindow = formatRefreshWindow(
+                        row.currentVerificationDate,
+                        row.currentValidDate,
+                      );
+                      const matchedWindow = formatRefreshWindow(
+                        row.matchedVerificationDate,
+                        row.matchedValidDate,
+                      );
+                      const hasVerificationChange = currentWindow !== matchedWindow;
+                      const hasCurrentSecondaryLine = Boolean(
+                        row.targetRegistryNumber
+                        && row.targetRegistryNumber !== row.currentCertificateNumber,
+                      );
+                      const hasMatchedSecondaryLine = Boolean(
+                        row.matchedRegistryNumber
+                        && row.matchedRegistryNumber !== row.matchedCertificateNumber,
+                      );
+                      return (
+                        <tr key={row.id} className="tone-parent align-top text-ink">
+                          <td className="border-b border-line px-3 py-2">
+                            <input
+                              checked={selectedFolderRefreshRowIds.includes(row.id)}
+                              className="h-4 w-4 accent-[var(--accent)]"
+                              type="checkbox"
+                              onChange={() => toggleFolderRefreshRowSelection(row.id)}
+                            />
+                          </td>
+                          <td className="border-b border-line px-3 py-2">
+                            <div className="font-semibold text-ink">{row.equipmentName}</div>
+                            <div className="mt-0.5 text-xs text-steel">
+                              {getFolderRefreshRowTargetLabel(row)}
                             </div>
-                          ) : null}
-                        </td>
-                        <td className="border-b border-line px-3 py-2.5 text-xs whitespace-nowrap">
-                          <span className={getFolderRefreshStatusBadgeClass(row.status)}>
-                            {getFolderRefreshRowStatusLabel(row.status)}
-                          </span>
-                        </td>
-                        <td className="border-b border-line px-3 py-2.5 text-xs leading-5 text-steel">
-                          {row.notes ?? "—"}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              </div>
-              <div className="sticky bottom-0 z-10 rounded-full border border-line bg-white/95 px-3 py-2 shadow-panel backdrop-blur-sm">
-                <div
-                  ref={folderRefreshBottomScrollbarRef}
-                  className="overflow-x-auto overflow-y-hidden"
-                >
-                  <div
-                    ref={folderRefreshBottomScrollbarInnerRef}
-                    className="h-1 min-w-full"
-                  />
-                </div>
+                          </td>
+                          <td className="border-b border-line px-3 py-2 text-xs">
+                            <div className="break-all font-mono text-ink">
+                              {row.currentCertificateNumber ?? "—"}
+                            </div>
+                            {hasCurrentSecondaryLine ? (
+                              <div className="break-all font-mono text-steel">
+                                {row.targetRegistryNumber}
+                              </div>
+                            ) : null}
+                            <div className="mt-0.5 whitespace-nowrap text-steel">{currentWindow}</div>
+                          </td>
+                          <td className="border-b border-line px-3 py-2 text-xs">
+                            <div className="break-all font-mono text-ink">
+                              {row.matchedCertificateNumber ?? "—"}
+                            </div>
+                            {hasMatchedSecondaryLine ? (
+                              <div className="break-all font-mono text-steel">
+                                {row.matchedRegistryNumber}
+                              </div>
+                            ) : null}
+                            <div
+                              className={
+                                hasVerificationChange
+                                  ? "mt-0.5 whitespace-nowrap font-semibold text-[color:var(--accent)]"
+                                  : "mt-0.5 whitespace-nowrap text-steel"
+                              }
+                            >
+                              {hasVerificationChange ? `→ ${matchedWindow}` : matchedWindow}
+                            </div>
+                          </td>
+                          <td className="border-b border-line px-3 py-2 text-xs whitespace-nowrap">
+                            <span className={getFolderRefreshStatusBadgeClass(row.status)}>
+                              {getFolderRefreshRowStatusLabel(row.status)}
+                            </span>
+                          </td>
+                          <td className="border-b border-line px-3 py-2 text-xs text-steel">
+                            {row.notes ?? "—"}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
             </div>
           ) : null}

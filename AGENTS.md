@@ -114,7 +114,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/api/v1/routes/events.py` | Event journal. |
 | `app/api/v1/routes/arshin.py` | Arshin proxy endpoints. |
 | `app/api/v1/routes/health.py` | Liveness + readiness (DB + Redis). |
-| `alembic/versions/` | 60 migrations. |
+| `alembic/versions/` | 61 migrations. |
 
 ### Frontend (`frontend/`)
 | File | Purpose |
@@ -377,6 +377,7 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 
 **Users & Auth**
 - ⚠️ **Два разных регистра в одной строке:** `users.theme_preference` — это `Enum(UserThemePreference, native_enum=False)` **без** `values_callable`, поэтому SQLAlchemy пишет **имя** члена (`LIGHT`, `GRAY`, …), а `users.enabled_theme_options` — обычный JSON-список **значений** (`light`, `gray`, …). CHECK-constraint на колонке нет, поэтому запись «не тем» регистром проходит молча, а потом падает при чтении энума. Миграции, переписывающие темы, обязаны писать в `theme_preference` имя (см. `0059_retire_gray_theme.py`).
+- ⚠️ **Грабля SQLAlchemy: `None` в JSON-колонку — это JSON `null`, а не SQL NULL.** У типа `JSON` параметр `none_as_null` по умолчанию `False`, поэтому `values(col=None)` пишет литерал `null` — колонка остаётся **не** SQL NULL, и `IS NOT NULL` её по-прежнему находит (миграция 0060 «обнулила» настройки так, что 7 строк удержали JSON `null`; лечится 0061). На чтении разницы нет (JSON `null` декодируется в `None`), но по данным «пусто» и «не пусто» разъезжается. Пиши `sa.JSON(none_as_null=True)` или `sa.null()`, когда нужен настоящий SQL NULL.
 - `users` — id, first/last/patronymic, email (unique), password_hash, role (`DEVELOPER`/`ADMINISTRATOR`/`MKAIR`/`CUSTOMER`), `allowed_folder_ids` (JSON), `dashboard_folder_ids` (JSON), `hidden_equipment_folder_ids` (JSON), `dashboard_widget_options` (JSON, which widgets are shown; `null` = all of them), `dashboard_layout` (JSON, ordered `{key, size, collapsed}` entries — order, width preset and collapsed state; `null` = the default arrangement), theme prefs (`enabled_theme_options` — the list offered in the switcher, `null` = every theme; `theme_preference` — the one in use), last_login/seen.
 
 **Equipment Registry**

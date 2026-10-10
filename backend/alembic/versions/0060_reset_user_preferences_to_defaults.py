@@ -9,6 +9,11 @@ the Settings page shows every switch on.
 The `theme_preference` column is deliberately left alone: that is the theme the user is looking at,
 not the list they may choose from.
 
+⚠️ `none_as_null=True` is not optional here: SQLAlchemy's `JSON` type stores a Python `None` as the
+JSON literal `null` unless it is set, which leaves the column *not* SQL NULL — a later
+`IS NOT NULL` still matches it. Migration `0061` cleans up the rows an earlier version of this one
+wrote that way.
+
 Revision ID: 0060
 Revises: 0059
 Create Date: 2026-10-10
@@ -30,8 +35,8 @@ depends_on = None
 _USERS = sa.table(
     "users",
     sa.column("id", sa.Integer),
-    sa.column("dashboard_widget_options", sa.JSON),
-    sa.column("enabled_theme_options", sa.JSON),
+    sa.column("dashboard_widget_options", sa.JSON(none_as_null=True)),
+    sa.column("enabled_theme_options", sa.JSON(none_as_null=True)),
 )
 
 

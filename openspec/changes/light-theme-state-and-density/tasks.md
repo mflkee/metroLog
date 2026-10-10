@@ -16,7 +16,7 @@
 ## 3. Everything on by default (owner request)
 
 - [x] 3.1 Frontend: `defaultVisibleThemes` becomes the whole theme catalogue, so a user with no stored list gets every theme (widgets already default to all). Done: the catalogue is declared first and the default is `themeOptions.map((option) => option.value)`; `DEFAULT_THEME` stays `dark` (the theme applied before the user picks).
-- [x] 3.2 Backend: migration `0060` sets `dashboard_widget_options` and `enabled_theme_options` to `null` for every user. Done: `0060_reset_user_preferences_to_defaults.py` clears both lists where they are not already null, and deliberately leaves `theme_preference` alone (that is the theme in use, not the list to choose from). The downgrade is a no-op by design.
+- [x] 3.2 Backend: migration `0060` sets `dashboard_widget_options` and `enabled_theme_options` to `null` for every user. Done: `0060_reset_user_preferences_to_defaults.py` clears both lists where they are not already null, and deliberately leaves `theme_preference` alone (that is the theme in use, not the list to choose from). The downgrade is a no-op by design. ⚠️ The first version bound `None` through a plain `sa.JSON` column, which writes the JSON literal `null` instead of a SQL NULL — the column then still answers `IS NOT NULL`, and on Stage 7 rows kept that value. `0060` now uses `sa.JSON(none_as_null=True)` and `0061_normalise_json_null_preferences.py` rewrites the rows the earlier version wrote, so a fresh database and Stage both end up with a real NULL.
 - [ ] 3.3 Verify on Stage that a fresh account and a reset account both see every widget and every theme, and that trimming a list still persists.
 
 ## 4. Widget content follows the width (owner request)

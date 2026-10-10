@@ -147,11 +147,9 @@ function NavItem({
       to={item.to}
       className={({ isActive }) =>
         [
-          "sidebar-nav-item block rounded-2xl border transition",
+          "sidebar-nav-item block rounded-2xl transition",
           collapsed ? "px-2.5 py-3 lg:px-1.5" : "px-4 py-3",
-          isActive
-            ? "sidebar-nav-item--active border-signal-info text-ink"
-            : "border-transparent bg-transparent text-steel hover:border-line",
+          isActive ? "sidebar-nav-item--active text-ink" : "bg-transparent text-steel",
         ].join(" ")
       }
       onClick={onClick}

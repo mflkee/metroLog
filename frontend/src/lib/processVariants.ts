@@ -49,7 +49,7 @@ export function getProcessFormatButtonClass(active: boolean): string {
   return [
     "rounded-xl border px-3 py-2 text-sm transition",
     active
-      ? "border-[color:var(--accent)] bg-[var(--accent-soft)] text-ink"
+      ? "border-transparent bg-[var(--accent-soft)] text-ink"
       : "border-transparent text-ink hover:bg-[var(--accent-soft)]",
   ].join(" ");
 }

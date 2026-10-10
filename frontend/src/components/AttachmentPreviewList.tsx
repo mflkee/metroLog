@@ -657,7 +657,7 @@ function AttachmentPreviewCard<T extends PreviewableAttachment>({
         <div
           className={[
             "tone-grandchild relative mt-3 flex w-full items-center justify-center overflow-hidden rounded-2xl border border-line text-left",
-            "transition hover:border-signal-info",
+            "transition hover:bg-[var(--accent-soft)]/40",
             getPreviewFrameClassName(previewVariant),
           ]
             .filter(Boolean)

@@ -61,8 +61,8 @@ function getProcessChoiceCardClass(selected: boolean): string {
   return [
     "flex min-h-[58px] flex-col justify-center gap-1 rounded-2xl border px-3 py-2 text-left transition",
     selected
-      ? "border-[color:var(--accent)] bg-[var(--accent-soft)]"
-      : "border-line bg-[color:var(--tone-grandchild-bg)] hover:border-[color:var(--accent)] hover:bg-[var(--accent-soft)]",
+      ? "border-line bg-[var(--accent-soft)]"
+      : "border-line bg-[color:var(--tone-grandchild-bg)] hover:bg-[var(--accent-soft)]",
   ].join(" ");
 }
 

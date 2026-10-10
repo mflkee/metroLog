@@ -69,7 +69,7 @@ function formatDate(value: string | null): string {
 
 function TaskCard({ task }: { task: TaskListItem }) {
   return (
-    <div className="w-full cursor-pointer rounded-2xl border border-line p-3 text-left transition hover:border-[color:var(--accent)]">
+    <div className="w-full cursor-pointer rounded-2xl border border-line p-3 text-left transition hover:bg-[var(--accent-soft)]/40">
       <div className="flex items-start justify-between gap-2">
         <span className="text-sm font-semibold text-ink">{task.title}</span>
         <span className={`shrink-0 text-[11px] font-semibold uppercase ${PRIORITY_TONE[task.priority]}`}>
@@ -487,7 +487,7 @@ export function TasksPage() {
             {TASK_STATUSES.map((status) => (
               <button
                 key={status}
-                className={`rounded-full border px-3 py-1 text-xs ${statuses.includes(status) ? "border-[color:var(--accent)] bg-[var(--accent-soft)] text-ink" : "border-line text-steel"}`}
+                className={`rounded-full border px-3 py-1 text-xs ${statuses.includes(status) ? "border-line bg-[var(--accent-soft)] text-ink" : "border-line text-steel"}`}
                 onClick={() => toggleStatus(status)}
                 type="button"
               >

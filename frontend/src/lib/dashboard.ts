@@ -123,6 +123,36 @@ export const dashboardSummaryColumnsClass: Record<DashboardWidgetSize, string> =
   full: "grid-cols-1 sm:grid-cols-2 xl:grid-cols-5",
 };
 
+/**
+ * How much of a module's own content fits at each width preset. The preset is the *module's* width,
+ * not the viewport's, so the choice is made here instead of with a `sm:`/`lg:` breakpoint: a
+ * third-wide module on a wide screen would otherwise pour its full content into a third of a row.
+ */
+export const dashboardWidgetRowLimit: Record<DashboardWidgetSize, number> = {
+  third: 5,
+  half: 8,
+  full: 12,
+};
+
+/** A module made of small cards pairs them up from a half-wide column and stacks them in a third. */
+export const dashboardPairColumnsClass: Record<DashboardWidgetSize, string> = {
+  third: "grid-cols-1",
+  half: "grid-cols-2",
+  full: "grid-cols-2",
+};
+
+/** The donut legend sits under the chart in a third-wide column and beside it from a half. */
+export const dashboardDonutLayoutClass: Record<DashboardWidgetSize, string> = {
+  third: "flex-col",
+  half: "flex-col xl:flex-row xl:items-center",
+  full: "flex-col xl:flex-row xl:items-center",
+};
+
+/** A third is the condensed preset: the modules drop their least important fields there. */
+export function isCondensedWidget(size: DashboardWidgetSize): boolean {
+  return size === "third";
+}
+
 export const dashboardWidgetTitles: Record<DashboardWidgetKey, string> = {
   summary_cards: "Сводка",
   my_tasks: "Мои задачи",

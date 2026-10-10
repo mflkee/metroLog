@@ -2568,8 +2568,8 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                             className={[
                               "w-full rounded-2xl border px-4 py-3 text-left transition",
                               isSelected
-                                ? "border-signal-info bg-[var(--accent-soft)]"
-                                : "tone-child border-line hover:border-signal-info/60",
+                                ? "border-line bg-[var(--accent-soft)]"
+                                : "tone-child border-line hover:bg-[var(--accent-soft)]/45",
                             ].join(" ")}
                             type="button"
                             onClick={() => handleSelectSiResult(result)}
@@ -3762,8 +3762,8 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                         className={[
                           "rounded-full border px-3 py-1 text-xs transition",
                           active
-                            ? "border-[var(--accent)] bg-[var(--accent-soft)] text-ink"
-                            : "border-line text-steel hover:border-signal-info hover:text-ink",
+                            ? "border-line bg-[var(--accent-soft)] text-ink"
+                            : "border-line text-steel hover:bg-[var(--accent-soft)] hover:text-ink",
                         ].join(" ")}
                         type="button"
                         onClick={() =>

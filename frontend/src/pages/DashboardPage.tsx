@@ -26,11 +26,15 @@ import { useIsWideScreen } from "@/hooks/useIsWideScreen";
 import {
   applyVisibleOrder,
   buildDashboardPlan,
+  dashboardDonutLayoutClass,
+  dashboardPairColumnsClass,
   dashboardSummaryColumnsClass,
+  dashboardWidgetRowLimit,
   defaultDashboardLayout,
   defaultDashboardWidgets,
   getDashboardFolderIds,
   isCheckExpired,
+  isCondensedWidget,
   isDashboardDragEnabled,
   isDatePast,
   normalizeDashboardLayout,
@@ -335,36 +339,38 @@ export function DashboardPage() {
         );
 
       case "my_tasks":
-        return user ? <MyTasksWidget token={token ?? ""} userId={user.id} /> : null;
+        return user ? <MyTasksWidget size={size} token={token ?? ""} userId={user.id} /> : null;
 
       case "status_distribution":
-        return <DonutCard entries={statusEntries} emptyLabel="Нет приборов в папке" />;
+        return <DonutCard emptyLabel="Нет приборов в папке" entries={statusEntries} size={size} />;
 
       case "type_distribution":
-        return <DonutCard entries={typeEntries} emptyLabel="Нет приборов в папке" />;
+        return <DonutCard emptyLabel="Нет приборов в папке" entries={typeEntries} size={size} />;
 
       case "top_locations":
         return (
           <div className={DASHBOARD_SCROLL_FRAME_CLASS}>
             {topLocations.length ? (
               <div className={DASHBOARD_SCROLL_LIST_CLASS}>
-                {topLocations.map((entry) => (
+                {topLocations.slice(0, dashboardWidgetRowLimit[size]).map((entry) =>
                   entry.folderId ? (
                     <Link
                       key={entry.label}
-                      className={`${DASHBOARD_SCROLL_ITEM_CLASS} block space-y-2 transition hover:border-signal-info hover:bg-[var(--accent-soft)]/35`}
+                      className={`${DASHBOARD_SCROLL_ITEM_CLASS} block space-y-2 transition hover:bg-[var(--accent-soft)]/45`}
                       to={buildEquipmentLocationTarget(entry)}
                     >
                       <div className="flex items-center justify-between gap-3 text-sm">
                         <span className="min-w-0 truncate text-ink">{entry.label}</span>
                         <span className="shrink-0 text-steel">{entry.value}</span>
                       </div>
-                      <div className="tone-child h-2 rounded-full border border-line">
-                        <div
-                          className="h-full rounded-full bg-[var(--accent)]"
-                          style={{ width: `${entry.percent}%` }}
-                        />
-                      </div>
+                      {isCondensedWidget(size) ? null : (
+                        <div className="tone-child h-2 rounded-full border border-line">
+                          <div
+                            className="h-full rounded-full bg-[var(--accent)]"
+                            style={{ width: `${entry.percent}%` }}
+                          />
+                        </div>
+                      )}
                     </Link>
                   ) : (
                     <div key={entry.label} className={`${DASHBOARD_SCROLL_ITEM_CLASS} space-y-2`}>
@@ -372,15 +378,17 @@ export function DashboardPage() {
                         <span className="min-w-0 truncate text-ink">{entry.label}</span>
                         <span className="shrink-0 text-steel">{entry.value}</span>
                       </div>
-                      <div className="tone-child h-2 rounded-full border border-line">
-                        <div
-                          className="h-full rounded-full bg-[var(--accent)]"
-                          style={{ width: `${entry.percent}%` }}
-                        />
-                      </div>
+                      {isCondensedWidget(size) ? null : (
+                        <div className="tone-child h-2 rounded-full border border-line">
+                          <div
+                            className="h-full rounded-full bg-[var(--accent)]"
+                            style={{ width: `${entry.percent}%` }}
+                          />
+                        </div>
+                      )}
                     </div>
-                  )
-                ))}
+                  ),
+                )}
               </div>
             ) : (
               <p className="text-sm text-steel">Для приборов этой папки еще не указаны местонахождения.</p>
@@ -393,10 +401,10 @@ export function DashboardPage() {
           <div className={DASHBOARD_SCROLL_FRAME_CLASS}>
             {upcomingVerifications.length ? (
               <div className={DASHBOARD_SCROLL_LIST_CLASS}>
-                {upcomingVerifications.map((item) => (
+                {upcomingVerifications.slice(0, dashboardWidgetRowLimit[size]).map((item) => (
                   <Link
                     key={item.id}
-                    className={`${DASHBOARD_SCROLL_ITEM_CLASS} flex items-center justify-between gap-3 transition hover:border-signal-info`}
+                    className={`${DASHBOARD_SCROLL_ITEM_CLASS} flex items-center justify-between gap-3 transition hover:bg-[var(--accent-soft)]/45`}
                     to={`/equipment/${item.id}`}
                   >
                     <div className="min-w-0">
@@ -404,23 +412,27 @@ export function DashboardPage() {
                         {item.name}
                         {item.modification ? ` · ${item.modification}` : ""}
                       </p>
-                      <p className="mt-1 text-xs text-steel">
-                        {[item.kindLabel, item.serialNumber ? `зав. № ${item.serialNumber}` : null]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
+                      {isCondensedWidget(size) ? null : (
+                        <p className="mt-1 text-xs text-steel">
+                          {[item.kindLabel, item.serialNumber ? `зав. № ${item.serialNumber}` : null]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
+                      )}
                     </div>
                     <div className="text-right text-xs text-steel">
                       <p>{formatDisplayDate(item.validDate)}</p>
-                      <p
-                        className={
-                          item.daysLeft < 0
-                            ? "mt-1 font-semibold text-[color:var(--danger)]"
-                            : "mt-1"
-                        }
-                      >
-                        {item.daysLeft < 0 ? "просрочено" : `${item.daysLeft} дн.`}
-                      </p>
+                      {isCondensedWidget(size) ? null : (
+                        <p
+                          className={
+                            item.daysLeft < 0
+                              ? "mt-1 font-semibold text-[color:var(--danger)]"
+                              : "mt-1"
+                          }
+                        >
+                          {item.daysLeft < 0 ? "просрочено" : `${item.daysLeft} дн.`}
+                        </p>
+                      )}
                     </div>
                   </Link>
                 ))}
@@ -433,7 +445,7 @@ export function DashboardPage() {
 
       case "completed_processes":
         return (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 ${dashboardPairColumnsClass[size]}`}>
             {completedProcessEntries.map((entry) => (
               <div
                 key={entry.label}
@@ -449,7 +461,7 @@ export function DashboardPage() {
 
       case "average_durations":
         return (
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={`grid gap-3 ${dashboardPairColumnsClass[size]}`}>
             {averageDurationEntries.map((entry) => (
               <div
                 key={entry.label}
@@ -467,31 +479,33 @@ export function DashboardPage() {
         return (
           <div className="space-y-3">
             {recentEvents.length ? (
-              recentEvents.map((item) => (
+              recentEvents.slice(0, dashboardWidgetRowLimit[size]).map((item) => (
                 <Link
                   key={item.id}
-                  className="tone-child flex items-start justify-between gap-3 rounded-2xl border border-line px-4 py-3 transition hover:border-signal-info"
+                  className="tone-child flex items-start justify-between gap-3 rounded-2xl border border-line px-4 py-3 transition hover:bg-[var(--accent-soft)]/40"
                   to={buildEventTarget(item)}
                 >
                   <div className="min-w-0">
                     <p className="text-sm font-medium text-ink">{item.title}</p>
-                    <p className="mt-1 text-xs text-steel">
-                      {item.equipmentName
-                        ? [
-                            item.equipmentName,
-                            item.equipmentModification,
-                            item.equipmentSerialNumber
-                              ? `зав. № ${item.equipmentSerialNumber}`
-                              : null,
-                          ]
-                            .filter(Boolean)
-                            .join(" · ")
-                        : item.description || "Событие без привязки к прибору"}
-                    </p>
+                    {isCondensedWidget(size) ? null : (
+                      <p className="mt-1 text-xs text-steel">
+                        {item.equipmentName
+                          ? [
+                              item.equipmentName,
+                              item.equipmentModification,
+                              item.equipmentSerialNumber
+                                ? `зав. № ${item.equipmentSerialNumber}`
+                                : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" · ")
+                          : item.description || "Событие без привязки к прибору"}
+                      </p>
+                    )}
                   </div>
                   <div className="shrink-0 text-right text-xs text-steel">
                     <p>{formatDateTime(item.createdAt)}</p>
-                    <p className="mt-1">{item.userDisplayName}</p>
+                    {size === "full" ? <p className="mt-1">{item.userDisplayName}</p> : null}
                   </div>
                 </Link>
               ))
@@ -535,7 +549,7 @@ export function DashboardPage() {
             {selectedFolders.map((folder) => (
               <Link
                 key={folder.id}
-                className="rounded-full border border-line px-3 py-2 text-sm text-steel transition hover:border-signal-info hover:text-ink"
+                className="rounded-full border border-line px-3 py-2 text-sm text-steel transition hover:bg-[var(--accent-soft)] hover:text-ink"
                 to={`/equipment?folderId=${folder.id}`}
               >
                 {folder.name}
@@ -600,9 +614,12 @@ export function DashboardPage() {
 function DonutCard({
   entries,
   emptyLabel,
+  size,
 }: {
   entries: DistributionEntry[];
   emptyLabel: string;
+  /** A third-wide column stacks the legend under the chart and shrinks the ring. */
+  size: DashboardWidgetSize;
 }) {
   const total = entries.reduce((sum, entry) => sum + entry.value, 0);
   if (!total) {
@@ -610,9 +627,15 @@ function DonutCard({
   }
 
   const gradient = buildDonutGradient(entries, total);
+  const condensed = isCondensedWidget(size);
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
-      <div className="mx-auto flex h-44 w-44 items-center justify-center rounded-full border border-line p-4">
+    <div className={["flex gap-4", dashboardDonutLayoutClass[size]].join(" ")}>
+      <div
+        className={[
+          "mx-auto flex items-center justify-center rounded-full border border-line p-4",
+          condensed ? "h-36 w-36" : "h-44 w-44",
+        ].join(" ")}
+      >
         <div
           className="flex h-full w-full items-center justify-center rounded-full"
           style={{
@@ -635,7 +658,14 @@ function DonutCard({
               style={{ backgroundColor: entry.color }}
             />
             <span className="min-w-0 flex-1 text-ink">{entry.label}</span>
-            <span className="shrink-0 text-steel">{entry.value}</span>
+            <span className="shrink-0 text-steel">
+              {entry.value}
+              {condensed ? null : (
+                <span className="ml-2 text-xs">
+                  {Math.round((entry.value / total) * 100)}%
+                </span>
+              )}
+            </span>
           </div>
         ))}
       </div>

@@ -389,7 +389,7 @@ export function AdminUsersPage() {
               </div>
               <div className="flex flex-col gap-2">
                 <button
-                  className="rounded-full border border-signal-info px-4 py-2 text-sm text-ink transition hover:border-line"
+                  className="rounded-full border border-signal-info px-4 py-2 text-sm text-ink transition hover:bg-[var(--accent-soft)]"
                   type="button"
                   onClick={() => void copyTemporaryPassword()}
                 >
@@ -572,8 +572,8 @@ export function AdminUsersPage() {
                             className={[
                               "rounded-full border px-3 py-1.5 text-sm transition",
                               user.role === roleOption
-                                ? "border-signal-info bg-[#eaf4f8] text-ink"
-                                : "border-line bg-white text-steel hover:border-signal-info hover:text-ink",
+                                ? "border-line bg-[var(--accent-soft)] text-ink"
+                                : "border-line bg-white text-steel hover:bg-[var(--accent-soft)] hover:text-ink",
                             ].join(" ")}
                             type="button"
                             disabled={roleActionDisabled}
@@ -590,7 +590,7 @@ export function AdminUsersPage() {
                           </button>
                         ))}
                         <button
-                          className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-steel transition hover:border-signal-info hover:text-ink disabled:opacity-60"
+                          className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-steel transition hover:bg-[var(--accent-soft)] hover:text-ink disabled:opacity-60"
                           type="button"
                           disabled={accountActionDisabled}
                           onClick={() =>
@@ -608,7 +608,7 @@ export function AdminUsersPage() {
                               : "Включить"}
                         </button>
                         <button
-                          className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-steel transition hover:border-signal-info hover:text-ink disabled:opacity-60"
+                          className="rounded-full border border-line bg-white px-3 py-1.5 text-sm text-steel transition hover:bg-[var(--accent-soft)] hover:text-ink disabled:opacity-60"
                           type="button"
                           disabled={isResettingPassword || isProtectedDeveloper}
                           onClick={() => handleResetPassword(user.id, user.fullName, user.email)}
@@ -617,7 +617,7 @@ export function AdminUsersPage() {
                         </button>
                         {canDeleteUserAccount ? (
                           <button
-                            className="rounded-full border border-[#e7b8b2] bg-white px-3 py-1.5 text-sm text-[#b04c43] transition hover:border-[#b04c43] disabled:opacity-60"
+                            className="rounded-full border border-[#e7b8b2] bg-white px-3 py-1.5 text-sm text-[#b04c43] transition hover:bg-[#f8e8e6] disabled:opacity-60"
                             type="button"
                             disabled={deleteUserMutation.isPending}
                             onClick={() => {

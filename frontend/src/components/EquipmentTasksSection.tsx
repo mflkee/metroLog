@@ -28,7 +28,7 @@ export function EquipmentTasksSection({ equipmentId, token }: EquipmentTasksSect
           items.map((task) => (
             <Link
               key={task.id}
-              className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
+              className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:bg-[var(--accent-soft)]/40"
               to={`/tasks/${task.id}`}
             >
               <span className="min-w-0 truncate font-medium">{task.title}</span>

@@ -1,11 +1,15 @@
 import {
   applyVisibleOrder,
   buildDashboardPlan,
+  dashboardDonutLayoutClass,
+  dashboardPairColumnsClass,
   dashboardSummaryColumnsClass,
   dashboardWidgetDefaultSizes,
+  dashboardWidgetRowLimit,
   defaultDashboardLayout,
   defaultDashboardWidgetOrder,
   isCheckExpired,
+  isCondensedWidget,
   isDashboardDragEnabled,
   isDatePast,
   normalizeDashboardLayout,
@@ -186,5 +190,35 @@ describe("applyVisibleOrder", () => {
     expect(reordered.find((entry) => entry.key === "my_tasks")).toEqual(
       layout.find((entry) => entry.key === "my_tasks"),
     );
+  });
+});
+
+describe("widget density follows the width preset", () => {
+  it("shows more rows the wider the module is", () => {
+    expect(dashboardWidgetRowLimit.third).toBeLessThan(dashboardWidgetRowLimit.half);
+    expect(dashboardWidgetRowLimit.half).toBeLessThan(dashboardWidgetRowLimit.full);
+  });
+
+  it("treats only a third as the condensed preset", () => {
+    expect(isCondensedWidget("third")).toBe(true);
+    expect(isCondensedWidget("half")).toBe(false);
+    expect(isCondensedWidget("full")).toBe(false);
+  });
+
+  it("stacks the small-card modules in a third and pairs them up otherwise", () => {
+    expect(dashboardPairColumnsClass.third).toBe("grid-cols-1");
+    expect(dashboardPairColumnsClass.half).toBe("grid-cols-2");
+    expect(dashboardPairColumnsClass.full).toBe("grid-cols-2");
+  });
+
+  it("puts the donut legend under the chart only in a third", () => {
+    expect(dashboardDonutLayoutClass.third).toBe("flex-col");
+    expect(dashboardDonutLayoutClass.half).toContain("xl:flex-row");
+    expect(dashboardDonutLayoutClass.full).toContain("xl:flex-row");
+  });
+
+  it("gives the summary strip fewer columns the narrower the module is", () => {
+    expect(dashboardSummaryColumnsClass.third).toBe("grid-cols-1");
+    expect(dashboardSummaryColumnsClass.full).toContain("xl:grid-cols-5");
   });
 });

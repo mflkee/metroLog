@@ -47,7 +47,7 @@ export function EquipmentReferenceLink({
 
   if (resolvedTarget) {
     return (
-      <Link className={`${sharedClassName} text-ink hover:border-signal-info`} to={resolvedTarget}>
+      <Link className={`${sharedClassName} text-ink hover:bg-[var(--accent-soft)]`} to={resolvedTarget}>
         {content}
       </Link>
     );

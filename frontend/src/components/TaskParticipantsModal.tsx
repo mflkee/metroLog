@@ -121,7 +121,7 @@ export function TaskParticipantsModal({
             Отмена
           </button>
           <button
-            className="rounded-xl border border-[color:var(--accent)] bg-[var(--accent-soft)] px-3 py-2 text-sm text-ink disabled:opacity-50"
+            className="rounded-xl border border-line bg-[var(--accent-soft)] px-3 py-2 text-sm text-ink disabled:opacity-50"
             disabled={saving}
             onClick={() => void save()}
             type="button"

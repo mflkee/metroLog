@@ -24,7 +24,6 @@ type ThemeState = {
 
 const THEME_STORAGE_KEY = "metrolog.theme";
 export const DEFAULT_THEME: ThemeName = "dark";
-export const defaultVisibleThemes: ThemeName[] = ["dark", "light"];
 
 export const themeOptions: ThemeOption[] = [
   { value: "light", label: "Светлая" },
@@ -37,6 +36,14 @@ export const themeOptions: ThemeOption[] = [
   { value: "gruvbox", label: "Gruvbox", source: "ellisonleao/gruvbox.nvim" },
   { value: "moonfly", label: "Moonfly", source: "bluz71/vim-moonfly-colors" },
 ];
+
+/**
+ * Every theme is offered out of the box: the catalogue *is* the default, so a user who has never
+ * trimmed the list sees a new theme as soon as it is added, and `null` (the stored value of
+ * "I never chose") keeps meaning "the default". `DEFAULT_THEME` stays the one that is applied
+ * before the user picks.
+ */
+export const defaultVisibleThemes: ThemeName[] = themeOptions.map((option) => option.value);
 
 function persistTheme(theme: ThemeName): void {
   if (typeof window === "undefined") {

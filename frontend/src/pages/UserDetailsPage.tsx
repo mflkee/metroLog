@@ -33,7 +33,7 @@ export function UserDetailsPage() {
       <div className="tone-parent rounded-3xl border border-line p-5 shadow-panel">
         <div className="mb-5 flex flex-wrap items-center gap-3">
           <Link
-            className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
+            className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:bg-[var(--accent-soft)]"
             to="/admin/users"
           >
             Назад к пользователям

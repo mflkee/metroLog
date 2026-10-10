@@ -56,7 +56,7 @@ export function PrivateNoteToggleButton({
       aria-pressed={active}
       className={[
         "h-10 w-10",
-        active ? "border-signal-info bg-[var(--accent-soft)] text-ink" : "",
+        active ? "bg-[var(--accent-soft)] text-ink" : "",
       ]
         .filter(Boolean)
         .join(" ")}

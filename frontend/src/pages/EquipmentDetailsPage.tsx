@@ -1416,7 +1416,7 @@ export function EquipmentDetailsPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap items-center gap-3">
               <Link
-                className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
+                className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:bg-[var(--accent-soft)]"
                 to={`/equipment?folderId=${equipment.folderId}`}
               >
                 Назад к оборудованию
@@ -1619,7 +1619,7 @@ export function EquipmentDetailsPage() {
                     <>
                       <div className="mt-4 flex justify-end">
                         <Link
-                          className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:border-signal-info"
+                          className="rounded-full border border-line px-4 py-2 text-sm text-ink transition hover:bg-[var(--accent-soft)]"
                           to="/repairs"
                         >
                           Ремонты
@@ -2584,8 +2584,8 @@ export function EquipmentDetailsPage() {
                                     className={[
                                       "w-full rounded-2xl border px-4 py-3 text-left transition",
                                       isSelected
-                                        ? "border-signal-info bg-[var(--bg-primary)]"
-                                        : "border-line bg-white hover:border-signal-info",
+                                        ? "border-line bg-[var(--accent-soft)]/45"
+                                        : "border-line bg-white hover:bg-[var(--accent-soft)]/35",
                                     ].join(" ")}
                                     type="button"
                                     onClick={() => void loadSiRefreshDetailMutation.mutateAsync(result)}
@@ -3012,7 +3012,7 @@ export function EquipmentDetailsPage() {
                     <>
                       {latestArchivedVerification ? (
                         <Link
-                          className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
+                          className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:bg-[var(--accent-soft)]/40"
                           to={`/verification/si?tab=archived&equipmentId=${parsedEquipmentId}${
                             latestArchivedVerification.batchKey
                               ? `&batchKey=${encodeURIComponent(latestArchivedVerification.batchKey)}`
@@ -3047,7 +3047,7 @@ export function EquipmentDetailsPage() {
 
                   {latestArchivedRepair ? (
                     <Link
-                      className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
+                      className="tone-child flex items-center justify-between gap-3 rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:bg-[var(--accent-soft)]/40"
                       to={`/repairs?tab=archived&equipmentId=${parsedEquipmentId}${
                         latestArchivedRepair.batchKey
                           ? `&batchKey=${encodeURIComponent(latestArchivedRepair.batchKey)}`
@@ -3688,8 +3688,8 @@ export function EquipmentDetailsPage() {
                       className={[
                         "w-full rounded-2xl border px-4 py-3 text-left transition",
                         isSelected
-                          ? "border-[color:var(--accent)] bg-[color:var(--accent-soft)]/35"
-                          : "border-line bg-white hover:border-[color:var(--accent)]/45",
+                          ? "border-line bg-[color:var(--accent-soft)]/45"
+                          : "border-line bg-white hover:bg-[color:var(--accent-soft)]/35",
                       ].join(" ")}
                       type="button"
                       onClick={() => void loadEsiCompositionDetailMutation.mutateAsync(result)}

@@ -596,8 +596,8 @@ export function ArshinPage() {
                   className={[
                     "rounded-full border px-4 py-2 text-sm font-medium transition",
                     active
-                      ? "border-signal-info bg-[var(--accent-soft)] text-ink"
-                      : "border-line text-steel hover:border-signal-info/60 hover:text-ink",
+                      ? "border-line bg-[var(--accent-soft)] text-ink"
+                      : "border-line text-steel hover:bg-[var(--accent-soft)]/60 hover:text-ink",
                   ].join(" ")}
                   type="button"
                   onClick={() => handleRegistryKindChange(kind)}
@@ -925,7 +925,7 @@ export function ArshinPage() {
                 addSummary.created.map((item) => (
                   <Link
                     key={item.vriId}
-                    className="block rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:border-signal-info"
+                    className="block rounded-2xl border border-line px-4 py-3 text-sm text-ink transition hover:bg-[var(--accent-soft)]/40"
                     to={`/equipment/${item.equipmentId}`}
                   >
                     <div className="font-semibold">{item.equipmentName}</div>

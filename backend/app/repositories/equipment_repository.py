@@ -41,6 +41,7 @@ from app.models.equipment import (
     VerificationMessageAttachment,
 )
 from app.models.user import User
+from app.repositories.search import search_condition
 from app.schemas.equipment import EquipmentSortDirection, EquipmentSortKey
 
 
@@ -301,16 +302,18 @@ class EquipmentRepository:
             statement = statement.where(Equipment.equipment_type == equipment_type)
 
         if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(
-                    Equipment.object_name.ilike(pattern),
-                    Equipment.name.ilike(pattern),
-                    Equipment.modification.ilike(pattern),
-                    Equipment.serial_number.ilike(pattern),
-                    Equipment.current_location_manual.ilike(pattern),
-                )
+            search = search_condition(
+                [
+                    Equipment.object_name,
+                    Equipment.name,
+                    Equipment.modification,
+                    Equipment.serial_number,
+                    Equipment.current_location_manual,
+                ],
+                query,
             )
+            if search is not None:
+                statement = statement.where(search)
 
         if object_name:
             statement = statement.where(
@@ -847,22 +850,24 @@ class RepairRepository:
             statement = statement.where(Repair.closed_at.is_not(None))
 
         if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(
-                    Equipment.object_name.ilike(pattern),
-                    Equipment.name.ilike(pattern),
-                    Equipment.modification.ilike(pattern),
-                    Equipment.serial_number.ilike(pattern),
-                    Equipment.current_location_manual.ilike(pattern),
-                    SIVerification.result_docnum.ilike(pattern),
-                    SIVerification.mit_number.ilike(pattern),
-                    SIVerification.mi_number.ilike(pattern),
-                    Repair.batch_name.ilike(pattern),
-                    Repair.route_city.ilike(pattern),
-                    Repair.route_destination.ilike(pattern),
-                )
+            search = search_condition(
+                [
+                    Equipment.object_name,
+                    Equipment.name,
+                    Equipment.modification,
+                    Equipment.serial_number,
+                    Equipment.current_location_manual,
+                    SIVerification.result_docnum,
+                    SIVerification.mit_number,
+                    SIVerification.mi_number,
+                    Repair.batch_name,
+                    Repair.route_city,
+                    Repair.route_destination,
+                ],
+                query,
             )
+            if search is not None:
+                statement = statement.where(search)
 
         if folder_id is not None:
             statement = statement.where(Equipment.folder_id == folder_id)
@@ -913,22 +918,24 @@ class RepairRepository:
             )
 
         if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(
-                    Equipment.object_name.ilike(pattern),
-                    Equipment.name.ilike(pattern),
-                    Equipment.modification.ilike(pattern),
-                    Equipment.serial_number.ilike(pattern),
-                    Equipment.current_location_manual.ilike(pattern),
-                    SIVerification.result_docnum.ilike(pattern),
-                    SIVerification.mit_number.ilike(pattern),
-                    SIVerification.mi_number.ilike(pattern),
-                    Repair.batch_name.ilike(pattern),
-                    Repair.route_city.ilike(pattern),
-                    Repair.route_destination.ilike(pattern),
-                )
+            search = search_condition(
+                [
+                    Equipment.object_name,
+                    Equipment.name,
+                    Equipment.modification,
+                    Equipment.serial_number,
+                    Equipment.current_location_manual,
+                    SIVerification.result_docnum,
+                    SIVerification.mit_number,
+                    SIVerification.mi_number,
+                    Repair.batch_name,
+                    Repair.route_city,
+                    Repair.route_destination,
+                ],
+                query,
             )
+            if search is not None:
+                statement = statement.where(search)
 
         if folder_id is not None:
             statement = statement.where(Equipment.folder_id == folder_id)
@@ -1285,21 +1292,23 @@ class VerificationRepository:
             statement = statement.where(Verification.closed_at.is_not(None))
 
         if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(
-                    Equipment.object_name.ilike(pattern),
-                    Equipment.name.ilike(pattern),
-                    Equipment.modification.ilike(pattern),
-                    Equipment.serial_number.ilike(pattern),
-                    SIVerification.result_docnum.ilike(pattern),
-                    SIVerification.mit_number.ilike(pattern),
-                    SIVerification.mi_number.ilike(pattern),
-                    Verification.batch_name.ilike(pattern),
-                    Verification.route_city.ilike(pattern),
-                    Verification.route_destination.ilike(pattern),
-                )
+            search = search_condition(
+                [
+                    Equipment.object_name,
+                    Equipment.name,
+                    Equipment.modification,
+                    Equipment.serial_number,
+                    SIVerification.result_docnum,
+                    SIVerification.mit_number,
+                    SIVerification.mi_number,
+                    Verification.batch_name,
+                    Verification.route_city,
+                    Verification.route_destination,
+                ],
+                query,
             )
+            if search is not None:
+                statement = statement.where(search)
 
         if folder_id is not None:
             statement = statement.where(Equipment.folder_id == folder_id)
@@ -1351,21 +1360,23 @@ class VerificationRepository:
             )
 
         if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(
-                    Equipment.object_name.ilike(pattern),
-                    Equipment.name.ilike(pattern),
-                    Equipment.modification.ilike(pattern),
-                    Equipment.serial_number.ilike(pattern),
-                    SIVerification.result_docnum.ilike(pattern),
-                    SIVerification.mit_number.ilike(pattern),
-                    SIVerification.mi_number.ilike(pattern),
-                    Verification.batch_name.ilike(pattern),
-                    Verification.route_city.ilike(pattern),
-                    Verification.route_destination.ilike(pattern),
-                )
+            search = search_condition(
+                [
+                    Equipment.object_name,
+                    Equipment.name,
+                    Equipment.modification,
+                    Equipment.serial_number,
+                    SIVerification.result_docnum,
+                    SIVerification.mit_number,
+                    SIVerification.mi_number,
+                    Verification.batch_name,
+                    Verification.route_city,
+                    Verification.route_destination,
+                ],
+                query,
             )
+            if search is not None:
+                statement = statement.where(search)
 
         if folder_id is not None:
             statement = statement.where(Equipment.folder_id == folder_id)

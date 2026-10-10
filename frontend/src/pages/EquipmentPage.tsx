@@ -74,6 +74,7 @@ import {
   getVerificationPresetVariants,
 } from "@/lib/processVariants";
 import { hasOperatorAccess, roleLabels } from "@/lib/roles";
+import { matchesSearchQuery } from "@/lib/search";
 import { useSearchHistory } from "@/lib/searchHistory";
 import { buildUserExtraInfo, matchesUserSearch, userSearchPlaceholder } from "@/lib/userSearch";
 import { insertEmojiAtCursor } from "@/lib/textarea";
@@ -885,29 +886,29 @@ export function EquipmentPage() {
         .map((row) => row.id),
     [folderRefreshRows],
   );
-  const filteredFolderRefreshRows = useMemo(() => {
-    const normalizedQuery = folderRefreshSearchQuery.trim().toLowerCase();
-    return folderRefreshRows.filter((row) => {
-      if (folderRefreshStatusFilter !== "ALL" && row.status !== folderRefreshStatusFilter) {
-        return false;
-      }
-      if (!normalizedQuery) {
-        return true;
-      }
-      return [
-        row.equipmentName,
-        getFolderRefreshRowTargetLabel(row),
-        row.currentCertificateNumber ?? "",
-        row.matchedCertificateNumber ?? "",
-        row.targetRegistryNumber ?? "",
-        row.matchedRegistryNumber ?? "",
-        row.notes ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(normalizedQuery);
-    });
-  }, [folderRefreshRows, folderRefreshSearchQuery, folderRefreshStatusFilter]);
+  const filteredFolderRefreshRows = useMemo(
+    () =>
+      folderRefreshRows.filter((row) => {
+        if (folderRefreshStatusFilter !== "ALL" && row.status !== folderRefreshStatusFilter) {
+          return false;
+        }
+        // The same term-based rule as every other search box: «При 81» finds a row whose instrument
+        // name and certificate number are two different fields.
+        return matchesSearchQuery(
+          [
+            row.equipmentName,
+            getFolderRefreshRowTargetLabel(row),
+            row.currentCertificateNumber,
+            row.matchedCertificateNumber,
+            row.targetRegistryNumber,
+            row.matchedRegistryNumber,
+            row.notes,
+          ],
+          folderRefreshSearchQuery,
+        );
+      }),
+    [folderRefreshRows, folderRefreshSearchQuery, folderRefreshStatusFilter],
+  );
   const filteredFolderRefreshRowIds = useMemo(
     () => filteredFolderRefreshRows.map((row) => row.id),
     [filteredFolderRefreshRows],
@@ -935,15 +936,13 @@ export function EquipmentPage() {
   const folderRefreshScopeDescriptionLabel = isScopedFolderRefresh
     ? `${folderRefreshScopeEquipmentIds.length} отмеченных приборов`
     : "всех приборов папки";
-  const filteredFolders = useMemo(() => {
-    const query = deferredFolderSearchQuery.trim().toLowerCase();
-    if (!query) {
-      return folders;
-    }
-    return folders.filter((folder) =>
-      [folder.name, folder.description ?? ""].some((value) => value.toLowerCase().includes(query)),
-    );
-  }, [deferredFolderSearchQuery, folders]);
+  const filteredFolders = useMemo(
+    () =>
+      folders.filter((folder) =>
+        matchesSearchQuery([folder.name, folder.description], deferredFolderSearchQuery),
+      ),
+    [deferredFolderSearchQuery, folders],
+  );
 
   // Folder order is per user: the server returns it already applied, and this override keeps the
   // dragged order visible until the refreshed data arrives (keyed by the query version).

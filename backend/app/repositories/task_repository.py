@@ -20,6 +20,7 @@ from app.models.task import (
     TaskSubscription,
 )
 from app.models.user import User
+from app.repositories.search import search_condition
 
 _PRIORITY_ORDER = {
     TaskPriority.CRITICAL: 0,
@@ -136,11 +137,9 @@ class TaskRepository:
         if equipment_id is not None:
             statement = statement.where(_equipment_exists(equipment_id))
 
-        if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(Task.title.ilike(pattern), Task.description.ilike(pattern))
-            )
+        search = search_condition([Task.title, Task.description], query)
+        if search is not None:
+            statement = statement.where(search)
 
         if due_before is not None:
             statement = statement.where(Task.due_date.is_not(None), Task.due_date <= due_before)

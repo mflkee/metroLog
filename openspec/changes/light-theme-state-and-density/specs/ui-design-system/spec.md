@@ -99,6 +99,29 @@ made from the module's width preset, not from a viewport breakpoint.
 - **WHEN** the module is a third wide
 - **THEN** it shows three tasks, six at a half and nine full width
 
+### Requirement: One search rule everywhere
+
+Every search box SHALL match each whitespace-separated term of the query separately: the terms may
+appear in different fields and in any order, and a term that matches nothing SHALL drop the row. A
+search SHALL NOT require the query to appear as one substring in one field. «ё» and «е» SHALL be
+treated as the same letter.
+
+#### Scenario: A name fragment and a number
+
+- **WHEN** the user searches an instrument by a fragment of its name and a fragment of its serial
+  number, in either order
+- **THEN** the instrument is found, even though the two fragments live in two different fields
+
+#### Scenario: A term that matches nothing
+
+- **WHEN** one term of the query matches no field of a row
+- **THEN** the row is not returned, and the other terms do not widen the result
+
+#### Scenario: An organisation and a surname
+
+- **WHEN** the user types an organisation and a surname in one box
+- **THEN** a person whose record holds them in different fields is found, in either order
+
 ### Requirement: Review surfaces stay compact
 
 A surface whose job is to let a reader scan rows — the Arshin refresh review, the user list — SHALL

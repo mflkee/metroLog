@@ -1,4 +1,5 @@
 import type { UserRole } from "@/api/auth";
+import { matchesSearchQuery } from "@/lib/search";
 import { roleLabels } from "@/lib/roles";
 
 type SearchableUserLike = {
@@ -25,24 +26,20 @@ const roleSearchAliases: Record<UserRole, string[]> = {
 
 export const userSearchPlaceholder = "Имя, email, роль, организация";
 
+/**
+ * A user matches when every term of the query appears somewhere in the record — the shared
+ * term-based rule in `lib/search.ts` — with the role and the state widened to the words a person
+ * would actually type («админ», «активен»).
+ */
 export function matchesUserSearch(user: SearchableUserLike, query: string): boolean {
-  const normalizedTerms = normalizeSearchText(query)
-    .split(" ")
-    .filter(Boolean);
-  if (!normalizedTerms.length) {
-    return true;
-  }
-
-  const roleTerms = user.role
-    ? [user.role, roleLabels[user.role], ...roleSearchAliases[user.role]]
-    : [];
   const stateTerms =
     user.isActive === true
-      ? ["активен", "active", "enabled"]
+      ? "активен active enabled"
       : user.isActive === false
-        ? ["отключен", "неактивен", "inactive", "disabled"]
-        : [];
-  const searchableText = normalizeSearchText(
+        ? "отключен неактивен inactive disabled"
+        : null;
+
+  return matchesSearchQuery(
     [
       user.fullName,
       user.displayName,
@@ -54,14 +51,13 @@ export function matchesUserSearch(user: SearchableUserLike, query: string): bool
       user.position,
       user.facility,
       user.phone,
-      ...roleTerms,
-      ...stateTerms,
-    ]
-      .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
-      .join(" "),
+      user.role ?? null,
+      user.role ? roleLabels[user.role] : null,
+      user.role ? roleSearchAliases[user.role].join(" ") : null,
+      stateTerms,
+    ],
+    query,
   );
-
-  return normalizedTerms.every((term) => searchableText.includes(term));
 }
 
 export function buildUserExtraInfo(user: Pick<SearchableUserLike, "organization" | "position" | "facility">): string | null {
@@ -69,12 +65,4 @@ export function buildUserExtraInfo(user: Pick<SearchableUserLike, "organization"
     .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     .join(" · ");
   return value || null;
-}
-
-function normalizeSearchText(value: string): string {
-  return value
-    .toLocaleLowerCase("ru-RU")
-    .replace(/ё/g, "е")
-    .replace(/\s+/g, " ")
-    .trim();
 }

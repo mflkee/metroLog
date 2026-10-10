@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from datetime import date
 
-from sqlalchemy import or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.event import EventCategory, EventLog
+from app.repositories.search import search_condition
 
 
 class EventLogRepository:
@@ -48,17 +49,19 @@ class EventLogRepository:
             statement = statement.where(EventLog.event_date <= date_to)
 
         if query:
-            pattern = f"%{query}%"
-            statement = statement.where(
-                or_(
-                    EventLog.title.ilike(pattern),
-                    EventLog.description.ilike(pattern),
-                    EventLog.user_display_name.ilike(pattern),
-                    EventLog.equipment_name.ilike(pattern),
-                    EventLog.folder_name.ilike(pattern),
-                    EventLog.batch_key.ilike(pattern),
-                )
+            search = search_condition(
+                [
+                    EventLog.title,
+                    EventLog.description,
+                    EventLog.user_display_name,
+                    EventLog.equipment_name,
+                    EventLog.folder_name,
+                    EventLog.batch_key,
+                ],
+                query,
             )
+            if search is not None:
+                statement = statement.where(search)
 
         statement = statement.limit(max(1, min(limit, 500)))
         return list(self.session.scalars(statement))

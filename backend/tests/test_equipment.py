@@ -280,6 +280,66 @@ async def test_operator_can_create_filter_and_update_registry_entities(
 
 
 @pytest.mark.anyio
+async def test_registry_search_matches_every_term_across_fields(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    """«При 81» has to find an instrument whose name and number live in two different fields."""
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Эталоны СИКН1520"},
+    )
+    assert folder_response.status_code == 201, folder_response.text
+    folder_id = folder_response.json()["id"]
+
+    async def create(name: str, *, object_name: str, serial_number: str) -> int:
+        response = await client.post(
+            "/api/v1/equipment",
+            headers=headers,
+            json={
+                "folder_id": folder_id,
+                "object_name": object_name,
+                "equipment_type": "OTHER",
+                "name": name,
+                "serial_number": serial_number,
+            },
+        )
+        assert response.status_code == 201, response.text
+        return response.json()["id"]
+
+    wanted = await create("Прибор измерительный", object_name="СИКН 1520", serial_number="81-2024")
+    await create("Манометр", object_name="СИКН 1520", serial_number="77-2024")
+    accented = await create("Эталон Фёдоровский", object_name="СИКН 1520", serial_number="12-2024")
+
+    async def search(query: str) -> list[int]:
+        response = await client.get(
+            "/api/v1/equipment",
+            headers=headers,
+            params={"query": query},
+        )
+        assert response.status_code == 200, response.text
+        return [item["id"] for item in response.json()]
+
+    # The terms may sit in different fields, and their order does not matter.
+    #
+    # The Cyrillic terms keep the case of the data on purpose: case folding is the database's
+    # job, and the suite runs on SQLite, whose `lower()` only folds ASCII. Production is
+    # PostgreSQL, where `ILIKE` ignores the case — see `app/repositories/search.py`.
+    assert await search("При 81") == [wanted]
+    assert await search("81 При") == [wanted]
+    assert await search("Прибор измерит") == [wanted]
+    # A term that matches nothing drops the row instead of widening the result.
+    assert await search("При 82") == []
+    # «е» finds «ё».
+    assert await search("Федоров") == [accented]
+
+
+@pytest.mark.anyio
 async def test_operator_can_create_si_with_manual_verification_interval_override(
     client: AsyncClient,
     db_engine,

@@ -30,5 +30,5 @@
 
 ## 5. Integration
 
-- [ ] 5.1 Run `npm run check`, push to `main`, confirm the CI run and the Stage deploy.
+- [x] 5.1 Run `npm run check`, push to `main`, confirm the CI run and the Stage deploy. Done: `npm run check` green (107 frontend tests, +13), CI runs #157–#159 all `success` with `deploy-staging` green. Stage verified afterwards: alembic `0061`, all 18 accounts hold a real SQL NULL in both preference lists, `theme_preference` untouched, the served CSS carries the new tokens and the focus ring and no longer carries the dead `hover:border-*` mappings, and the density code is in the served `DashboardPage` chunk.
 - [x] 5.2 Update `AGENTS.md` with the state convention, the light-theme contrast floor and the density ladder. Done: the UI-conventions block carries «Состояние — это фон, а не бордер», «Светлая тема: порог контраста», «Плотность модуля — от его ширины» and «Дефолт — включено всё», and the `users` row of the schema section spells out `null` = all widgets / all themes.

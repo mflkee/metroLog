@@ -101,6 +101,8 @@ export function TaskDetailsPage() {
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [equipmentOpen, setEquipmentOpen] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [messageToDeleteId, setMessageToDeleteId] = useState<number | null>(null);
+  const [attachmentToDelete, setAttachmentToDelete] = useState<TaskAttachment | null>(null);
 
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const messageFilesInputRef = useRef<HTMLInputElement | null>(null);
@@ -222,8 +224,10 @@ export function TaskDetailsPage() {
   });
   const messageDelete = useMutation({
     mutationFn: (messageId: number) => deleteTaskMessage(token, taskId, messageId),
-    onError: (error) => reportError("Не удалось удалить сообщение.", error),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] }),
+    onSuccess: () => {
+      setMessageToDeleteId(null);
+      queryClient.invalidateQueries({ queryKey: ["task-messages", taskId] });
+    },
   });
   const attachmentUpload = useMutation({
     mutationFn: () => uploadTaskAttachments(token, taskId, attachmentFiles),
@@ -234,8 +238,10 @@ export function TaskDetailsPage() {
   });
   const attachmentDelete = useMutation({
     mutationFn: (attachmentId: number) => deleteTaskAttachment(token, taskId, attachmentId),
-    onError: (error) => reportError("Не удалось удалить вложение.", error),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["task-attachments", taskId] }),
+    onSuccess: () => {
+      setAttachmentToDelete(null);
+      queryClient.invalidateQueries({ queryKey: ["task-attachments", taskId] });
+    },
   });
   const subscriptionMutation = useMutation({
     mutationFn: (subscribed: boolean) => setTaskSubscription(token, taskId, subscribed),
@@ -491,7 +497,7 @@ export function TaskDetailsPage() {
                         icon={<Icon className="h-4 w-4" name="delete" />}
                         label="Удалить сообщение"
                         size="tiny"
-                        onClick={() => messageDelete.mutate(message.id)}
+                        onClick={() => setMessageToDeleteId(message.id)}
                       />
                     ) : null}
                   </div>
@@ -701,7 +707,7 @@ export function TaskDetailsPage() {
                 columns="single"
                 deletingId={attachmentDelete.isPending ? attachmentDelete.variables ?? null : null}
                 loadPreview={(attachment) => fetchTaskAttachmentBlob(token, taskId, attachment.id)}
-                onDelete={(attachment) => attachmentDelete.mutate(attachment.id)}
+                onDelete={(attachment) => setAttachmentToDelete(attachment)}
                 onDownload={(attachment) => void downloadTaskAttachment(attachment)}
                 previewVariant="a4"
               />
@@ -761,6 +767,52 @@ export function TaskDetailsPage() {
           setDeleteConfirmOpen(false);
         }}
         onConfirm={() => void deleteMutation.mutateAsync()}
+      />
+      <DeleteConfirmModal
+        confirmLabel="Удалить сообщение"
+        description="Сообщение будет удалено вместе с вложениями."
+        errorMessage={
+          messageDelete.isError
+            ? messageDelete.error instanceof Error
+              ? messageDelete.error.message
+              : "Не удалось удалить сообщение."
+            : null
+        }
+        isOpen={messageToDeleteId !== null}
+        isPending={messageDelete.isPending}
+        title="Удалить сообщение?"
+        onClose={() => setMessageToDeleteId(null)}
+        onConfirm={() => {
+          if (messageToDeleteId === null) {
+            return;
+          }
+          messageDelete.mutate(messageToDeleteId);
+        }}
+      />
+      <DeleteConfirmModal
+        confirmLabel="Удалить вложение"
+        description={
+          attachmentToDelete
+            ? `Файл «${attachmentToDelete.fileName}» будет удалён из задачи.`
+            : undefined
+        }
+        errorMessage={
+          attachmentDelete.isError
+            ? attachmentDelete.error instanceof Error
+              ? attachmentDelete.error.message
+              : "Не удалось удалить вложение."
+            : null
+        }
+        isOpen={attachmentToDelete !== null}
+        isPending={attachmentDelete.isPending}
+        title="Удалить вложение"
+        onClose={() => setAttachmentToDelete(null)}
+        onConfirm={() => {
+          if (!attachmentToDelete) {
+            return;
+          }
+          attachmentDelete.mutate(attachmentToDelete.id);
+        }}
       />
     </section>
   );

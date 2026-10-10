@@ -611,6 +611,7 @@ function VerificationBatchCard({
   const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
+  const [messageToDeleteId, setMessageToDeleteId] = useState<number | null>(null);
   const [itemsModalOpen, setItemsModalOpen] = useState(false);
   const [itemsSearchQuery, setItemsSearchQuery] = useState("");
   const deferredItemsSearchQuery = useDeferredValue(itemsSearchQuery);
@@ -828,6 +829,7 @@ function VerificationBatchCard({
       deleteEquipmentVerificationMessage(token, anchor.equipmentId, messageId),
     onSuccess: async () => {
       setActionError(null);
+      setMessageToDeleteId(null);
       await Promise.all([messagesQuery.refetch(), onUpdated()]);
     },
   });
@@ -1648,7 +1650,10 @@ function VerificationBatchCard({
                           </svg>
                         }
                         label="Удалить сообщение поверки"
-                        onClick={() => void deleteMessageMutation.mutateAsync(message.id)}
+                        onClick={() => {
+                          setActionError(null);
+                          setMessageToDeleteId(message.id);
+                        }}
                         size="tiny"
                       />
                     ) : null}
@@ -1844,6 +1849,22 @@ function VerificationBatchCard({
           />
         </div>
       ) : null}
+      <DeleteConfirmModal
+        confirmLabel="Удалить сообщение"
+        description="Сообщение будет удалено вместе с вложениями."
+        errorMessage={actionError}
+        isOpen={messageToDeleteId !== null}
+        isPending={deleteMessageMutation.isPending}
+        pendingLabel="Удаляем..."
+        title="Удалить сообщение поверки?"
+        onClose={() => setMessageToDeleteId(null)}
+        onConfirm={() => {
+          if (messageToDeleteId === null) {
+            return;
+          }
+          void deleteMessageMutation.mutateAsync(messageToDeleteId);
+        }}
+      />
     </article>
   );
 }
@@ -1891,6 +1912,7 @@ function VerificationQueueRow({
   const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
+  const [messageToDeleteId, setMessageToDeleteId] = useState<number | null>(null);
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const editMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
@@ -2065,6 +2087,7 @@ function VerificationQueueRow({
       deleteEquipmentVerificationMessage(token, item.equipmentId, messageId),
     onSuccess: async () => {
       setActionError(null);
+      setMessageToDeleteId(null);
       await Promise.all([messagesQuery.refetch(), onUpdated()]);
     },
   });
@@ -2753,7 +2776,10 @@ function VerificationQueueRow({
                             </svg>
                           }
                           label="Удалить сообщение поверки"
-                          onClick={() => void deleteMessageMutation.mutateAsync(message.id)}
+                          onClick={() => {
+                            setActionError(null);
+                            setMessageToDeleteId(message.id);
+                          }}
                           size="tiny"
                         />
                       ) : null}
@@ -2921,6 +2947,22 @@ function VerificationQueueRow({
         title="Подтверждение завершения"
         onClose={() => setCloseConfirmOpen(false)}
         onConfirm={() => void handleCloseVerification()}
+      />
+      <DeleteConfirmModal
+        confirmLabel="Удалить сообщение"
+        description="Сообщение будет удалено вместе с вложениями."
+        errorMessage={actionError}
+        isOpen={messageToDeleteId !== null}
+        isPending={deleteMessageMutation.isPending}
+        pendingLabel="Удаляем..."
+        title="Удалить сообщение поверки?"
+        onClose={() => setMessageToDeleteId(null)}
+        onConfirm={() => {
+          if (messageToDeleteId === null) {
+            return;
+          }
+          void deleteMessageMutation.mutateAsync(messageToDeleteId);
+        }}
       />
     </article>
   );

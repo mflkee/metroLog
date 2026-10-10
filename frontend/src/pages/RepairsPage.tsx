@@ -592,6 +592,7 @@ function RepairQueueRow({
   const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
+  const [messageToDeleteId, setMessageToDeleteId] = useState<number | null>(null);
   const isArchived = lifecycleStatus === "archived";
   const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
   const editMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -751,6 +752,7 @@ function RepairQueueRow({
     mutationFn: (messageId: number) => deleteEquipmentRepairMessage(token, item.equipmentId, messageId),
     onSuccess: async () => {
       setActionError(null);
+      setMessageToDeleteId(null);
       await queryClient.invalidateQueries({ queryKey: ["repair-messages", item.equipmentId] });
     },
     onError: (error) => {
@@ -1389,7 +1391,10 @@ function RepairQueueRow({
                                 </svg>
                               }
                               label="Удалить сообщение ремонта"
-                              onClick={() => void deleteMessageMutation.mutateAsync(message.id)}
+                              onClick={() => {
+                                setActionError(null);
+                                setMessageToDeleteId(message.id);
+                              }}
                               size="tiny"
                             />
                           </div>
@@ -1403,7 +1408,10 @@ function RepairQueueRow({
                               </svg>
                             }
                             label="Удалить сообщение ремонта"
-                            onClick={() => void deleteMessageMutation.mutateAsync(message.id)}
+                            onClick={() => {
+                              setActionError(null);
+                              setMessageToDeleteId(message.id);
+                            }}
                             size="tiny"
                           />
                         ) : null}
@@ -1578,6 +1586,22 @@ function RepairQueueRow({
         onClose={() => setArchiveDeleteConfirmOpen(false)}
         onConfirm={() => void handleDeleteArchive()}
       />
+      <DeleteConfirmModal
+        confirmLabel="Удалить сообщение"
+        description="Сообщение будет удалено вместе с вложениями."
+        errorMessage={actionError}
+        isOpen={messageToDeleteId !== null}
+        isPending={deleteMessageMutation.isPending}
+        pendingLabel="Удаляем..."
+        title="Удалить сообщение ремонта?"
+        onClose={() => setMessageToDeleteId(null)}
+        onConfirm={() => {
+          if (messageToDeleteId === null) {
+            return;
+          }
+          void deleteMessageMutation.mutateAsync(messageToDeleteId);
+        }}
+      />
     </>
   );
 }
@@ -1625,6 +1649,7 @@ function RepairBatchCard({
   const [flashingMessageId, setFlashingMessageId] = useState<number | null>(null);
   const [downloadingAttachmentId, setDownloadingAttachmentId] = useState<number | null>(null);
   const [downloadingArchive, setDownloadingArchive] = useState(false);
+  const [messageToDeleteId, setMessageToDeleteId] = useState<number | null>(null);
   const [itemsModalOpen, setItemsModalOpen] = useState(false);
   const [itemsSearchQuery, setItemsSearchQuery] = useState("");
   const deferredItemsSearchQuery = useDeferredValue(itemsSearchQuery);
@@ -1848,6 +1873,7 @@ function RepairBatchCard({
     mutationFn: (messageId: number) => deleteEquipmentRepairMessage(token, anchor.equipmentId, messageId),
     onSuccess: async () => {
       setActionError(null);
+      setMessageToDeleteId(null);
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["repair-batch-messages", anchor.batchKey, anchor.equipmentId],
@@ -2699,7 +2725,10 @@ function RepairBatchCard({
                               </svg>
                             }
                             label="Удалить сообщение ремонта"
-                            onClick={() => void deleteMessageMutation.mutateAsync(message.id)}
+                            onClick={() => {
+                              setActionError(null);
+                              setMessageToDeleteId(message.id);
+                            }}
                             size="tiny"
                           />
                         </div>
@@ -2713,7 +2742,10 @@ function RepairBatchCard({
                             </svg>
                           }
                           label="Удалить сообщение ремонта"
-                          onClick={() => void deleteMessageMutation.mutateAsync(message.id)}
+                          onClick={() => {
+                            setActionError(null);
+                            setMessageToDeleteId(message.id);
+                          }}
                           size="tiny"
                         />
                       ) : null}
@@ -2900,6 +2932,22 @@ function RepairBatchCard({
           />
         </div>
       ) : null}
+      <DeleteConfirmModal
+        confirmLabel="Удалить сообщение"
+        description="Сообщение будет удалено вместе с вложениями."
+        errorMessage={actionError}
+        isOpen={messageToDeleteId !== null}
+        isPending={deleteMessageMutation.isPending}
+        pendingLabel="Удаляем..."
+        title="Удалить сообщение ремонта?"
+        onClose={() => setMessageToDeleteId(null)}
+        onConfirm={() => {
+          if (messageToDeleteId === null) {
+            return;
+          }
+          void deleteMessageMutation.mutateAsync(messageToDeleteId);
+        }}
+      />
     </article>
   );
 }

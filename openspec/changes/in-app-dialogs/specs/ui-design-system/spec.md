@@ -20,6 +20,23 @@ browser's `confirm`, `alert` or `prompt` dialogs.
 - **THEN** the app's confirmation dialog appears and the preset is deleted only after the user
   confirms
 
+#### Scenario: Deleting a discussion message
+
+- **WHEN** the user presses Delete on a message in a repair, a verification or a task
+- **THEN** the app's confirmation dialog appears and the message is deleted only after the user
+  confirms
+
+#### Scenario: Deleting an attachment
+
+- **WHEN** the user presses Delete on a task attachment
+- **THEN** the app's confirmation dialog names the file and deletes it only after the user confirms
+
+#### Scenario: Deleting a draft
+
+- **WHEN** the user removes a checklist item, a process stage row, a not-yet-uploaded file or a
+  preset variant
+- **THEN** it disappears without a dialog, because a form draft is not a deletion
+
 #### Scenario: The API refuses a deletion
 
 - **WHEN** the user confirms a deletion the API refuses, such as a preset a folder still selects

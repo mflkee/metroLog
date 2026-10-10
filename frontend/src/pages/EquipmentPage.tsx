@@ -59,6 +59,7 @@ import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
+import { NumberInput } from "@/components/NumberInput";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { PaginationControls } from "@/components/PaginationControls";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
@@ -2811,15 +2812,12 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
             </label>
             <label className="block text-sm text-steel">
               Год выпуска
-              <input
+              <NumberInput
                 className="form-input"
-                type="number"
+                maxLength={4}
                 value={equipmentForm.manufactureYear}
-                onChange={(event) =>
-                  setEquipmentForm((current) => ({
-                    ...current,
-                    manufactureYear: event.target.value,
-                  }))
+                onValueChange={(next) =>
+                  setEquipmentForm((current) => ({ ...current, manufactureYear: next }))
                 }
               />
             </label>

@@ -118,3 +118,18 @@ describe("the app draws its own dialogs", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/*
+ * The app draws its own controls too. `type="number"` hands a value the app stores to the browser:
+ * the wheel changes a focused field, `min`/`step` raise the browser's validation bubble, and `e`,
+ * `+` and a locale separator behave differently per browser. `NumberInput` is the app's own field.
+ */
+describe("the app draws its own numeric field", () => {
+  it("never asks the browser for a number field", () => {
+    const offenders = SOURCE_FILES.filter(([, source]) => source.includes('type="number"')).map(
+      ([file]) => file,
+    );
+
+    expect(offenders).toEqual([]);
+  });
+});

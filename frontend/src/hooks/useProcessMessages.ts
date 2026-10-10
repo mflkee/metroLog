@@ -32,6 +32,7 @@ export function useProcessMessages({ token, equipmentId }: UseProcessMessagesPar
   const [repairDialogExpanded, setRepairDialogExpanded] = useState(false);
   const [editingRepairMessageId, setEditingRepairMessageId] = useState<number | null>(null);
   const [repairMessageEditDraft, setRepairMessageEditDraft] = useState("");
+  const [repairMessageToDeleteId, setRepairMessageToDeleteId] = useState<number | null>(null);
   const [downloadingRepairAttachmentId, setDownloadingRepairAttachmentId] = useState<number | null>(null);
   const [verificationActionError, setVerificationActionError] = useState<string | null>(null);
   const [verificationMessageDraft, setVerificationMessageDraft] = useState("");
@@ -41,6 +42,7 @@ export function useProcessMessages({ token, equipmentId }: UseProcessMessagesPar
   const [verificationDialogExpanded, setVerificationDialogExpanded] = useState(false);
   const [editingVerificationMessageId, setEditingVerificationMessageId] = useState<number | null>(null);
   const [verificationMessageEditDraft, setVerificationMessageEditDraft] = useState("");
+  const [verificationMessageToDeleteId, setVerificationMessageToDeleteId] = useState<number | null>(null);
   const [downloadingVerificationAttachmentId, setDownloadingVerificationAttachmentId] = useState<number | null>(null);
 
   const repairMessageFilesInputRef = useRef<HTMLInputElement | null>(null);
@@ -71,6 +73,7 @@ export function useProcessMessages({ token, equipmentId }: UseProcessMessagesPar
       deleteEquipmentRepairMessage(token ?? "", equipmentId, messageId),
     onSuccess: async () => {
       setRepairActionError(null);
+      setRepairMessageToDeleteId(null);
       await queryClient.invalidateQueries({ queryKey: ["equipment-details", equipmentId] });
       await queryClient.invalidateQueries({ queryKey: ["equipment-repair-messages", equipmentId] });
     },
@@ -120,6 +123,7 @@ export function useProcessMessages({ token, equipmentId }: UseProcessMessagesPar
       deleteEquipmentVerificationMessage(token ?? "", equipmentId, messageId),
     onSuccess: async () => {
       setVerificationActionError(null);
+      setVerificationMessageToDeleteId(null);
       await queryClient.invalidateQueries({ queryKey: ["equipment-details", equipmentId] });
       await queryClient.invalidateQueries({
         queryKey: ["equipment-verification-messages", equipmentId],
@@ -164,6 +168,8 @@ export function useProcessMessages({ token, equipmentId }: UseProcessMessagesPar
     setEditingRepairMessageId,
     repairMessageEditDraft,
     setRepairMessageEditDraft,
+    repairMessageToDeleteId,
+    setRepairMessageToDeleteId,
     downloadingRepairAttachmentId,
     setDownloadingRepairAttachmentId,
     verificationActionError,
@@ -182,6 +188,8 @@ export function useProcessMessages({ token, equipmentId }: UseProcessMessagesPar
     setEditingVerificationMessageId,
     verificationMessageEditDraft,
     setVerificationMessageEditDraft,
+    verificationMessageToDeleteId,
+    setVerificationMessageToDeleteId,
     downloadingVerificationAttachmentId,
     setDownloadingVerificationAttachmentId,
     repairMessageFilesInputRef,

@@ -65,6 +65,7 @@ import { useEquipmentProcessActions } from "@/hooks/useEquipmentProcessActions";
 import { invalidateEquipmentRegistryQueries } from "@/lib/equipmentQueries";
 import { Switch } from "@/components/ui/switch";
 import { Modal } from "@/components/Modal";
+import { NumberInput } from "@/components/NumberInput";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { ProcessVariantSelector } from "@/components/ProcessVariantSelector";
 import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
@@ -192,6 +193,8 @@ export function EquipmentDetailsPage() {
     setEditingRepairMessageId,
     repairMessageEditDraft,
     setRepairMessageEditDraft,
+    repairMessageToDeleteId,
+    setRepairMessageToDeleteId,
     downloadingRepairAttachmentId,
     setDownloadingRepairAttachmentId,
     verificationActionError,
@@ -210,6 +213,8 @@ export function EquipmentDetailsPage() {
     setEditingVerificationMessageId,
     verificationMessageEditDraft,
     setVerificationMessageEditDraft,
+    verificationMessageToDeleteId,
+    setVerificationMessageToDeleteId,
     downloadingVerificationAttachmentId,
     setDownloadingVerificationAttachmentId,
     repairMessageFilesInputRef,
@@ -1735,7 +1740,9 @@ export function EquipmentDetailsPage() {
                                   }
                                   label="Удалить сообщение ремонта"
                                   size="tiny"
-                                  onClick={() => void deleteRepairMessageMutation.mutateAsync(message.id)}
+                                  onClick={() => {
+                                    setRepairMessageToDeleteId(message.id);
+                                  }}
                                 />
                               </div>
                             ) : canManage ? (
@@ -1748,7 +1755,9 @@ export function EquipmentDetailsPage() {
                                 }
                                 label="Удалить сообщение ремонта"
                                 size="tiny"
-                                onClick={() => void deleteRepairMessageMutation.mutateAsync(message.id)}
+                                onClick={() => {
+                                  setRepairMessageToDeleteId(message.id);
+                                }}
                               />
                             ) : null}
                           </div>
@@ -2088,7 +2097,9 @@ export function EquipmentDetailsPage() {
                                   }
                                   label="Удалить сообщение поверки"
                                   size="tiny"
-                                  onClick={() => void deleteVerificationMessageMutation.mutateAsync(message.id)}
+                                  onClick={() => {
+                                    setVerificationMessageToDeleteId(message.id);
+                                  }}
                                 />
                               </div>
                             ) : canManage ? (
@@ -2101,7 +2112,9 @@ export function EquipmentDetailsPage() {
                                 }
                                 label="Удалить сообщение поверки"
                                 size="tiny"
-                                onClick={() => void deleteVerificationMessageMutation.mutateAsync(message.id)}
+                                onClick={() => {
+                                  setVerificationMessageToDeleteId(message.id);
+                                }}
                               />
                             ) : null}
                           </div>
@@ -3992,17 +4005,17 @@ export function EquipmentDetailsPage() {
               </label>
               <label className="block text-sm text-steel">
                 Год выпуска
-                <input
+                <NumberInput
                   className="form-input"
-                  type="number"
+                  maxLength={4}
                   value={form.manufactureYear}
-                  onChange={(event) =>
+                  onValueChange={(next) =>
                     setForm((current) =>
-                      current ? { ...current, manufactureYear: event.target.value } : current,
+                      current ? { ...current, manufactureYear: next } : current,
                     )
-                }
-              />
-            </label>
+                  }
+                />
+              </label>
           </div>
             {form.equipmentType === "SI" ? (
               <div className="space-y-3">
@@ -4231,6 +4244,40 @@ export function EquipmentDetailsPage() {
             return;
           }
           void deleteCommentMutation.mutateAsync(commentToDelete.id);
+        }}
+      />
+
+      <DeleteConfirmModal
+        confirmLabel="Удалить сообщение"
+        description="Сообщение будет удалено вместе с вложениями."
+        errorMessage={repairActionError}
+        isOpen={repairMessageToDeleteId !== null}
+        isPending={deleteRepairMessageMutation.isPending}
+        pendingLabel="Удаляем..."
+        title="Удалить сообщение ремонта?"
+        onClose={() => setRepairMessageToDeleteId(null)}
+        onConfirm={() => {
+          if (repairMessageToDeleteId === null) {
+            return;
+          }
+          void deleteRepairMessageMutation.mutateAsync(repairMessageToDeleteId);
+        }}
+      />
+
+      <DeleteConfirmModal
+        confirmLabel="Удалить сообщение"
+        description="Сообщение будет удалено вместе с вложениями."
+        errorMessage={verificationActionError}
+        isOpen={verificationMessageToDeleteId !== null}
+        isPending={deleteVerificationMessageMutation.isPending}
+        pendingLabel="Удаляем..."
+        title="Удалить сообщение поверки?"
+        onClose={() => setVerificationMessageToDeleteId(null)}
+        onConfirm={() => {
+          if (verificationMessageToDeleteId === null) {
+            return;
+          }
+          void deleteVerificationMessageMutation.mutateAsync(verificationMessageToDeleteId);
         }}
       />
     </section>

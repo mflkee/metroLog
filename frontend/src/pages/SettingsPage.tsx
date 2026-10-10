@@ -22,6 +22,7 @@ import { Icon } from "@/components/Icon";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { IconActionButton } from "@/components/IconActionButton";
 import { Modal } from "@/components/Modal";
+import { NumberInput } from "@/components/NumberInput";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {
   dashboardWidgetOptions,
@@ -29,6 +30,7 @@ import {
   normalizeDashboardWidgets,
   type DashboardWidgetKey,
 } from "@/lib/dashboard";
+import { numericInputValue } from "@/lib/numericInput";
 import { hasAdminAccess } from "@/lib/roles";
 import { Select } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -1652,18 +1654,14 @@ function PresetVariantCard({
                 <span className="text-[11px] uppercase tracking-[0.14em] text-steel">
                   Дедлайн
                 </span>
-                <input
+                <NumberInput
                   className="form-input form-input--compact"
-                  inputMode="numeric"
-                  min="0"
+                  maxLength={4}
                   placeholder="нет"
-                  type="number"
-                  value={stage.deadlineDays ?? ""}
-                  onChange={(event) =>
+                  value={numericInputValue(stage.deadlineDays)}
+                  onValueChange={(next) =>
                     onUpdateStage(group, variantIndex, stageIndex, {
-                      deadlineDays: event.target.value
-                        ? Number.parseInt(event.target.value, 10)
-                        : null,
+                      deadlineDays: next ? Number.parseInt(next, 10) : null,
                     })
                   }
                 />

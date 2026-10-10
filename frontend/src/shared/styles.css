@@ -1126,7 +1126,6 @@ input[type="number"]::-webkit-inner-spin-button {
   font: inherit;
   line-height: 1.25;
   color: var(--text-primary);
-  outline: none;
 }
 
 .toolbar-search__input::placeholder {
@@ -1881,13 +1880,8 @@ input[type="number"]::-webkit-inner-spin-button {
   transition: color 0.18s ease;
 }
 
-.sidebar-toggle:hover,
 .sidebar-toggle:focus-visible {
   color: var(--accent);
-}
-
-.sidebar-toggle:focus-visible {
-  outline: none;
 }
 
 .sidebar-shell {

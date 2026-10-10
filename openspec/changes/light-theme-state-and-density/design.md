@@ -87,16 +87,27 @@ empty — the title on the left, the deadline on the right, nothing between them
 tall. The module reuses the table the task list page already renders: the same seven columns in the
 same order, and the same `StatusBadge` for the status. That is both *fuller* (the width is used) and
 *more compact* (one row per task instead of three lines), which is exactly the pair the owner asked
-for. The columns appear as the **module** widens, measured with a container query — the module body
-is a `@container` and the steps are `@xl` (36rem) and `@5xl` (64rem) — because a viewport breakpoint
-would read a full-width module on a narrow screen as wide.
+for.
 
-**Tailwind reads the source text, so the table classes are literal.** A `grid-cols-[…]` template or
-a `hidden @xl:block` assembled at runtime is never seen by the scanner and no CSS is emitted for it
-(verified: without the literals there is no `@container (min-width:…)` in the bundle at all). The row
-template and the per-column visibility are therefore two halves of one contract, written twice by
-hand. `taskTable.test.ts` compares them — the track count at each step must equal the number of
-columns visible at that step — and the build is checked to emit the container rules.
+It is a **real `<table>` with `width: 100%`**, not a grid with fixed tracks. The owner's second round
+made the difference visible: a grid row has to give every column the same width in every row, so the
+title column is either fixed (and leaves a hole after a short title, which is what he saw) or
+`fr`-flexible (and steals the room the responsible needs, so the name was truncated). A table lets the
+browser size each column to its content and spread the leftover width across the columns, which fixes
+both at once. Measured in Chromium at the step boundaries: seven columns at 1280px give the title
+556px, the responsible 194px (it needs 149), and no column more than ~80px of slack; the title stays
+the widest column at every width, and the rows stay one line tall (a very long title wraps, as it does
+on the task list page).
+
+The columns appear as the **module** widens, measured with a container query — the module body is a
+`@container` and the steps are `@xl` (36rem) and `@5xl` (64rem) — because a viewport breakpoint would
+read a full-width module on a narrow screen as wide.
+
+**Tailwind reads the source text, so the table classes are literal.** The visibility classes cannot be
+assembled at runtime — the scanner would never see them and no CSS would be emitted (verified: without
+the literals there is no `@container (min-width:…)` in the bundle at all) — and a table cell has to
+become `table-cell`, not `block`, or the table layout falls apart. `taskTable.test.ts` pins the steps,
+the column order and the visibility class of every column.
 
 ## Risks / Trade-offs
 

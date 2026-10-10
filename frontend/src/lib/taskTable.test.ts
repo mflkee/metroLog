@@ -1,10 +1,10 @@
 import type { TaskListItem } from "@/api/tasks";
 import {
   TASK_TABLE_COLUMNS,
-  TASK_TABLE_ROW_CLASS,
   TASK_TABLE_STEPS,
   formatTaskDate,
   taskTableCellClass,
+  taskTableHeaderClass,
 } from "@/lib/taskTable";
 
 function task(overrides: Partial<TaskListItem> = {}): TaskListItem {
@@ -34,37 +34,11 @@ function task(overrides: Partial<TaskListItem> = {}): TaskListItem {
 }
 
 /*
- * The row template and the per-column visibility are two halves of one contract, written by hand
- * because Tailwind reads the source text. If they drift apart a cell wraps onto its own line and the
- * table falls apart silently, so the two halves are compared here.
+ * The table sizes its own columns (a real `<table>` with `width: 100%`, so the browser spreads the
+ * leftover width by content), and the only thing written by hand is which columns exist at which
+ * module width. These are the invariants of that plan.
  */
-describe("the tasks table keeps its two halves in step", () => {
-  const templates = [...TASK_TABLE_ROW_CLASS.matchAll(/grid-cols-\[([^\]]+)\]/g)].map((match) =>
-    match[1].split("_"),
-  );
-
-  it("writes one template per step, in the order of the steps", () => {
-    expect(templates).toHaveLength(TASK_TABLE_STEPS.length);
-  });
-
-  it("gives every step exactly the tracks of the columns visible at it", () => {
-    TASK_TABLE_STEPS.forEach((min, index) => {
-      const visible = TASK_TABLE_COLUMNS.filter((column) => column.from <= min);
-      expect(templates[index]).toHaveLength(visible.length);
-    });
-  });
-
-  it("starts every template with the flexible title track", () => {
-    for (const tracks of templates) {
-      expect(tracks[0]).toBe("minmax(0,1fr)");
-    }
-  });
-
-  it("adds columns as the module widens, never removes them", () => {
-    const counts = templates.map((tracks) => tracks.length);
-    expect(counts).toEqual([...counts].sort((left, right) => left - right));
-  });
-
+describe("the tasks table column plan", () => {
   it("keeps the columns in the order the task list page uses", () => {
     expect(TASK_TABLE_COLUMNS.map((column) => column.key)).toEqual([
       "title",
@@ -77,20 +51,58 @@ describe("the tasks table keeps its two halves in step", () => {
     ]);
   });
 
-  it("hides a column only behind a step it declares", () => {
+  /*
+   * The always-visible columns (status, deadline) sit between the ones that appear later, because the
+   * order has to stay the one the task list page uses. What must hold is that the columns *revealed*
+   * as the module widens come in left-to-right order, so nothing pops in to the left of a neighbour.
+   */
+  it("reveals columns left to right as the module widens", () => {
+    const revealed = TASK_TABLE_COLUMNS.filter((column) => column.from > 0).map(
+      (column) => column.from,
+    );
+    expect(revealed).toEqual([...revealed].sort((left, right) => left - right));
+  });
+
+  /*
+   * A table cell must become `table-cell`, never `block`: `block` on a `<td>`/`<th>` breaks the table
+   * layout, so the visibility class is pinned here rather than left to a review.
+   */
+  it("shows a column always or from a declared step, and always as a table cell", () => {
+    const visibilityForStep: Record<number, string> = {
+      0: "",
+      36: "hidden @xl:table-cell",
+      64: "hidden @5xl:table-cell",
+    };
     for (const column of TASK_TABLE_COLUMNS) {
       expect(TASK_TABLE_STEPS).toContain(column.from);
-      expect(column.visibility.includes("hidden")).toBe(column.from > 0);
+      expect(column.visibility).toBe(visibilityForStep[column.from]);
+    }
+  });
+
+  it("pads every cell and keeps the values on one line", () => {
+    const sample = task();
+    for (const column of TASK_TABLE_COLUMNS) {
+      const cell = taskTableCellClass(column, sample);
+      expect(cell).toContain("px-2");
+      expect(cell).toContain("py-2");
+      if (column.key !== "title") {
+        expect(cell).toContain("whitespace-nowrap");
+      }
+    }
+  });
+
+  it("carries the module's step into the header too, so the header follows the body", () => {
+    for (const column of TASK_TABLE_COLUMNS) {
+      expect(taskTableHeaderClass(column)).toContain(column.visibility);
     }
   });
 });
 
 describe("task table cells", () => {
   it("marks the deadline that is already behind us", () => {
-    const due = TASK_TABLE_COLUMNS.find((column) => column.key === "due");
-    expect(due).toBeDefined();
-    expect(taskTableCellClass(due!, task({ isOverdue: true }))).toContain("var(--danger)");
-    expect(taskTableCellClass(due!, task())).toContain("text-steel");
+    const due = TASK_TABLE_COLUMNS.find((column) => column.key === "due")!;
+    expect(taskTableCellClass(due, task({ isOverdue: true }))).toContain("var(--danger)");
+    expect(taskTableCellClass(due, task())).toContain("text-steel");
   });
 
   it("right-aligns the deadline and the equipment count", () => {

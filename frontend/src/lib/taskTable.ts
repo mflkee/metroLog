@@ -30,19 +30,16 @@ export function formatTaskDate(value: string | null): string {
  * the container, never the viewport): the status and the deadline always, the folder and the
  * priority from 36rem, the responsible and the equipment from 64rem.
  *
- * ⚠️ The row template and the per-column visibility are two halves of one contract: the template at
- * a step lists exactly the tracks of the columns visible at that step, in the order below. Both are
- * literal strings, because Tailwind reads the source text — a class assembled at runtime is never
- * generated. `taskTable.test.ts` compares the two halves.
+ * A real `<table>` with `width: 100%`, not a grid with fixed tracks: the browser sizes each column to
+ * its content and spreads the leftover width across the columns, so a short title no longer leaves a
+ * hole after it and a long name («Макеев Глеб Борисович») is no longer truncated. Measured in
+ * Chromium at the step boundaries: a 7-column table at 1280px gives the title 556px, the responsible
+ * 194px and no column more than ~80px of slack.
+ *
+ * ⚠️ The visibility classes are literal strings, because Tailwind reads the source text — a class
+ * assembled at runtime is never generated — and a table cell has to become `table-cell`, not `block`,
+ * or the table layout falls apart. `taskTable.test.ts` pins the steps and the order.
  */
-export const TASK_TABLE_ROW_CLASS = [
-  "grid items-center gap-3",
-  "grid-cols-[minmax(0,1fr)_7rem_5rem]",
-  "@xl:grid-cols-[minmax(0,1fr)_6.5rem_7rem_6rem_5rem]",
-  "@5xl:grid-cols-[minmax(0,1fr)_6.5rem_7rem_6rem_7.5rem_5rem_4.5rem]",
-].join(" ");
-
-/** The container width (rem) each step starts at, in the order the templates are written. */
 export const TASK_TABLE_STEPS = [0, 36, 64] as const;
 
 export type TaskTableColumn = {
@@ -68,15 +65,17 @@ export const TASK_TABLE_COLUMNS: TaskTableColumn[] = [
     label: "Задача",
     from: 0,
     visibility: "",
-    cellClass: "truncate text-sm font-medium text-ink",
+    // The only column that is allowed to wrap: it holds the free text, and wrapping keeps it from
+    // squeezing the columns that carry a fixed value.
+    cellClass: "text-sm font-medium text-ink",
     value: (task) => task.title,
   },
   {
     key: "folder",
     label: "Папка",
     from: 36,
-    visibility: "hidden @xl:block",
-    cellClass: "truncate text-xs text-steel",
+    visibility: "hidden @xl:table-cell",
+    cellClass: "whitespace-nowrap text-xs text-steel",
     value: (task) => task.folderName ?? "—",
   },
   {
@@ -84,15 +83,15 @@ export const TASK_TABLE_COLUMNS: TaskTableColumn[] = [
     label: "Статус",
     from: 0,
     visibility: "",
-    cellClass: "text-xs",
+    cellClass: "whitespace-nowrap text-xs",
     value: (task) => TASK_STATUS_LABELS[task.status],
   },
   {
     key: "priority",
     label: "Приоритет",
     from: 36,
-    visibility: "hidden @xl:block",
-    cellClass: "truncate text-xs font-semibold",
+    visibility: "hidden @xl:table-cell",
+    cellClass: "whitespace-nowrap text-xs font-semibold",
     tone: (task) => taskPriorityTone[task.priority],
     value: (task) => TASK_PRIORITY_LABELS[task.priority],
   },
@@ -100,8 +99,8 @@ export const TASK_TABLE_COLUMNS: TaskTableColumn[] = [
     key: "responsible",
     label: "Ответственный",
     from: 64,
-    visibility: "hidden @5xl:block",
-    cellClass: "truncate text-xs text-steel",
+    visibility: "hidden @5xl:table-cell",
+    cellClass: "whitespace-nowrap text-xs text-steel",
     value: (task) => task.responsibleDisplayName ?? "—",
   },
   {
@@ -110,7 +109,7 @@ export const TASK_TABLE_COLUMNS: TaskTableColumn[] = [
     from: 0,
     visibility: "",
     align: "right",
-    cellClass: "text-xs",
+    cellClass: "whitespace-nowrap text-xs",
     tone: (task) => (task.isOverdue ? "font-semibold text-[color:var(--danger)]" : "text-steel"),
     value: (task) => formatTaskDate(task.dueDate),
   },
@@ -118,9 +117,9 @@ export const TASK_TABLE_COLUMNS: TaskTableColumn[] = [
     key: "equipment",
     label: "Приборы",
     from: 64,
-    visibility: "hidden @5xl:block",
+    visibility: "hidden @5xl:table-cell",
     align: "right",
-    cellClass: "text-xs text-steel",
+    cellClass: "whitespace-nowrap text-xs text-steel",
     value: (task) => String(task.equipmentCount),
   },
 ];
@@ -128,6 +127,7 @@ export const TASK_TABLE_COLUMNS: TaskTableColumn[] = [
 export function taskTableCellClass(column: TaskTableColumn, task: TaskListItem): string {
   return [
     column.visibility,
+    "px-2 py-2 align-middle",
     column.cellClass,
     column.align === "right" ? "text-right" : "",
     column.tone ? column.tone(task) : "",
@@ -137,7 +137,11 @@ export function taskTableCellClass(column: TaskTableColumn, task: TaskListItem):
 }
 
 export function taskTableHeaderClass(column: TaskTableColumn): string {
-  return [column.visibility, "truncate", column.align === "right" ? "text-right" : ""]
+  return [
+    column.visibility,
+    "px-2 pb-1.5 align-bottom font-semibold",
+    column.align === "right" ? "text-right" : "text-left",
+  ]
     .filter(Boolean)
     .join(" ");
 }

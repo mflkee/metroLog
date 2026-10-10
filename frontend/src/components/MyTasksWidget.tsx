@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import {
   TASK_PRIORITY_LABELS,
@@ -15,7 +15,6 @@ import {
 } from "@/lib/dashboard";
 import {
   TASK_TABLE_COLUMNS,
-  TASK_TABLE_ROW_CLASS,
   formatTaskDate,
   taskPriorityTone,
   taskTableCellClass,
@@ -33,6 +32,7 @@ type MyTasksWidgetProps = {
 };
 
 export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
+  const navigate = useNavigate();
   const responsibleQuery = useQuery({
     queryKey: ["tasks", "widget", "responsible", userId],
     queryFn: () => fetchTasks(token, { responsibleUserId: userId, sort: "due", limit: 30 }),
@@ -65,44 +65,48 @@ export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
   if (size === "full") {
     return (
       <div className="max-h-[20rem] overflow-y-auto">
-        <ul>
-          <li
-            className={[
-              TASK_TABLE_ROW_CLASS,
-              "border-b border-line px-2 pb-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-steel",
-            ].join(" ")}
-          >
-            {TASK_TABLE_COLUMNS.map((column) => (
-              <span className={taskTableHeaderClass(column)} key={column.key}>
-                {column.label}
-              </span>
-            ))}
-          </li>
-          {items.map((task) => (
-            <li className="border-b border-line last:border-b-0" key={task.id}>
-              <Link
-                className={[
-                  TASK_TABLE_ROW_CLASS,
-                  "px-2 py-2 transition hover:bg-[var(--accent-soft)]/40",
-                ].join(" ")}
-                title={task.title}
-                to={`/tasks/${task.id}`}
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-line text-[11px] uppercase tracking-[0.12em] text-steel">
+              {TASK_TABLE_COLUMNS.map((column) => (
+                <th className={taskTableHeaderClass(column)} key={column.key} scope="col">
+                  {column.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((task) => (
+              <tr
+                className="cursor-pointer border-b border-line transition last:border-b-0 hover:bg-[var(--accent-soft)]/40"
+                key={task.id}
+                onClick={(event) => {
+                  // The title is a real link, so a click on it navigates once, not twice.
+                  if ((event.target as HTMLElement).closest("a")) {
+                    return;
+                  }
+                  void navigate(`/tasks/${task.id}`);
+                }}
               >
                 {TASK_TABLE_COLUMNS.map((column) => (
-                  <span className={taskTableCellClass(column, task)} key={column.key}>
-                    {column.key === "status" ? (
+                  <td className={taskTableCellClass(column, task)} key={column.key}>
+                    {column.key === "title" ? (
+                      <Link className="text-ink hover:underline" to={`/tasks/${task.id}`}>
+                        {column.value(task)}
+                      </Link>
+                    ) : column.key === "status" ? (
                       <StatusBadge tone={TASK_STATUS_TONES[task.status]}>
                         {column.value(task)}
                       </StatusBadge>
                     ) : (
                       column.value(task)
                     )}
-                  </span>
+                  </td>
                 ))}
-              </Link>
-            </li>
-          ))}
-        </ul>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   }

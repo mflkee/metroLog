@@ -10,4 +10,4 @@
 ## 2. Checks
 
 - [x] 2.1 `npm run check` is green. Done: ruff clean, backend 153 passed, eslint 0 errors, frontend 159 passed (28 files), build ok; the token is present in the built stylesheet.
-- [ ] 2.2 On Stage, an error line, an overdue mark and a danger button label are readable in nord, catppuccin and dracula, and nothing that is a tint or a border has shifted.
+- [x] 2.2 On Stage, an error line, an overdue mark and a danger button label are readable in nord, catppuccin and dracula, and nothing that is a tint or a border has shifted. Verified on the owner's screen; released as 0.6.0.

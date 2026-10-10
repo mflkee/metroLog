@@ -52,6 +52,7 @@
 
 ## 8. The tasks module is a reminder: three tasks (owner request)
 
-- [x] 8.1 Show at most three tasks, whatever the module's width, and choose them by importance first and by nearest deadline second. Done: `src/lib/myTasks.ts` (`MY_TASKS_LIMIT`, `selectMyTasks`) ranks `CRITICAL` → `LOW`, then the nearest `dueDate` with an undated task last, breaks ties by id so the order does not drift between renders, and drops the terminal statuses; `MyTasksWidget` no longer slices by the width preset. The rule is covered by `src/lib/myTasks.test.ts` (8 cases: the cap, importance above the deadline, the deadline among equals, undated last, closed tasks left out, stability, and that the caller's array is not reordered).
-- [ ] 8.2 Verify on Stage that the tasks module shows three rows at every width, with the most important task on top and the nearest deadline next.
+- [x] 8.1 Show a small number of tasks, chosen by importance first and by nearest deadline second. Done: `src/lib/myTasks.ts` (`MY_TASKS_LIMITS`, `selectMyTasks`) ranks `CRITICAL` → `LOW`, then the nearest `dueDate` with an undated task last, breaks ties by id so the order does not drift between renders, and drops the terminal statuses; `MyTasksWidget` passes the limit of its width preset and no longer slices by `dashboardWidgetRowLimit`. The rule is covered by `src/lib/myTasks.test.ts` (10 cases: the ladder, importance above the deadline, the deadline among equals, undated last, closed tasks left out, stability, and that the caller's array is not reordered).
+- [x] 8.2 Owner follow-up: the module is a reminder, so the numbers stay small — three at a third, six at a half, nine at full. Done: `MY_TASKS_LIMITS` replaced the single cap of three, and the ladder is asserted (`{third: 3, half: 6, full: 9}`).
+- [ ] 8.3 Verify on Stage that the tasks module shows 3 / 6 / 9 rows at the three widths, most important on top and nearest deadline next (the list scrolls inside the module, as before).
 

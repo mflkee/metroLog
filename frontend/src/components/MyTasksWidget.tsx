@@ -12,7 +12,7 @@ import {
   isCondensedWidget,
   type DashboardWidgetSize,
 } from "@/lib/dashboard";
-import { selectMyTasks } from "@/lib/myTasks";
+import { selectMyTasks, MY_TASKS_LIMITS } from "@/lib/myTasks";
 import {
   TASK_TABLE_COLUMNS,
   formatTaskDate,
@@ -49,8 +49,8 @@ export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
   ]) {
     byId.set(item.id, item);
   }
-  // The most important, then the nearest deadline; never more than three (see `selectMyTasks`).
-  const items = selectMyTasks(Array.from(byId.values()));
+  // The most important first, then the nearest deadline, as many as the width preset allows.
+  const items = selectMyTasks(Array.from(byId.values()), MY_TASKS_LIMITS[size]);
 
   if (items.length === 0) {
     return <p className="text-sm text-steel">Активных задач, где ты ответственный или исполнитель, нет.</p>;

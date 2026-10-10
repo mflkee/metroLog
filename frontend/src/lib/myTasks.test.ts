@@ -1,5 +1,5 @@
 import type { TaskListItem, TaskPriority, TaskStatus } from "@/api/tasks";
-import { MY_TASKS_LIMIT, selectMyTasks } from "@/lib/myTasks";
+import { MY_TASKS_LIMITS, selectMyTasks } from "@/lib/myTasks";
 
 function task(
   id: number,
@@ -33,11 +33,21 @@ function task(
 
 const ids = (items: TaskListItem[]) => items.map((item) => item.id);
 
-describe("the «Мои задачи» module shows three tasks", () => {
-  it("shows three at most, whatever it is given", () => {
-    const many = Array.from({ length: 9 }, (_, index) => task(index + 1, "NORMAL", "2026-11-01"));
-    expect(selectMyTasks(many)).toHaveLength(MY_TASKS_LIMIT);
-    expect(MY_TASKS_LIMIT).toBe(3);
+describe("the «Мои задачи» module picks the most urgent tasks", () => {
+  it("shows as many as the width preset allows", () => {
+    const many = Array.from({ length: 12 }, (_, index) => task(index + 1, "NORMAL", "2026-11-01"));
+    expect(selectMyTasks(many, MY_TASKS_LIMITS.third)).toHaveLength(3);
+    expect(selectMyTasks(many, MY_TASKS_LIMITS.half)).toHaveLength(6);
+    expect(selectMyTasks(many, MY_TASKS_LIMITS.full)).toHaveLength(9);
+  });
+
+  it("keeps the ladder growing from a third to a half to full", () => {
+    expect(MY_TASKS_LIMITS).toEqual({ third: 3, half: 6, full: 9 });
+  });
+
+  it("never returns more than it was given", () => {
+    expect(selectMyTasks([task(1, "HIGH", null)], MY_TASKS_LIMITS.full)).toHaveLength(1);
+    expect(selectMyTasks([], MY_TASKS_LIMITS.full)).toEqual([]);
   });
 
   it("puts the most important first, not the nearest deadline", () => {

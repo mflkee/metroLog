@@ -1,7 +1,16 @@
 import type { TaskListItem, TaskPriority, TaskStatus } from "@/api/tasks";
+import type { DashboardWidgetSize } from "@/lib/dashboard";
 
-/** How many tasks the «Мои задачи» module shows, whatever its width. */
-export const MY_TASKS_LIMIT = 3;
+/**
+ * How many tasks the «Мои задачи» module shows at each width preset. The module is a reminder rather
+ * than a list, so the numbers stay small even full width — the ordering below decides *which* tasks
+ * those are.
+ */
+export const MY_TASKS_LIMITS: Record<DashboardWidgetSize, number> = {
+  third: 3,
+  half: 6,
+  full: 9,
+};
 
 /** The order of importance: `CRITICAL` first, `LOW` last. */
 const PRIORITY_RANK: Record<TaskPriority, number> = {
@@ -18,12 +27,12 @@ const TERMINAL_STATUSES = new Set<TaskStatus>(["DONE", "CANCELLED", "ARCHIVED"])
  * comes first — a task without a deadline goes after every dated one of the same importance. The id
  * breaks the remaining ties, so the order does not change between renders.
  *
- * The widget is a reminder, not a list: three rows is what fits in every width preset, so the limit
- * does not follow the module's width the way the other modules' row count does.
+ * `limit` comes from the module's width preset (`MY_TASKS_LIMITS`): a third shows the three most
+ * urgent, a half six, a full nine.
  */
 export function selectMyTasks(
   items: TaskListItem[],
-  limit: number = MY_TASKS_LIMIT,
+  limit: number = MY_TASKS_LIMITS.third,
 ): TaskListItem[] {
   return items
     .filter((task) => !TERMINAL_STATUSES.has(task.status))

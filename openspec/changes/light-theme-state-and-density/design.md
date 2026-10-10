@@ -2,11 +2,11 @@
 
 ## Context
 
-- The light theme is the `:root` block of `src/shared/styles.css`; every other theme overrides the
-  same tokens under `:root[data-theme="..."]`. Cards in this app are drawn by their **border alone**
-  (their background comes from the tone ladder or, outside a tone context, from the `@layer base`
-  card rule added in 0.4.0).
-- The light theme's second pass (0.4.0) set `--border-color: #bfc9d4` (1.71 on white) and
+- `:root` is the light theme's block in `src/shared/styles.css`, with every other theme overriding
+  the same tokens under `:root[data-theme="..."]`. Cards in this app are drawn by their **border
+  alone** (their background comes from the tone ladder or, outside a tone context, from the
+  `@layer base` card rule added in 0.4.0).
+- The light theme's second pass (0.4.0) set `--border-color: #bfc9d4` (1.71 on white),
   `--border-strong: #a3aeba` (2.25) and text `#1f2328` / `#5b6673` (15.8 / 5.8 on white).
 - A state is currently marked in two ways: a border colour (`border-signal-info`,
   `hover:border-signal-info`, `.icon-action-button:hover { border-color: var(--accent) }`, …) and a
@@ -15,41 +15,52 @@
 - `enabled_theme_options` is `null` for users who never opened the theme list, and the frontend
   falls back to `defaultVisibleThemes = ["dark", "light"]`. `dashboard_widget_options` falls back to
   **all** widgets already, so the widget half of the default request is a data reset, not a code
-  change.
+  change. `dashboard_layout` is `null` for everybody but the owner, so his arrangement becomes the
+  default by changing the constants alone.
 - `renderWidgetBody(key, size)` already receives the width preset; only `summary_cards` uses it.
 
 ## Goals / Non-Goals
 
 **Goals**
 
-- A light theme whose borders and muted text hold up on white, including at a zoomed-out viewport.
+- A curated, dark-only catalogue: no light theme and no near-duplicate of the neutral dark one.
 - One rule for interactive state across the whole app: state is a surface, not a border.
-- All widgets and all themes on by default, for everybody.
+- All widgets and all themes on by default, for everybody, and the owner's arrangement as the default
+  one.
 - Dashboard modules whose content density follows the width preset.
 
 **Non-Goals**
 
-- Retuning the dark themes (their borders and muted text were accepted).
+- Retuning the dark themes beyond the chart palette (they were accepted).
 - Replacing borders with shadows as the card pattern (the border stays the card's outline).
 - Redesigning every widget's data (density only decides *how much* of it is shown).
 
 ## Decisions
 
-**Light theme: darken both border tokens one clear step, darken the muted text, keep the canvas.**
-Measured contrast on white (WCAG):
+**The light theme was removed, not refined.** Two rounds went into it — a stronger border
+(`--border-color` 1.71 → 2.06 on white), darker muted text (5.8 → 7.3), a tinted canvas and white
+cards — and the owner's verdict was still that it does not fit the product. `moonfly` went with it:
+its palette sat close enough to the neutral `dark` that the two read as one theme. The consequences
+are structural rather than cosmetic:
 
-| Token | 0.4.0 | now | on white |
-|---|---|---|---|
-| `--border-color` (cards, separators) | `#bfc9d4` (1.71) | `#a9b6c4` | 2.07 |
-| `--border-strong` (controls, fields) | `#a3aeba` (2.25) | `#8494a5` | 3.11 |
-| `--text-muted` (secondary text) | `#5b6673` (5.8) | `#4c5866` | 7.3 |
-| `--text-primary` | `#1f2328` | unchanged | 15.8 |
+- `:root` now carries the **dark** palette and the `:root[data-theme="dark"]` block is gone (an
+  explicit `dark` falls back to `:root`), so the stylesheet has one base instead of a light base with
+  eight overrides;
+- `applyTheme` always sets `color-scheme: dark`;
+- a stored preference for a removed theme (`light`, `moonfly`, and the earlier `gray`/`flexoki`) is
+  coerced to `dark` rather than leaving the user themeless;
+- the **enum keeps the retired members**. A client with a cached bundle can still send `light`, and a
+  422 there would be a broken account for no reason — the request is accepted and the applied theme is
+  `dark`. Migration `0062` moves the stored `theme_preference` to `DARK` so the data matches the
+  catalogue (writing the enum *name*, per the `theme_preference` trap in `AGENTS.md`).
+- the picker shows the name alone: the `source` field (`folke/tokyonight.nvim`) and the «Текущий»
+  chip are gone, and the selected option is marked by its background.
 
-A 1px line is antialiased across two device rows whenever it does not land on a device pixel
-boundary (zoom, fractional DPR). Contrast is what decides whether that reads as a line or as a
-ripple, so the fix is contrast, not a thicker stroke: the card border is deliberately above the
-GitHub-ish `#d0d7de` (1.5) and the control border sits near Radix step 8. The canvas stays
-`#e6eaf1` so the cards keep reading as white surfaces on top of it.
+**The default arrangement is the owner's own.** It was read off his account and tiles the twelve
+column grid exactly: `full` → three `third`s → two rows of two `half`s → `full`. A default that leaves
+a hole is the one thing a user cannot fix without arranging everything by hand, so the tiling is
+asserted in both the frontend (`dashboard.test.ts`) and the backend (`_normalize_dashboard_layout`
+falls back to these widths, covered in `test_auth.py`).
 
 **One state rule, applied mechanically: state is a background.** Resting chrome (a field's or a
 button's outline, a card's outline, a status badge's tinted outline) keeps its border; what a
@@ -57,6 +68,9 @@ hover, a selection or an active tab may *not* do is change a border's colour. Co
 
 - the rail's icon badge loses its border and its background — the icon is just an icon, and the
   nav row's background answers the hover;
+- **collapsed, the rail's highlight is a square around the icon** (`lg:h-11 lg:w-11 lg:mx-auto`): the
+  row there *is* the icon, so the previous row-shaped pill came out taller than it was wide and read
+  as a stretched rectangle;
 - a selected nav row / chip / tab is `--accent-soft` over the panel, with no border recolour;
 - `:focus-visible` keeps a real outline (`outline: 2px solid var(--accent); outline-offset: 2px`),
   because removing the border recolour must not remove the keyboard affordance. This is the one
@@ -111,10 +125,12 @@ the column order and the visibility class of every column.
 
 ## Risks / Trade-offs
 
-- A darker border is a taste call; the owner reviews it on Stage. The tokens are the single knob
-  (`--border-color` / `--border-strong`) and the canvas colour was left alone on purpose, so a
-  follow-up round is a one-line change.
+- Removing a theme is a taste call, and it is irreversible for a user who liked it; the owner made
+  the call for both the light theme and `moonfly`, and the retired enum members keep a stale client
+  from breaking.
 - Removing the border recolour can make a hover subtler; the accent-tinted backgrounds are a step
   stronger than before to compensate.
 - The data migration resets deliberate choices (owner-approved): after it, "everything is on" is the
   single truth, and per-user lists start empty.
+- The default arrangement is the owner's taste baked in; it is one array in `dashboard.ts` and the
+  backend mirror, and the tiling test keeps a future edit from leaving a hole.

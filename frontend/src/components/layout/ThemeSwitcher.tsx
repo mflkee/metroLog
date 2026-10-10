@@ -39,7 +39,6 @@ export function ThemeSwitcher() {
         options={visibleOptions.map((option) => ({
           value: option.value,
           label: option.label,
-          preview: option.source,
         }))}
         selectedValue={theme}
         onSelect={(value) => void handleSelect(value)}
@@ -55,7 +54,6 @@ type PickerProps = {
   options: Array<{
     value: string;
     label: string;
-    preview?: string;
   }>;
   onSelect: (value: string) => void;
 };
@@ -126,15 +124,7 @@ function Picker({ label, activeLabel, selectedValue, options, onSelect }: Picker
                   setIsOpen(false);
                 }}
               >
-                <span className="theme-menu__option-main">
-                  <span>{option.label}</span>
-                  {option.preview ? (
-                    <span className="theme-menu__preview">{option.preview}</span>
-                  ) : null}
-                </span>
-                {selectedValue === option.value ? (
-                  <span className="theme-menu__status">Текущий</span>
-                ) : null}
+                <span>{option.label}</span>
               </button>
             ))}
           </div>

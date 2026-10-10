@@ -29,24 +29,41 @@ through an outline, which is the one ring the app adds.
 
 - **WHEN** the navigation is collapsed
 - **THEN** each icon is drawn without a border of its own, and the row answers hover and selection
-  with a background
+  with a background that is a square around the icon — the row there *is* the icon, so a pill taller
+  than it is wide is wrong
 
-### Requirement: Light theme contrast floor
+### Requirement: The theme catalogue is curated and dark-only
 
-The light theme SHALL keep its borders and its muted text above the contrast floor that survives a
-hairline on a white surface: a card or separator border SHALL contrast at least 2.0 against the
-panel, the border of an interactive control at least 2.8, and the muted text at least 7.0.
+The application SHALL ship dark themes only, and the catalogue SHALL stay curated: a theme that does
+not fit the product or that reads as a near-duplicate of another SHALL be removed. The theme picker
+SHALL show the name of a theme and nothing else. A stored preference for a theme that no longer
+exists SHALL fall back to the neutral dark theme rather than leaving the user without one.
 
-#### Scenario: A card on the light theme
+#### Scenario: Choosing a theme
 
-- **WHEN** a card is drawn on the light theme
-- **THEN** its border contrasts at least 2.0 against the panel and reads as a line rather than as a
-  ripple at a zoomed-out viewport
+- **WHEN** the user opens the theme picker
+- **THEN** every entry is a theme name alone, and every theme offered is dark
 
-#### Scenario: Secondary text on the light theme
+#### Scenario: A retired preference
 
-- **WHEN** secondary text is drawn on a white panel
-- **THEN** it contrasts at least 7.0 and is comfortably readable
+- **WHEN** a stored preference names a theme this build no longer ships
+- **THEN** the neutral dark theme is applied, and no error is shown
+
+#### Scenario: A client with a cached bundle
+
+- **WHEN** a client holding an older bundle asks for a retired theme
+- **THEN** the request is accepted and the applied theme is the neutral dark one
+
+### Requirement: The default dashboard arrangement tiles the grid
+
+The arrangement a user gets before arranging anything SHALL fill the twelve-column grid exactly, with
+no hole left in a row, and SHALL be the owner's arrangement.
+
+#### Scenario: A fresh account
+
+- **WHEN** a user who has never arranged the dashboard opens it
+- **THEN** the modules are laid out as `full`, three `third`s, two rows of two `half`s and a final
+  `full`, leaving no gap
 
 ### Requirement: Widget content follows its width
 

@@ -148,7 +148,11 @@ function NavItem({
       className={({ isActive }) =>
         [
           "sidebar-nav-item block rounded-2xl transition",
-          collapsed ? "px-2.5 py-3 lg:px-1.5" : "px-4 py-3",
+          // Collapsed, the row *is* the icon, so the highlight has to be a square around it: a
+          // row-shaped pill came out taller than it was wide and read as a stretched rectangle.
+          collapsed
+            ? "px-2.5 py-3 lg:mx-auto lg:flex lg:h-11 lg:w-11 lg:items-center lg:justify-center lg:rounded-xl lg:p-0"
+            : "px-4 py-3",
           isActive ? "sidebar-nav-item--active text-ink" : "bg-transparent text-steel",
         ].join(" ")
       }

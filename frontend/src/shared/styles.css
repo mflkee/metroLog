@@ -96,106 +96,14 @@
   }
 }
 
+/*
+ * The app ships dark: the light theme was removed on the owner's decision (it never fitted the
+ * product), so `:root` carries the neutral dark palette and every colour theme overrides the same
+ * tokens under `:root[data-theme="…"]`. There is no `[data-theme="dark"]` block — an explicit `dark`
+ * simply falls back to these values.
+ */
 :root {
   font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
-  /*
-   * The light theme follows the surface ladder of the systems that get this right: a light canvas
-   * with white cards (shadcn's default light theme uses the same colour for both) and *two* border
-   * strengths, the way Radix Colors splits them — step 6 for cards and separators, steps 7–8 for the
-   * border of an interactive control, deliberately darker so a field or a button reads as something
-   * you can use.
-   *
-   * The previous grey theme put the page (#9ca3af) and the panel (#c6ccd4) at a contrast of 1.57 and
-   * made the input (#aab2bd) *darker* than the panel it sat on, so nothing separated and the fields
-   * looked like holes. The first white version then used a single faint border for everything, which
-   * left the dense screens (tasks) with no visible structure at all.
-   */
-  --bg-layer-1: #e6eaf1;
-  --bg-layer-2: #dde3ec;
-  --bg-glow: transparent;
-  --text-primary: #1f2328;
-  /*
-   * Secondary text was 5.8 on white, which is AA but still read as «серое по белому». It is 7.3
-   * now — comfortably readable, and still clearly quieter than the primary ink.
-   */
-  --text-muted: #4c5866;
-  --placeholder-color: color-mix(in srgb, var(--text-muted) 62%, transparent);
-  /*
-   * Cards are drawn by their border alone in this app, so it has to be visible on white and on the
-   * canvas — the old grey theme sat at 1.9 there and the first white version dropped to 1.29.
-   *
-   * A 1px line is antialiased across two device rows whenever it misses a device pixel boundary
-   * (a zoomed-out viewport, a fractional device pixel ratio), and contrast is what decides whether
-   * that reads as a line or as a ripple. The owner found the previous pair too thin on white, so
-   * both steps moved up one clear notch: a card border is 2.07 on white (the GitHub-ish `#d0d7de`
-   * is only 1.5) and the border of an interactive control is 3.11, near Radix step 8.
-   */
-  --border-color: #a9b6c4;
-  --border-strong: #8494a5;
-  --panel-bg: #ffffff;
-  --panel-ghost: rgba(255, 255, 255, 0.9);
-  --panel-hover: #edf1f7;
-  --accent: #2563eb;
-  --accent-soft: rgba(37, 99, 235, 0.1);
-  --success: #29493d;
-  /*
-   * These three are read as text (priority labels, «просрочено», links), so they have to clear
-   * WCAG AA on the panel: the old values sat at 3.0–4.1 and were hard to read on the grey panel.
-   */
-  --danger: #8b231d;
-  --warning: #7c4a03;
-  --info: #2f5079;
-  --button-primary-bg: #111827;
-  --button-primary-text: #ffffff;
-  --input-bg: #eaeff6;
-  --switch-track: color-mix(in oklab, var(--text-muted) 45%, transparent);
-  --switch-thumb: oklch(1 0 0);
-  --panel-shadow-value:
-    0 1px 2px rgba(16, 24, 40, 0.06),
-    0 10px 30px rgba(16, 24, 40, 0.08);
-  --control-height: 40px;
-  --control-height-sm: 34px;
-  /* The top bar is deliberately compact: its own controls are shorter than the page ones. */
-  --control-height-topbar: 30px;
-  --control-padding-x: 14px;
-  --control-padding-x-sm: 12px;
-  --radius-input: 10px;
-  --radius-panel: 14px;
-  --radius-lg: 8px;
-  --radius-xl: 14px;
-  --radius-2xl: 16px;
-  --radius-3xl: 20px;
-  --surface-1: color-mix(in srgb, var(--panel-bg) 94%, transparent);
-  --surface-2: color-mix(in srgb, var(--surface-1) 72%, var(--bg-layer-2));
-  --surface-3: color-mix(in srgb, var(--surface-2) 64%, var(--bg-layer-2));
-  --surface-inline: color-mix(in srgb, var(--surface-3) 56%, var(--bg-layer-2));
-  --bg-primary: var(--surface-1);
-  --bg-secondary: var(--surface-2);
-  --bg-tertiary: var(--surface-3);
-  --tone-parent-bg: color-mix(in srgb, var(--panel-bg) 94%, transparent);
-  --tone-child-bg: color-mix(in srgb, var(--panel-hover) 72%, var(--panel-bg));
-  --tone-grandchild-bg: color-mix(in srgb, var(--input-bg) 76%, var(--panel-hover));
-  --chart-work: #456a9b;
-  --chart-repair: #b96f36;
-  --chart-verification: #2f7f79;
-  --chart-both: #7a63c7;
-  --chart-archived: #68707c;
-  --status-in-work: var(--text-primary);
-  --status-verification: #456a9b;
-  --status-repair: #a16207;
-  --status-repaired: #2f7d46;
-  --status-not-repairable: #a03a34;
-  --status-archived: #68707c;
-  --chart-repaired: #2f7d46;
-  --chart-not-repairable: #a03a34;
-  --timeline-progress: #2563eb;
-  --timeline-current-outline: var(--panel-bg);
-  color-scheme: light;
-  background: var(--bg-layer-1);
-  color: var(--text-primary);
-}
-
-:root[data-theme="dark"] {
   --bg-layer-1: oklch(0.145 0 0);
   --bg-layer-2: oklch(0.205 0 0);
   --bg-glow: transparent;
@@ -223,6 +131,7 @@
   --chart-verification: oklch(0.84 0.11 190);
   --chart-both: oklch(0.7 0.2 305);
   --chart-archived: color-mix(in oklab, var(--text-muted) 72%, var(--panel-bg));
+  --status-in-work: var(--text-primary);
   --status-verification: oklch(0.72 0.14 250);
   --status-repair: oklch(0.8 0.14 75);
   --status-repaired: oklch(0.7 0.15 150);
@@ -238,7 +147,31 @@
   --switch-track: color-mix(in oklab, var(--text-muted) 45%, transparent);
   --switch-thumb: oklch(0.985 0 0);
   --panel-shadow-value: 0 1px 2px 0 oklch(0 0 0 / 40%);
+  --control-height: 40px;
+  --control-height-sm: 34px;
+  /* The top bar is deliberately compact: its own controls are shorter than the page ones. */
+  --control-height-topbar: 30px;
+  --control-padding-x: 14px;
+  --control-padding-x-sm: 12px;
+  --radius-input: 10px;
+  --radius-panel: 14px;
+  --radius-lg: 8px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
+  --radius-3xl: 20px;
+  --surface-1: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  --surface-2: color-mix(in srgb, var(--surface-1) 72%, var(--bg-layer-2));
+  --surface-3: color-mix(in srgb, var(--surface-2) 64%, var(--bg-layer-2));
+  --surface-inline: color-mix(in srgb, var(--surface-3) 56%, var(--bg-layer-2));
+  --bg-primary: var(--surface-1);
+  --bg-secondary: var(--surface-2);
+  --bg-tertiary: var(--surface-3);
+  --tone-parent-bg: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  --tone-child-bg: color-mix(in srgb, var(--panel-hover) 72%, var(--panel-bg));
+  --tone-grandchild-bg: color-mix(in srgb, var(--input-bg) 76%, var(--panel-hover));
   color-scheme: dark;
+  background: var(--bg-layer-1);
+  color: var(--text-primary);
 }
 
 :root[data-theme="tokyonight"] {
@@ -462,42 +395,6 @@
   color-scheme: dark;
 }
 
-:root[data-theme="moonfly"] {
-  --bg-layer-1: #080808;
-  --bg-layer-2: #171717;
-  --bg-glow: rgba(116, 218, 251, 0.14);
-  --text-primary: #e3e3e3;
-  --text-muted: #9e9e9e;
-  --placeholder-color: color-mix(in srgb, var(--text-muted) 36%, var(--input-bg));
-  --border-color: #323437;
-  --border-strong: var(--border-color);
-  --panel-bg: #171717;
-  --panel-ghost: rgba(23, 23, 23, 0.92);
-  --panel-hover: #1f1f1f;
-  --accent: #74dafa;
-  --accent-soft: rgba(116, 218, 251, 0.14);
-  --success: #8cc85f;
-  --info: #74dafa;
-  --chart-work: #74dafa;
-  --chart-repair: #ff9966;
-  --chart-verification: #80a0ff;
-  --chart-both: #c792ea;
-  --chart-archived: #7f8790;
-  --status-verification: #80a0ff;
-  --status-repair: #e3c78a;
-  --status-repaired: #8cc85f;
-  --status-not-repairable: #ff5454;
-  --status-archived: #7f8790;
-  --chart-repaired: #8cc85f;
-  --chart-not-repairable: #ff5454;
-  --timeline-progress: #74dafa;
-  --timeline-current-outline: var(--panel-bg);
-  --button-primary-bg: #74dafa;
-  --button-primary-text: #080808;
-  --input-bg: #101010;
-  --panel-shadow-value: 0 12px 28px rgba(5, 5, 5, 0.52);
-  color-scheme: dark;
-}
 
 html {
   width: 100%;
@@ -2359,18 +2256,6 @@ input[type="number"]::-webkit-inner-spin-button {
     color 0.2s ease;
 }
 
-.theme-menu__option-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.theme-menu__preview {
-  font-size: 0.78rem;
-  letter-spacing: 0.02em;
-  color: var(--text-muted);
-}
-
 .theme-menu__option:hover {
   background: var(--accent-soft);
   color: var(--text-primary);
@@ -2384,12 +2269,6 @@ input[type="number"]::-webkit-inner-spin-button {
 .theme-menu__option--active {
   background: var(--accent-soft);
   color: var(--text-primary);
-}
-
-.theme-menu__status {
-  font-size: 0.75rem;
-  font-weight: 700;
-  color: var(--accent);
 }
 
 @media (max-width: 639px) {

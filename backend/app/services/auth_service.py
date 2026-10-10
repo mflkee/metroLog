@@ -338,12 +338,12 @@ def _normalize_dashboard_widget_options(values: list[str] | None) -> list[str] |
 
 # The dashboard arrangement is stored per user as an ordered list of entries. The keys and the
 # default widths mirror the frontend catalogue in `frontend/src/lib/dashboard.ts`; keep the two in
-# sync when a widget is added or removed.
+# sync when a widget is added or removed. The widths are the owner's own arrangement.
 _DASHBOARD_WIDGET_DEFAULT_SIZES: dict[str, str] = {
     "summary_cards": "full",
-    "my_tasks": "full",
-    "status_distribution": "half",
-    "type_distribution": "half",
+    "my_tasks": "third",
+    "status_distribution": "third",
+    "type_distribution": "third",
     "top_locations": "half",
     "verification_expiry": "half",
     "completed_processes": "half",

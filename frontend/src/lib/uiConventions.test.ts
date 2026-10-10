@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-import { defaultVisibleThemes, themeOptions } from "@/store/theme";
+import { coerceThemePreference, defaultVisibleThemes, themeOptions } from "@/store/theme";
 
 /*
  * `import.meta.glob` is Vite's own file reader: it hands back the sources as strings, so the guard
@@ -63,68 +63,41 @@ describe("state is carried by the surface", () => {
   });
 });
 
-function hexToRgb(hex: string): [number, number, number] {
-  const value = hex.trim().replace("#", "");
-  return [0, 2, 4].map((offset) => Number.parseInt(value.slice(offset, offset + 2), 16)) as [
-    number,
-    number,
-    number,
-  ];
-}
-
-function relativeLuminance(rgb: [number, number, number]): number {
-  const [r, g, b] = rgb.map((channel) => {
-    const c = channel / 255;
-    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * r + 0.7152 * g + 0.0722 * b;
-}
-
-function contrast(foreground: string, background: string): number {
-  const [lighter, darker] = [
-    relativeLuminance(hexToRgb(foreground)),
-    relativeLuminance(hexToRgb(background)),
-  ].sort((left, right) => right - left);
-  return (lighter + 0.05) / (darker + 0.05);
-}
-
-/** The first `:root` block of the stylesheet is the light theme. */
-function readLightThemeTokens(): Record<string, string> {
-  const block = /:root\s*\{([\s\S]*?)\n\}/.exec(STYLES);
-  if (!block) {
-    throw new Error("the light theme block was not found in styles.css");
-  }
-  const tokens: Record<string, string> = {};
-  for (const [, name, value] of block[1].matchAll(/(--[\w-]+):\s*([^;]+);/g)) {
-    tokens[name] = value.trim();
-  }
-  return tokens;
-}
-
 /*
- * A 1px hairline is antialiased across two device rows whenever it misses a device pixel boundary
- * (a zoomed-out viewport, a fractional ratio), and contrast is what decides whether that reads as a
- * line or as a ripple. These are the floors the light theme was rebuilt to hold.
+ * The catalogue is dark-only and curated by hand: a light theme was tried and removed because it
+ * never fitted the product, and moonfly was removed because it read as a second neutral dark.
  */
-describe("the light theme keeps its contrast floor", () => {
-  const tokens = readLightThemeTokens();
-  const panel = tokens["--panel-bg"];
-
-  it("is drawn on a white panel", () => {
-    expect(panel).toBe("#ffffff");
+describe("the theme catalogue is curated and dark-only", () => {
+  it("ships no light theme and no near-duplicate of dark", () => {
+    const values: string[] = themeOptions.map((option) => option.value);
+    expect(values).not.toContain("light");
+    expect(values).not.toContain("moonfly");
+    expect(values[0]).toBe("dark");
   });
 
-  it.each<[string, number]>([
-    ["--border-color", 2.0],
-    ["--border-strong", 2.8],
-    ["--text-muted", 7.0],
-  ])("%s contrasts at least %s against the panel", (token, floor) => {
-    expect(contrast(tokens[token], panel)).toBeGreaterThanOrEqual(floor);
+  it("carries nothing but the name, because that is all the picker shows", () => {
+    for (const option of themeOptions) {
+      expect(Object.keys(option).sort()).toEqual(["label", "value"]);
+    }
   });
-});
 
-describe("defaults enable everything", () => {
-  it("offers every theme out of the box", () => {
+  it("falls a retired preference back to the neutral dark theme", () => {
+    for (const retired of ["light", "gray", "flexoki", "moonfly", "tokyo-night"]) {
+      expect(coerceThemePreference(retired)).toBe("dark");
+    }
+  });
+
+  it("leaves an unknown value to the caller", () => {
+    expect(coerceThemePreference("solarized")).toBeNull();
+  });
+
+  it("offers every remaining theme out of the box", () => {
     expect(defaultVisibleThemes).toEqual(themeOptions.map((option) => option.value));
+  });
+
+  it("leaves no light palette and no moonfly block in the stylesheet", () => {
+    expect(STYLES).not.toContain('data-theme="light"');
+    expect(STYLES).not.toContain("moonfly");
+    expect(STYLES).toContain("color-scheme: dark");
   });
 });

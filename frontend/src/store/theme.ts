@@ -1,20 +1,17 @@
 import { create } from "zustand";
 
 export type ThemeName =
-  | "light"
   | "dark"
   | "tokyonight"
   | "catppuccin"
   | "kanagawa"
   | "nord"
   | "dracula"
-  | "gruvbox"
-  | "moonfly";
+  | "gruvbox";
 
 type ThemeOption = {
   value: ThemeName;
   label: string;
-  source?: string;
 };
 
 type ThemeState = {
@@ -25,16 +22,19 @@ type ThemeState = {
 const THEME_STORAGE_KEY = "metrolog.theme";
 export const DEFAULT_THEME: ThemeName = "dark";
 
+/**
+ * The catalogue is dark-only and curated: the light theme and moonfly were both removed on the
+ * owner's decision — the light theme never fitted the product, and moonfly read as a second neutral
+ * dark next to `dark`. The picker shows the name alone, so an option carries nothing else.
+ */
 export const themeOptions: ThemeOption[] = [
-  { value: "light", label: "Светлая" },
   { value: "dark", label: "Темная" },
-  { value: "tokyonight", label: "Tokyo Night", source: "folke/tokyonight.nvim" },
-  { value: "catppuccin", label: "Catppuccin", source: "catppuccin/catppuccin" },
-  { value: "kanagawa", label: "Kanagawa", source: "rebelot/kanagawa.nvim" },
-  { value: "nord", label: "Nord", source: "shaunsingh/nord.nvim" },
-  { value: "dracula", label: "Dracula", source: "Mofiqul/dracula.nvim" },
-  { value: "gruvbox", label: "Gruvbox", source: "ellisonleao/gruvbox.nvim" },
-  { value: "moonfly", label: "Moonfly", source: "bluz71/vim-moonfly-colors" },
+  { value: "tokyonight", label: "Tokyo Night" },
+  { value: "catppuccin", label: "Catppuccin" },
+  { value: "kanagawa", label: "Kanagawa" },
+  { value: "nord", label: "Nord" },
+  { value: "dracula", label: "Dracula" },
+  { value: "gruvbox", label: "Gruvbox" },
 ];
 
 /**
@@ -53,31 +53,23 @@ function persistTheme(theme: ThemeName): void {
 }
 
 export function coerceThemePreference(value: string | null | undefined): ThemeName | null {
-  if (
-    value === "light"
-    || value === "dark"
-    || value === "tokyonight"
-    || value === "catppuccin"
-    || value === "kanagawa"
-    || value === "nord"
-    || value === "dracula"
-    || value === "gruvbox"
-    || value === "moonfly"
-  ) {
-    return value;
+  if (themeOptions.some((option) => option.value === value)) {
+    return value as ThemeName;
   }
 
   if (value === "tokyo-night") {
-    return "dark";
+    return DEFAULT_THEME;
   }
 
-  // The retired themes: their palettes live on under the survivors.
-  if (value === "gray") {
-    return "light";
-  }
-
-  if (value === "flexoki") {
-    return "light";
+  // Themes this build no longer ships: a stored preference falls back to the neutral dark theme
+  // rather than leaving the user without one.
+  if (
+    value === "light"
+    || value === "gray"
+    || value === "flexoki"
+    || value === "moonfly"
+  ) {
+    return DEFAULT_THEME;
   }
 
   return null;
@@ -103,7 +95,8 @@ export function applyTheme(theme: ThemeName): void {
   }
 
   document.documentElement.dataset.theme = theme;
-  document.documentElement.style.colorScheme = isDarkTheme(theme) ? "dark" : "light";
+  // Every theme in the catalogue is dark, so the form controls are always the dark set.
+  document.documentElement.style.colorScheme = "dark";
 }
 
 export const useThemeStore = create<ThemeState>((set) => ({
@@ -147,17 +140,4 @@ export function getVisibleThemes(
   }
 
   return deduped;
-}
-
-export function isDarkTheme(theme: ThemeName): boolean {
-  return [
-    "dark",
-    "tokyonight",
-    "catppuccin",
-    "kanagawa",
-    "nord",
-    "dracula",
-    "gruvbox",
-    "moonfly",
-  ].includes(theme);
 }

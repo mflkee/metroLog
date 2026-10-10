@@ -885,12 +885,7 @@ export function SettingsPage() {
                     id={`theme-option-${option.value}`}
                     onCheckedChange={() => toggleTheme(option.value)}
                   />
-                  <span className="min-w-0">
-                    <span className="block font-semibold">{option.label}</span>
-                    <span className="mt-1 block text-xs text-steel">
-                      {option.source ?? "Базовая тема приложения"}
-                    </span>
-                  </span>
+                  <span className="font-semibold">{option.label}</span>
                 </label>
               ))}
             </div>

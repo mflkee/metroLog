@@ -69,7 +69,7 @@ describe("DashboardWidgetGrid", () => {
     expect(screen.getAllByRole("group")).toHaveLength(PLAN.length);
   });
 
-  it("renders the default arrangement with the widths the dashboard used before", () => {
+  it("renders the default arrangement with the owner's widths", () => {
     const { container } = render(
       <DashboardWidgetGrid
         dragEnabled={false}
@@ -86,17 +86,18 @@ describe("DashboardWidgetGrid", () => {
     const cells = Array.from(container.querySelectorAll<HTMLDivElement>(".grid > div"));
     expect(cells.map((cell) => cell.className)).toEqual([
       "xl:col-span-12 min-h-0 transition-transform duration-200",
-      "xl:col-span-12 min-h-0 transition-transform duration-200",
-      "xl:col-span-6 min-h-0 transition-transform duration-200",
-      "xl:col-span-6 min-h-0 transition-transform duration-200",
+      "xl:col-span-4 min-h-0 transition-transform duration-200",
+      "xl:col-span-4 min-h-0 transition-transform duration-200",
+      "xl:col-span-4 min-h-0 transition-transform duration-200",
       "xl:col-span-6 min-h-0 transition-transform duration-200",
       "xl:col-span-6 min-h-0 transition-transform duration-200",
       "xl:col-span-6 min-h-0 transition-transform duration-200",
       "xl:col-span-6 min-h-0 transition-transform duration-200",
       "xl:col-span-12 min-h-0 transition-transform duration-200",
     ]);
-    // The default tiles the twelve-column grid without leaving a gap.
+    // The default tiles the twelve-column grid exactly: five full rows, no gap left behind.
     const spans = cells.map((cell) => Number(cell.className.match(/col-span-(\d+)/)?.[1] ?? 0));
-    expect(spans.reduce((sum, span) => sum + span, 0)).toBe(72);
+    expect(spans).toEqual([12, 4, 4, 4, 6, 6, 6, 6, 12]);
+    expect(spans.reduce((sum, span) => sum + span, 0) % 12).toBe(0);
   });
 });

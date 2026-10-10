@@ -193,8 +193,7 @@ describe("applyVisibleOrder", () => {
   });
 });
 
-describe("widget density follows the width preset", () => {
-  it("shows more rows the wider the module is", () => {
+describe("widget density follows the width preset", () => {  it("shows more rows the wider the module is", () => {
     expect(dashboardWidgetRowLimit.third).toBeLessThan(dashboardWidgetRowLimit.half);
     expect(dashboardWidgetRowLimit.half).toBeLessThan(dashboardWidgetRowLimit.full);
   });
@@ -220,5 +219,46 @@ describe("widget density follows the width preset", () => {
   it("gives the summary strip fewer columns the narrower the module is", () => {
     expect(dashboardSummaryColumnsClass.third).toBe("grid-cols-1");
     expect(dashboardSummaryColumnsClass.full).toContain("xl:grid-cols-5");
+  });
+});
+
+/*
+ * The default arrangement is the owner's own (read off his account). A default that leaves a hole in
+ * the twelve-column grid is the one thing nobody can fix from the UI without arranging everything
+ * by hand, so the tiling is asserted here.
+ */
+describe("the default dashboard arrangement tiles the grid", () => {
+  const SPAN: Record<string, number> = { third: 4, half: 6, full: 12 };
+
+  it("fills every row exactly, with no hole left behind", () => {
+    let row = 0;
+    for (const entry of defaultDashboardLayout) {
+      row += SPAN[entry.size];
+      expect(row).toBeLessThanOrEqual(12);
+      if (row === 12) {
+        row = 0;
+      }
+    }
+    expect(row).toBe(0);
+  });
+
+  it("is the arrangement the owner uses", () => {
+    expect(
+      defaultDashboardLayout.map((entry) => `${entry.key}:${entry.size}`),
+    ).toEqual([
+      "summary_cards:full",
+      "my_tasks:third",
+      "status_distribution:third",
+      "type_distribution:third",
+      "top_locations:half",
+      "verification_expiry:half",
+      "completed_processes:half",
+      "average_durations:half",
+      "recent_events:full",
+    ]);
+  });
+
+  it("starts every module expanded", () => {
+    expect(defaultDashboardLayout.every((entry) => entry.collapsed === false)).toBe(true);
   });
 });

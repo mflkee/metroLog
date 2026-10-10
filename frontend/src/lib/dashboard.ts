@@ -91,12 +91,16 @@ export const defaultDashboardWidgetOrder: DashboardWidgetKey[] = [
   "recent_events",
 ];
 
-/** The width each widget had before the arrangement became data. */
+/**
+ * The width each widget gets in the default arrangement. It is the owner's own arrangement (read off
+ * his account), which tiles the twelve-column grid with no holes: `full`, then three thirds, then two
+ * rows of two halves, then `full`.
+ */
 export const dashboardWidgetDefaultSizes: Record<DashboardWidgetKey, DashboardWidgetSize> = {
   summary_cards: "full",
-  my_tasks: "full",
-  status_distribution: "half",
-  type_distribution: "half",
+  my_tasks: "third",
+  status_distribution: "third",
+  type_distribution: "third",
   top_locations: "half",
   verification_expiry: "half",
   completed_processes: "half",
@@ -165,7 +169,7 @@ export const dashboardWidgetTitles: Record<DashboardWidgetKey, string> = {
   recent_events: "Последние события",
 };
 
-/** The layout a user sees before they arrange anything: a clean full-width tiling of the grid. */
+/** The layout a user sees before they arrange anything: the owner's arrangement, a clean tiling. */
 export const defaultDashboardLayout: DashboardLayoutEntry[] = defaultDashboardWidgetOrder.map((key) => ({
   key,
   size: dashboardWidgetDefaultSizes[key],

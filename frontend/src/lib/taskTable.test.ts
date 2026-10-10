@@ -101,7 +101,7 @@ describe("the tasks table column plan", () => {
 describe("task table cells", () => {
   it("marks the deadline that is already behind us", () => {
     const due = TASK_TABLE_COLUMNS.find((column) => column.key === "due")!;
-    expect(taskTableCellClass(due, task({ isOverdue: true }))).toContain("var(--danger)");
+    expect(taskTableCellClass(due, task({ isOverdue: true }))).toContain("var(--danger-text)");
     expect(taskTableCellClass(due, task())).toContain("text-steel");
   });
 

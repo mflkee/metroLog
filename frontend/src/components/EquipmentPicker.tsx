@@ -270,7 +270,7 @@ export function EquipmentPicker({
                 <span className="truncate">{item.label}</span>
                 <button
                   aria-label={`Убрать ${item.label}`}
-                  className="text-steel transition hover:text-[color:var(--danger)]"
+                  className="text-steel transition hover:text-[color:var(--danger-text)]"
                   onClick={() => setPicked((current) => current.filter((entry) => entry.id !== item.id))}
                   type="button"
                 >

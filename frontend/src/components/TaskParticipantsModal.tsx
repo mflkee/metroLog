@@ -114,7 +114,7 @@ export function TaskParticipantsModal({
           </div>
         </div>
 
-        {error ? <p className="text-sm text-[color:var(--danger)]">{error}</p> : null}
+        {error ? <p className="text-sm text-[color:var(--danger-text)]">{error}</p> : null}
 
         <div className="flex justify-end gap-2">
           <button className="rounded-xl border border-line px-3 py-2 text-sm text-steel" onClick={onClose} type="button">

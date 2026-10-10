@@ -37,7 +37,7 @@ describe("getProcessStageTone", () => {
   it("draws every tone from a theme token", () => {
     expect(Object.keys(PROCESS_STAGE_TONE_CLASS).sort()).toEqual(["danger", "success", "warning"]);
     for (const className of Object.values(PROCESS_STAGE_TONE_CLASS)) {
-      expect(className).toMatch(/^text-\[color:var\(--(success|warning|danger)\)\]$/);
+      expect(className).toMatch(/^text-\[color:var\(--(success|warning|danger-text)\)\]$/);
     }
   });
 });

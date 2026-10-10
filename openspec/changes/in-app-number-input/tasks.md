@@ -12,5 +12,5 @@
 ## 2. Checks
 
 - [x] 2.1 `npm run check` is green, the new guard and the sanitiser tests included. Done: ruff clean, backend 153 passed, eslint 0 errors, frontend 147 passed (27 files), build ok.
-- [ ] 2.2 On Stage, typing a letter into the year or the deadline field leaves the value unchanged, a pasted five-digit year is cut to four, and scrolling the page over a focused field no longer changes the value.
-- [ ] 2.3 On Stage, a deadline of `0` saves as `0`, an empty deadline saves as no deadline, and the preset form submits without a browser validation bubble.
+- [x] 2.2 On Stage, typing a letter into the year or the deadline field leaves the value unchanged, a pasted five-digit year is cut to four, and scrolling the page over a focused field no longer changes the value. Verified on Stage by the owner and released as 0.6.0.
+- [x] 2.3 On Stage, a deadline of `0` saves as `0`, an empty deadline saves as no deadline, and the preset form submits without a browser validation bubble. Verified on Stage by the owner and released as 0.6.0.

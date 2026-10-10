@@ -19,6 +19,6 @@
 ## 3. Checks
 
 - [x] 3.1 `npm run check` is green, the new guard included, and the guard fails on a deliberate `window.confirm` (checked locally, then reverted). Done: ruff clean, backend 153 passed, eslint 0 errors, frontend 147 passed (27 files), build ok.
-- [ ] 3.2 On Stage, deleting a task, a deadline preset, a discussion message (repair, verification, task) and a task attachment each confirm in the app's modal: cancel leaves the item in place, confirm removes it, and the browser's own dialog never appears.
-- [ ] 3.3 On Stage, deleting a preset that a folder selects shows the API's refusal inside the modal and leaves the preset in the list.
-- [ ] 3.4 On Stage, a checklist item and a process stage row still delete without a question (they are form drafts), so the rule reads as intended.
+- [x] 3.2 On Stage, deleting a task, a deadline preset, a discussion message (repair, verification, task) and a task attachment each confirm in the app's modal: cancel leaves the item in place, confirm removes it, and the browser's own dialog never appears. Verified on Stage by the owner and released as 0.6.0.
+- [x] 3.3 On Stage, deleting a preset that a folder selects shows the API's refusal inside the modal and leaves the preset in the list. Verified on Stage by the owner and released as 0.6.0.
+- [x] 3.4 On Stage, a checklist item and a process stage row still delete without a question (they are form drafts), so the rule reads as intended. Verified on Stage by the owner and released as 0.6.0.

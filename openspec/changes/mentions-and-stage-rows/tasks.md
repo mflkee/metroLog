@@ -20,6 +20,6 @@
 ## 3. Checks
 
 - [x] 3.1 `npm run check` is green, the mention and tone tests included. Done: ruff clean, backend 153 passed, eslint 0 errors, frontend 159 passed (28 files), build ok; the three tone utilities are present in the built stylesheet.
-- [ ] 3.2 On Stage, writing `@БулашевАН` in a comment or a message shows the name in the theme's blue; an email address in the text stays plain.
-- [ ] 3.3 On Stage, expanding a repair and a verification card shows stage rows without «Дата»/«Статус», the row is shorter, and the actions align with the date field.
-- [ ] 3.4 On Stage, a completed stage reads green and a waiting one yellow in both a repair and a verification, a late stage stays red, and every colour follows the chosen theme.
+- [x] 3.2 On Stage, writing `@БулашевАН` in a comment or a message shows the name in the theme's blue; an email address in the text stays plain. Verified on Stage by the owner and released as 0.6.0.
+- [x] 3.3 On Stage, expanding a repair and a verification card shows stage rows without «Дата»/«Статус», the row is shorter, and the actions align with the date field. Verified on Stage by the owner and released as 0.6.0.
+- [x] 3.4 On Stage, a completed stage reads green and a waiting one yellow in both a repair and a verification, a late stage stays red, and every colour follows the chosen theme. Verified on Stage by the owner and released as 0.6.0.

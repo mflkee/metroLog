@@ -27,7 +27,7 @@ export function getProcessStageTone(row: {
 export const PROCESS_STAGE_TONE_CLASS: Record<ProcessStageTone, string> = {
   success: "text-[color:var(--success)]",
   warning: "text-[color:var(--warning)]",
-  danger: "text-[color:var(--danger)]",
+  danger: "text-[color:var(--danger-text)]",
 };
 
 export function createLocalProcessCustomStageId(): string {

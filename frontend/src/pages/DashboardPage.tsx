@@ -426,7 +426,7 @@ export function DashboardPage() {
                         <p
                           className={
                             item.daysLeft < 0
-                              ? "mt-1 font-semibold text-[color:var(--danger)]"
+                              ? "mt-1 font-semibold text-[color:var(--danger-text)]"
                               : "mt-1"
                           }
                         >

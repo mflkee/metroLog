@@ -9,7 +9,7 @@ const TONE_TEXT: Record<StatusTone, string> = {
   info: "text-info",
   success: "text-success",
   warning: "text-warning",
-  danger: "text-destructive",
+  danger: "text-[color:var(--danger-text)]",
 }
 
 export function StatCard({

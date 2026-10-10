@@ -122,6 +122,13 @@
   --warning: oklch(0.8 0.14 75);
   --info: oklch(0.72 0.14 250);
   /*
+   * `--danger` paints surfaces (tints, borders, a solid button) and is not always readable *as
+   * text* on a dark panel: in nord, catppuccin and dracula it falls under AA. `--danger-text` is the
+   * same red by default and lightened in those three themes, so an error line stays a red error line
+   * and stays readable.
+   */
+  --danger-text: var(--danger);
+  /*
    * A mention is text: it keeps the theme's blue and has to stay readable on a card (WCAG AA).
    * `--info` is that blue, so the default is `--info`; the two themes whose blue is too dim on a
    * card lighten it in their own block.
@@ -232,6 +239,8 @@
   --accent-soft: rgba(203, 166, 247, 0.14);
   --success: #a6e3a1;
   --info: #89b4fa;
+  /* The shared red reads at 4.35 as text on catppuccin's panel; 70% keeps it red and lifts it to 5.10. */
+  --danger-text: color-mix(in srgb, var(--danger) 70%, var(--text-primary));
   --chart-work: #89b4fa;
   --chart-repair: #fab387;
   --chart-verification: #89dceb;
@@ -308,6 +317,8 @@
   --info: #81a1c1;
   /* nord8: nord's info is too dim on a card to read as a mention. */
   --mention: #88c0d0;
+  /* The shared red is too dim to read as text on nord's panel (3.48); 65% keeps it red and lifts it to 4.66. */
+  --danger-text: color-mix(in srgb, var(--danger) 65%, var(--text-primary));
   --chart-work: #81a1c1;
   --chart-repair: #d08770;
   --chart-verification: #8fbcbb;
@@ -345,6 +356,8 @@
   --accent-soft: rgba(189, 147, 249, 0.14);
   --success: #50fa7b;
   --info: #8be9fd;
+  /* The shared red reads at 4.33 as text on dracula's panel; 80% keeps it red and lifts it to 5.18. */
+  --danger-text: color-mix(in srgb, var(--danger) 80%, var(--text-primary));
   --chart-work: #8be9fd;
   --chart-repair: #ffb86c;
   --chart-verification: #bd93f9;
@@ -869,14 +882,14 @@ textarea.form-input {
 }
 
 .btn-danger {
-  border-color: #b04c43;
-  background: color-mix(in srgb, #b04c43 12%, var(--tone-child-bg));
-  color: #b04c43;
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--tone-child-bg));
+  color: var(--danger-text);
 }
 
 .btn-danger:hover,
 .btn-danger:focus-visible {
-  background: color-mix(in srgb, #b04c43 16%, var(--tone-child-bg));
+  background: color-mix(in srgb, var(--danger) 16%, var(--tone-child-bg));
 }
 
 .btn-sm {
@@ -1438,7 +1451,7 @@ textarea.form-input {
 }
 
 .tone-parent .btn-danger {
-  background: color-mix(in srgb, #b04c43 12%, var(--tone-child-bg));
+  background: color-mix(in srgb, var(--danger) 12%, var(--tone-child-bg));
 }
 
 .tone-child .icon-action-button {
@@ -1454,7 +1467,7 @@ textarea.form-input {
 }
 
 .tone-child .btn-danger {
-  background: color-mix(in srgb, #b04c43 14%, var(--tone-grandchild-bg));
+  background: color-mix(in srgb, var(--danger) 14%, var(--tone-grandchild-bg));
 }
 
 .tone-grandchild .icon-action-button {
@@ -1470,7 +1483,7 @@ textarea.form-input {
 }
 
 .tone-grandchild .btn-danger {
-  background: color-mix(in srgb, #b04c43 14%, color-mix(in srgb, var(--input-bg) 88%, var(--panel-hover)));
+  background: color-mix(in srgb, var(--danger) 14%, color-mix(in srgb, var(--input-bg) 88%, var(--panel-hover)));
 }
 
 .icon-action-button:hover,
@@ -1563,7 +1576,7 @@ textarea.form-input {
 }
 
 .icon-action-button--danger {
-  color: var(--danger);
+  color: var(--danger-text);
   border-color: color-mix(in srgb, var(--danger) 42%, var(--border-color));
   background: color-mix(in srgb, var(--danger) 10%, var(--surface-1));
 }
@@ -1583,7 +1596,7 @@ textarea.form-input {
 .icon-action-button--danger:hover,
 .icon-action-button--danger:focus-visible {
   background: color-mix(in srgb, var(--danger) 16%, var(--accent-soft));
-  color: var(--danger);
+  color: var(--danger-text);
 }
 
 .folder-toolbar-grid {
@@ -2025,7 +2038,7 @@ textarea.form-input {
 
 .text-\[\#b04c43\],
 .text-\[\#8f443d\] {
-  color: var(--danger) !important;
+  color: var(--danger-text) !important;
 }
 
 .text-\[\#8c6a2b\] {

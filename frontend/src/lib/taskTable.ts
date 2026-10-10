@@ -10,7 +10,7 @@ export const taskPriorityTone: Record<TaskPriority, string> = {
   LOW: "text-steel",
   NORMAL: "text-ink",
   HIGH: "text-[color:var(--warning)]",
-  CRITICAL: "text-[color:var(--danger)]",
+  CRITICAL: "text-[color:var(--danger-text)]",
 };
 
 /** `dd.mm.yyyy`, and «без срока» when the task has no deadline. */
@@ -110,7 +110,7 @@ export const TASK_TABLE_COLUMNS: TaskTableColumn[] = [
     visibility: "",
     align: "right",
     cellClass: "whitespace-nowrap text-xs",
-    tone: (task) => (task.isOverdue ? "font-semibold text-[color:var(--danger)]" : "text-steel"),
+    tone: (task) => (task.isOverdue ? "font-semibold text-[color:var(--danger-text)]" : "text-steel"),
     value: (task) => formatTaskDate(task.dueDate),
   },
   {

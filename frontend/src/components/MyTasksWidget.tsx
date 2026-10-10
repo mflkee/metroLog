@@ -136,7 +136,7 @@ export function MyTasksWidget({ token, userId, size }: MyTasksWidgetProps) {
               <span
                 className={
                   task.isOverdue
-                    ? "mt-1 block font-semibold text-[color:var(--danger)]"
+                    ? "mt-1 block font-semibold text-[color:var(--danger-text)]"
                     : "mt-1 block"
                 }
               >

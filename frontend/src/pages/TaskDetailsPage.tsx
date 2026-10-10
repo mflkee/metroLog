@@ -289,7 +289,7 @@ export function TaskDetailsPage() {
   if (taskQuery.isError || !taskQuery.data) {
     return (
       <div className="space-y-3">
-        <p className="text-sm text-[color:var(--danger)]">Задача не найдена.</p>
+        <p className="text-sm text-[color:var(--danger-text)]">Задача не найдена.</p>
         <Link className="text-sm text-steel underline" to="/tasks">
           ← К списку задач
         </Link>
@@ -353,7 +353,7 @@ export function TaskDetailsPage() {
       />
 
       {actionError ? (
-        <p className="text-sm text-[color:var(--danger)]">{actionError}</p>
+        <p className="text-sm text-[color:var(--danger-text)]">{actionError}</p>
       ) : null}
       {canMutate ? null : (
         <p className="text-sm text-steel">
@@ -409,7 +409,7 @@ export function TaskDetailsPage() {
                 </button>
               ) : null}
               {task.isOverdue ? (
-                <span className="text-xs font-semibold text-[color:var(--danger)]">просрочено</span>
+                <span className="text-xs font-semibold text-[color:var(--danger-text)]">просрочено</span>
               ) : null}
               {task.tags.length > 0 ? (
                 <span className="text-xs text-steel">Теги: {task.tags.join(", ")}</span>
@@ -557,7 +557,7 @@ export function TaskDetailsPage() {
                 onRemove={(file) => setMessageFiles((current) => removePendingFile(current, file))}
               />
               {messageCreate.isError ? (
-                <p className="text-sm text-[color:var(--danger)]">
+                <p className="text-sm text-[color:var(--danger-text)]">
                   {messageCreate.error instanceof Error
                     ? messageCreate.error.message
                     : "Не удалось отправить сообщение."}
@@ -692,7 +692,7 @@ export function TaskDetailsPage() {
                 </button>
               ) : null}
               {attachmentUpload.isError ? (
-                <p className="text-sm text-[color:var(--danger)]">
+                <p className="text-sm text-[color:var(--danger-text)]">
                   {attachmentUpload.error instanceof Error
                     ? attachmentUpload.error.message
                     : "Не удалось загрузить вложения."}

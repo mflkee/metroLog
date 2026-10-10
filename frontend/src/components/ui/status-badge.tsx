@@ -15,7 +15,7 @@ export const statusBadgeVariants = cva("border-transparent font-semibold", {
       info: "bg-info/15 text-info",
       success: "bg-success/15 text-success",
       warning: "bg-warning/15 text-warning",
-      danger: "bg-destructive/15 text-destructive",
+      danger: "bg-destructive/15 text-[color:var(--danger-text)]",
     },
   },
   defaultVariants: { tone: "neutral" },

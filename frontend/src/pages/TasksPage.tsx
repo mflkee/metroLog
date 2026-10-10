@@ -64,7 +64,7 @@ function TaskCard({ task }: { task: TaskListItem }) {
       </div>
       <p className="mt-1 text-xs text-steel">{task.folderName ?? "Без папки"}</p>
       <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-steel">
-        <span className={task.isOverdue ? "text-[color:var(--danger)]" : ""}>
+        <span className={task.isOverdue ? "text-[color:var(--danger-text)]" : ""}>
           Срок: {formatTaskDate(task.dueDate)}
         </span>
         {task.responsibleDisplayName ? <span>Отв.: {task.responsibleDisplayName}</span> : null}
@@ -504,9 +504,9 @@ export function TasksPage() {
         </div>
       </div>
 
-      {boardError ? <p className="text-sm text-[color:var(--danger)]">{boardError}</p> : null}
+      {boardError ? <p className="text-sm text-[color:var(--danger-text)]">{boardError}</p> : null}
       {tasksQuery.isLoading ? <p className="text-sm text-steel">Загрузка…</p> : null}
-      {tasksQuery.isError ? <p className="text-sm text-[color:var(--danger)]">Не удалось загрузить задачи.</p> : null}
+      {tasksQuery.isError ? <p className="text-sm text-[color:var(--danger-text)]">Не удалось загрузить задачи.</p> : null}
       {!tasksQuery.isLoading && tasks.length === 0 ? (
         <p className="text-sm text-steel">Задач не найдено. Создай первую задачу.</p>
       ) : null}
@@ -578,7 +578,7 @@ export function TasksPage() {
                     {TASK_PRIORITY_LABELS[task.priority]}
                   </td>
                   <td className="px-3 py-2 text-steel">{task.responsibleDisplayName ?? "—"}</td>
-                  <td className={`px-3 py-2 ${task.isOverdue ? "text-[color:var(--danger)]" : "text-steel"}`}>
+                  <td className={`px-3 py-2 ${task.isOverdue ? "text-[color:var(--danger-text)]" : "text-steel"}`}>
                     {formatTaskDate(task.dueDate)}
                   </td>
                   <td className="px-3 py-2 text-steel">{task.equipmentCount}</td>
@@ -797,7 +797,7 @@ function CreateTaskModal({
                     <span className="truncate">{item.label}</span>
                     <button
                       aria-label={`Убрать ${item.label}`}
-                      className="text-steel transition hover:text-[color:var(--danger)]"
+                      className="text-steel transition hover:text-[color:var(--danger-text)]"
                       onClick={() => {
                         setPickedEquipment((current) =>
                           current.filter((entry) => entry.id !== item.id),
@@ -818,7 +818,7 @@ function CreateTaskModal({
             )}
           </div>
         </div>
-        {error ? <p className="text-sm text-[color:var(--danger)]">{error}</p> : null}
+        {error ? <p className="text-sm text-[color:var(--danger-text)]">{error}</p> : null}
         <div className="flex justify-end gap-2">
           <button className="btn-secondary btn-sm" onClick={onClose} type="button">
             Отмена

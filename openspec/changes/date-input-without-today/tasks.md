@@ -11,4 +11,4 @@
 ## 2. Checks
 
 - [x] 2.1 `npm run check` is green, the new guard included.
-- [ ] 2.2 On Stage, no date field (equipment card, repairs, verifications, tasks, Arshin search, presets, folders) shows a button beside it; the calendar toggle still opens the calendar, today is highlighted, and one click sets today.
+- [x] 2.2 On Stage, no date field (equipment card, repairs, verifications, tasks, Arshin search, presets, folders) shows a button beside it; the calendar toggle still opens the calendar, today is highlighted, and one click sets today. Verified on Stage by the owner and released as 0.6.0.

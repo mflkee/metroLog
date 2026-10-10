@@ -1227,7 +1227,7 @@ function RepairQueueRow({
                           {row.statusLabel}
                         </p>
                         {row.overdueDays > 0 ? (
-                          <p className="text-xs text-[color:var(--danger)]">{formatOverdueLabel(row.overdueDays)}</p>
+                          <p className="text-xs text-[color:var(--danger-text)]">{formatOverdueLabel(row.overdueDays)}</p>
                         ) : null}
                       </div>
 
@@ -2560,7 +2560,7 @@ function RepairBatchCard({
                           {row.statusLabel}
                         </p>
                         {row.overdueDays > 0 ? (
-                          <p className="text-xs text-[color:var(--danger)]">{formatOverdueLabel(row.overdueDays)}</p>
+                          <p className="text-xs text-[color:var(--danger-text)]">{formatOverdueLabel(row.overdueDays)}</p>
                         ) : null}
                       </div>
 
@@ -2992,7 +2992,7 @@ function ArchiveRepairStageRow({
             {statusLabel}
           </p>
           {overdueDays > 0 ? (
-            <p className="text-xs text-[color:var(--danger)]">{formatOverdueLabel(overdueDays)}</p>
+            <p className="text-xs text-[color:var(--danger-text)]">{formatOverdueLabel(overdueDays)}</p>
           ) : null}
         </div>
       </div>

@@ -325,7 +325,7 @@ export function SearchableMultiSelect<T extends string | number>({
               <span className="truncate">{option.label}</span>
               <button
                 aria-label={`Убрать ${option.label}`}
-                className="text-steel transition hover:text-[color:var(--danger)]"
+                className="text-steel transition hover:text-[color:var(--danger-text)]"
                 disabled={disabled}
                 type="button"
                 onClick={() => onChange(value.filter((entry) => entry !== option.value))}

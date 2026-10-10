@@ -133,3 +133,22 @@ describe("the app draws its own numeric field", () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/*
+ * A date field is the field and its calendar toggle, nothing else. The «Сегодня» shortcut that used
+ * to sit beside it read as a second control, while the calendar already highlights today and
+ * selects it in one click - so it is gone, and it must not come back through a call site either.
+ */
+describe("a date field carries no separate shortcut", () => {
+  it("keeps the today shortcut out of the sources", () => {
+    const offenders = SOURCE_FILES.filter(([, source]) =>
+      /showTodayButton|date-input__today/.test(source),
+    ).map(([file]) => file);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps the today shortcut out of the stylesheet", () => {
+    expect(STYLES).not.toContain("date-input__today");
+  });
+});

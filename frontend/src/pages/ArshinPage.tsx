@@ -681,7 +681,6 @@ export function ArshinPage() {
                   <DateInput
                     className="form-input"
                     placeholder={arshinPlaceholderExample.verificationDate}
-                    showTodayButton={false}
                     value={searchForm.verificationDate || null}
                     onChange={(value) =>
                       setSearchForm((current) => ({
@@ -697,7 +696,6 @@ export function ArshinPage() {
                     <DateInput
                       className="form-input"
                       placeholder={arshinPlaceholderExample.validDate}
-                      showTodayButton={false}
                       value={searchForm.validDate || null}
                       onChange={(value) =>
                         setSearchForm((current) => ({

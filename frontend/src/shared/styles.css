@@ -565,64 +565,17 @@ textarea.form-input {
 }
 
 .date-input {
-  display: flex;
   width: 100%;
   min-width: 0;
-  /*
-   * `flex-end`, not `stretch`: the field carries `.form-input`'s 8px top margin while the
-   * «Сегодня» button does not, so stretching pinned the button 8px above the field. Aligning the
-   * bottom edges keeps them level whatever the field's margin turns out to be.
-   */
-  align-items: flex-end;
-  gap: 6px;
 }
 
 .date-input__field-wrap {
   position: relative;
-  flex: 1;
   min-width: 0;
 }
 
 .date-input--compact .date-input__field-wrap {
   min-width: 9.75rem;
-}
-
-.date-input__today {
-  display: inline-flex;
-  width: var(--control-height);
-  flex-shrink: 0;
-  height: var(--control-height);
-  align-items: center;
-  justify-content: center;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-input);
-  background: color-mix(in srgb, var(--tone-child-bg) 92%, transparent);
-  color: var(--text-muted);
-  padding: 0;
-  cursor: pointer;
-  transition:
-    border-color 0.18s ease,
-    background-color 0.18s ease,
-    color 0.18s ease,
-    transform 0.18s ease;
-}
-
-.date-input__today:hover,
-.date-input__today:focus-visible {
-  background: color-mix(in srgb, var(--tone-child-bg) 76%, var(--accent-soft));
-  color: var(--text-primary);
-  transform: translateY(-1px);
-}
-
-.date-input__today:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-  transform: none;
-}
-
-.date-input__today-icon {
-  width: 18px;
-  height: 18px;
 }
 
 .date-input__field {

@@ -13,13 +13,10 @@ import { createPortal } from "react-dom";
 import { ru } from "date-fns/locale";
 import { DayPicker } from "react-day-picker";
 
-import { Icon } from "@/components/Icon";
-
 type DateInputProps = Omit<ComponentPropsWithoutRef<"input">, "type" | "value" | "onChange"> & {
   value: string | null | undefined;
   onChange: (value: string) => void;
   onEnter?: () => void;
-  showTodayButton?: boolean;
 };
 
 const DATE_PICKER_MIN_WIDTH = 272;
@@ -34,7 +31,6 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
     onEnter,
     onKeyDown,
     placeholder,
-    showTodayButton = true,
     style,
     value,
     ...props
@@ -206,13 +202,6 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
     onBlur?.(event);
   }
 
-  function handleSetToday() {
-    const todayIsoDate = formatDateObjectToIso(new Date());
-    setDisplayText(formatIsoDateForDisplay(todayIsoDate));
-    onChange(todayIsoDate);
-    setCalendarOpen(false);
-  }
-
   function handleCalendarSelect(date: Date | undefined) {
     if (!date) {
       return;
@@ -258,20 +247,6 @@ export const DateInput = forwardRef<HTMLInputElement, DateInputProps>(function D
 
   return (
     <div className={["date-input", isCompact ? "date-input--compact" : ""].filter(Boolean).join(" ")} ref={containerRef}>
-      {showTodayButton ? (
-        <button
-          aria-label="Установить сегодняшнюю дату"
-          className="date-input__today"
-          disabled={props.disabled || props.readOnly}
-          onClick={handleSetToday}
-          title="Сегодня"
-          type="button"
-        >
-          <Icon className="date-input__today-icon" name="today" />
-          <span className="sr-only">Сегодня</span>
-        </button>
-      ) : null}
-
       <div className="date-input__field-wrap" ref={fieldWrapRef}>
         <input
           {...props}

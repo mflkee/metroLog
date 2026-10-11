@@ -887,14 +887,14 @@ export function ArshinPage() {
 
         {searchResults.length >= 200 ? (
           <div className="mt-4">
-            <span className="toolbar-badge text-[#8c6a2b]">
+            <span className="toolbar-badge text-[var(--warning)]">
               Показана первая часть выдачи. Уточни фильтры для более точного списка.
             </span>
           </div>
         ) : null}
 
         {searchMutation.isError ? (
-          <p className="mt-4 text-sm text-[#b04c43]">
+          <p className="mt-4 text-sm text-[var(--danger-text)]">
             {getArshinErrorMessage(searchMutation.error, "Не удалось выполнить поиск в Аршине.")}
           </p>
         ) : null}
@@ -941,7 +941,7 @@ export function ArshinPage() {
                 addSummary.errors.map((item) => (
                   <div
                     key={`${item.vriId}-${item.message}`}
-                    className="rounded-2xl border border-[#ead2cf] bg-[#fff7f6] px-4 py-3 text-sm text-[#8f443d]"
+                    className="rounded-2xl border border-[var(--danger)] tint-danger px-4 py-3 text-sm text-[var(--danger-text)]"
                   >
                     <div className="font-semibold">vri_id: {item.vriId}</div>
                     <div className="mt-1">{item.message}</div>
@@ -996,7 +996,7 @@ export function ArshinPage() {
         ) : null}
 
         {previewQuery.isError ? (
-          <p className="text-sm text-[#b04c43]">
+          <p className="text-sm text-[var(--danger-text)]">
             {getArshinErrorMessage(
               previewQuery.error,
               registryKind === "ESI"
@@ -1130,7 +1130,7 @@ export function ArshinPage() {
                 <p className="text-sm text-steel">Загружаем состав выбранных ЭСИ...</p>
               ) : null}
               {prepareEsiAddMutation.isError ? (
-                <p className="text-sm text-[#b04c43]">
+                <p className="text-sm text-[var(--danger-text)]">
                   {prepareEsiAddMutation.error instanceof Error
                     ? prepareEsiAddMutation.error.message
                     : "Не удалось загрузить состав выбранных ЭСИ."}
@@ -1228,7 +1228,7 @@ export function ArshinPage() {
           ) : null}
 
           {addToFolderMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">{addToFolderMutation.error.message}</p>
+            <p className="text-sm text-[var(--danger-text)]">{addToFolderMutation.error.message}</p>
           ) : null}
 
           {registryKind === "ESI" && !prepareEsiAddMutation.isPending && !esiAddModulesReady ? (

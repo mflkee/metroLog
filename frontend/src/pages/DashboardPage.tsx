@@ -583,14 +583,14 @@ export function DashboardPage() {
         </p>
       ) : null}
 
-      {layoutError ? <p className="text-sm text-[#b04c43]">{layoutError}</p> : null}
+      {layoutError ? <p className="text-sm text-[var(--danger-text)]">{layoutError}</p> : null}
 
       {selectedFolderIds.length > 0 && isLoading ? (
         <p className="text-sm text-steel">Собираем аналитику по выбранным папкам...</p>
       ) : null}
 
       {selectedFolderIds.length > 0 && error ? (
-        <p className="text-sm text-[#b04c43]">
+        <p className="text-sm text-[var(--danger-text)]">
           {error instanceof Error ? error.message : "Не удалось загрузить данные информационной панели."}
         </p>
       ) : null}

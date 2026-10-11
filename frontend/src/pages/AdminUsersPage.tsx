@@ -365,7 +365,7 @@ export function AdminUsersPage() {
           </form>
 
           {createUserMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {createUserMutation.error instanceof Error
                 ? createUserMutation.error.message
                 : "Не удалось создать пользователя."}
@@ -374,7 +374,7 @@ export function AdminUsersPage() {
         </section>
 
         {credentialPacket ? (
-          <section className="rounded-2xl border border-signal-info bg-[#eaf4f8] p-4">
+          <section className="rounded-2xl border border-signal-info tint-info p-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div className="space-y-1">
                 <p className="text-sm font-semibold text-ink">
@@ -427,7 +427,7 @@ export function AdminUsersPage() {
           </div>
 
           {updateUserMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {updateUserMutation.error instanceof Error
                 ? updateUserMutation.error.message
                 : "Не удалось обновить пользователя."}
@@ -435,7 +435,7 @@ export function AdminUsersPage() {
           ) : null}
 
           {resetPasswordMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {resetPasswordMutation.error instanceof Error
                 ? resetPasswordMutation.error.message
                 : "Не удалось сбросить пароль."}
@@ -443,7 +443,7 @@ export function AdminUsersPage() {
           ) : null}
 
           {deleteUserMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {deleteUserMutation.error instanceof Error
                 ? deleteUserMutation.error.message
                 : "Не удалось удалить пользователя."}
@@ -457,7 +457,7 @@ export function AdminUsersPage() {
           ) : null}
 
           {usersQuery.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {usersQuery.error instanceof Error
                 ? usersQuery.error.message
                 : "Не удалось загрузить пользователей."}
@@ -526,11 +526,11 @@ export function AdminUsersPage() {
                     <div className="min-w-0 space-y-1">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="text-base font-semibold text-ink">{user.fullName}</span>
-                        <span className="rounded-full bg-[#edf2f5] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-steel">
+                        <span className="rounded-full tint-neutral px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-steel">
                           {roleLabels[user.role]}
                         </span>
                         {user.role === "DEVELOPER" ? (
-                          <span className="rounded-full bg-[#eaf4f8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal-info">
+                          <span className="rounded-full tint-info px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal-info">
                             Защищенная роль
                           </span>
                         ) : null}
@@ -538,19 +538,19 @@ export function AdminUsersPage() {
                           className={[
                             "rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em]",
                             user.isActive
-                              ? "bg-[#edf2f5] text-steel"
-                              : "bg-[#f3e1de] text-[#b04c43]",
+                              ? "tint-neutral text-steel"
+                              : "tint-danger text-[var(--danger-text)]",
                           ].join(" ")}
                         >
                           {user.isActive ? "Активен" : "Отключен"}
                         </span>
                         {user.mustChangePassword ? (
-                          <span className="rounded-full bg-[#eaf4f8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal-info">
+                          <span className="rounded-full tint-info px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal-info">
                             Временный пароль
                           </span>
                         ) : null}
                         {currentUser?.id === user.id ? (
-                          <span className="rounded-full bg-[#eaf4f8] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal-info">
+                          <span className="rounded-full tint-info px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-signal-info">
                             Вы
                           </span>
                         ) : null}
@@ -635,7 +635,7 @@ export function AdminUsersPage() {
                         </button>
                         {canDeleteUserAccount ? (
                           <button
-                            className="rounded-full border border-[#e7b8b2] bg-white px-3 py-1.5 text-sm text-[#b04c43] transition hover:bg-[#f8e8e6] disabled:opacity-60"
+                            className="rounded-full border border-[var(--danger)] bg-white px-3 py-1.5 text-sm text-[var(--danger-text)] transition hover:tint-danger disabled:opacity-60"
                             type="button"
                             disabled={deleteUserMutation.isPending}
                             onClick={() => {
@@ -661,7 +661,7 @@ export function AdminUsersPage() {
 
                           {foldersQuery.isLoading ? <p className="text-sm text-steel">Загружаем папки...</p> : null}
                           {foldersQuery.isError ? (
-                            <p className="text-sm text-[#b04c43]">
+                            <p className="text-sm text-[var(--danger-text)]">
                               {foldersQuery.error instanceof Error
                                 ? foldersQuery.error.message
                                 : "Не удалось загрузить список папок."}
@@ -694,13 +694,13 @@ export function AdminUsersPage() {
                           ) : null}
 
                           {shouldWarnAboutDashboardFolders ? (
-                            <p className="text-sm text-[#8c6a2b]">
+                            <p className="text-sm text-[var(--warning)]">
                               После сохранения у пользователя будут сброшены папки информационной панели, которые не входят в разрешенный список.
                             </p>
                           ) : null}
 
                           {updateFolderAccessMutation.isError && expandedUserId === user.id ? (
-                            <p className="text-sm text-[#b04c43]">
+                            <p className="text-sm text-[var(--danger-text)]">
                               {updateFolderAccessMutation.error instanceof Error
                                 ? updateFolderAccessMutation.error.message
                                 : "Не удалось обновить доступ к папкам."}

@@ -2364,3 +2364,117 @@ textarea.form-input {
 .process-target-flash {
   animation: process-target-flash 1.6s ease-in-out 1;
 }
+
+/*
+ * ---------------------------------------------------------------------------
+ * Contributed when metroGen joined the fleet.
+ *
+ * metroGen had these and the theme had no equivalent: a metric card, a section
+ * card, a status chip and the document preview surface. They are written against
+ * the shared tokens, so every service gets them in every theme.
+ * ---------------------------------------------------------------------------
+ */
+:root {
+  /* A document preview is paper: white in every theme. */
+  --preview-surface: oklch(1 0 0);
+}
+
+.metric-card {
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--tone-child-bg) 90%, transparent);
+  padding: 16px 18px;
+}
+
+.metric-card__label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.metric-card__value {
+  margin-top: 12px;
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.section-card {
+  border: 1px solid var(--border-color);
+  border-radius: 24px;
+  background: color-mix(in srgb, var(--panel-bg) 94%, transparent);
+  box-shadow: var(--panel-shadow-value);
+  padding: 20px;
+}
+
+.status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border-color);
+  padding: 6px 10px;
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+/* The red chip's text is `--danger-text`: `--danger` is a surface colour and falls
+ * under AA as text in nord, catppuccin and dracula. */
+.status-chip--ok {
+  border-color: color-mix(in srgb, var(--success) 34%, var(--border-color));
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, var(--tone-child-bg));
+}
+
+.status-chip--warn {
+  border-color: color-mix(in srgb, var(--warning) 34%, var(--border-color));
+  color: var(--warning);
+  background: color-mix(in srgb, var(--warning) 12%, var(--tone-child-bg));
+}
+
+.status-chip--danger {
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--border-color));
+  color: var(--danger-text);
+  background: color-mix(in srgb, var(--danger) 12%, var(--tone-child-bg));
+}
+
+.preview-frame {
+  width: 100%;
+  min-height: 960px;
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  background: var(--preview-surface);
+}
+
+/*
+ * ---------------------------------------------------------------------------
+ * Toned surfaces.
+ *
+ * A tinted block (a status chip, an inline notice) used to be a light-theme hex
+ * (`bg-[#edf2f5]`, `bg-[#e7f3eb]`, …) that the theme then had to re-point with
+ * `!important`. These classes are that tint as a token, and they set the background
+ * only — the geometry (radius, padding, type) stays with the caller.
+ * ---------------------------------------------------------------------------
+ */
+.tint-neutral {
+  background: color-mix(in srgb, var(--tone-child-bg) 92%, transparent);
+}
+
+.tint-info {
+  background: color-mix(in srgb, var(--info) 14%, var(--tone-child-bg));
+}
+
+.tint-success {
+  background: color-mix(in srgb, var(--success) 14%, var(--tone-child-bg));
+}
+
+.tint-warning {
+  background: color-mix(in srgb, var(--warning) 16%, var(--tone-child-bg));
+}
+
+.tint-danger {
+  background: color-mix(in srgb, var(--danger) 12%, var(--tone-child-bg));
+}

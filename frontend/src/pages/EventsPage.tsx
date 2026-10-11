@@ -178,7 +178,7 @@ export function EventsPage() {
         </div>
       </div>
 
-      {exportError ? <p className="text-sm text-[#b04c43]">{exportError}</p> : null}
+      {exportError ? <p className="text-sm text-[var(--danger-text)]">{exportError}</p> : null}
 
       <div className="flex justify-end">
         <div className="toolbar-badge">
@@ -191,7 +191,7 @@ export function EventsPage() {
       ) : null}
 
       {eventsQuery.isError ? (
-        <p className="text-sm text-[#b04c43]">
+        <p className="text-sm text-[var(--danger-text)]">
           {eventsQuery.error instanceof Error
             ? eventsQuery.error.message
             : "Не удалось загрузить журнал событий."}

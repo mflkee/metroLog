@@ -195,7 +195,7 @@ export function ProfilePage() {
                   />
                 </label>
 
-                {profileError ? <p className="text-sm text-[#b04c43]">{profileError}</p> : null}
+                {profileError ? <p className="text-sm text-[var(--danger-text)]">{profileError}</p> : null}
                 {profileMessage ? <p className="text-sm text-signal-ok">{profileMessage}</p> : null}
 
                 <button
@@ -244,7 +244,7 @@ export function ProfilePage() {
                 />
 
                 <p className="text-xs text-steel">{passwordPolicyMessage}</p>
-                {error ? <p className="text-sm text-[#b04c43]">{error}</p> : null}
+                {error ? <p className="text-sm text-[var(--danger-text)]">{error}</p> : null}
                 {message ? <p className="text-sm text-signal-ok">{message}</p> : null}
 
                 <button className="btn-primary disabled:opacity-60" type="submit" disabled={isSubmitting}>

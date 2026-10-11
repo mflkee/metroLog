@@ -646,7 +646,7 @@ export function SettingsPage() {
               {foldersQuery.isLoading ? (
                 <p className="text-sm text-steel">Загружаем список папок...</p>
               ) : foldersQuery.isError ? (
-                <p className="text-sm text-[#b04c43]">
+                <p className="text-sm text-[var(--danger-text)]">
                   {foldersQuery.error instanceof Error
                     ? foldersQuery.error.message
                     : "Не удалось загрузить список папок."}
@@ -701,7 +701,7 @@ export function SettingsPage() {
               {foldersQuery.isLoading ? (
                 <p className="text-sm text-steel">Загружаем список папок...</p>
               ) : foldersQuery.isError ? (
-                <p className="text-sm text-[#b04c43]">
+                <p className="text-sm text-[var(--danger-text)]">
                   {foldersQuery.error instanceof Error
                     ? foldersQuery.error.message
                     : "Не удалось загрузить список папок."}
@@ -794,7 +794,7 @@ export function SettingsPage() {
               {deadlinePresetsQuery.isLoading ? (
                 <p className="text-sm text-steel">Загружаем пресеты...</p>
               ) : deadlinePresetsQuery.isError ? (
-                <p className="text-sm text-[#b04c43]">
+                <p className="text-sm text-[var(--danger-text)]">
                   {deadlinePresetsQuery.error instanceof Error
                     ? deadlinePresetsQuery.error.message
                     : "Не удалось загрузить пресеты дедлайнов."}
@@ -820,7 +820,7 @@ export function SettingsPage() {
                               </span>
                             ) : null}
                             {!preset.isActive ? (
-                              <span className="rounded-full bg-[#f3efe5] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8c6a2b]">
+                              <span className="rounded-full tint-warning px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--warning)]">
                                 Неактивен
                               </span>
                             ) : null}
@@ -869,7 +869,7 @@ export function SettingsPage() {
                 </div>
               )}
 
-              {presetError ? <p className="text-sm text-[#b04c43]">{presetError}</p> : null}
+              {presetError ? <p className="text-sm text-[var(--danger-text)]">{presetError}</p> : null}
               {presetFeedback ? <p className="text-sm text-signal-ok">{presetFeedback}</p> : null}
             </div>
           </SettingsSectionCard>
@@ -949,12 +949,12 @@ export function SettingsPage() {
               </span>
             </div>
 
-            {testEmailError ? <p className="text-sm text-[#b04c43]">{testEmailError}</p> : null}
+            {testEmailError ? <p className="text-sm text-[var(--danger-text)]">{testEmailError}</p> : null}
             {testEmailMessage ? <p className="text-sm text-signal-ok">{testEmailMessage}</p> : null}
           </div>
         </SettingsSectionCard>
 
-        {error ? <p className="text-sm text-[#b04c43]">{error}</p> : null}
+        {error ? <p className="text-sm text-[var(--danger-text)]">{error}</p> : null}
         {isSubmitting ? (
           <p className="text-sm text-steel">Сохраняем настройки...</p>
         ) : message ? (
@@ -1072,7 +1072,7 @@ export function SettingsPage() {
               />
             </PresetStageGroup>
           </div>
-          {presetError ? <p className="text-sm text-[#b04c43]">{presetError}</p> : null}
+          {presetError ? <p className="text-sm text-[var(--danger-text)]">{presetError}</p> : null}
         </form>
       </Modal>
 

@@ -332,17 +332,17 @@ export function getFolderRefreshRowStatusLabel(status: EquipmentFolderRefreshRow
 export function getFolderRefreshStatusBadgeClass(status: EquipmentFolderRefreshRow["status"]): string {
   switch (status) {
     case "UPDATED":
-      return "rounded-full bg-[#e7f3eb] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#2f7a4f]";
+      return "rounded-full tint-success px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--success)]";
     case "UPDATED_UNCERTAIN":
-      return "rounded-full bg-[#f3efe5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8c6a2b]";
+      return "rounded-full tint-warning px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--warning)]";
     case "UNCHANGED":
-      return "rounded-full bg-[#edf2f5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel";
+      return "rounded-full tint-neutral px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel";
     case "NOT_FOUND":
-      return "rounded-full bg-[#f3efe5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#8c6a2b]";
+      return "rounded-full tint-warning px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--warning)]";
     case "ERROR":
-      return "rounded-full bg-[#f8e8e6] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#b04c43]";
+      return "rounded-full tint-danger px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--danger-text)]";
     default:
-      return "rounded-full bg-[#edf2f5] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel";
+      return "rounded-full tint-neutral px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel";
   }
 }
 

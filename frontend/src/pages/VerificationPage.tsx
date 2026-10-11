@@ -484,7 +484,7 @@ export function VerificationPage() {
         </div>
       </div>
 
-      {exportError ? <p className="text-sm text-[#b04c43]">{exportError}</p> : null}
+      {exportError ? <p className="text-sm text-[var(--danger-text)]">{exportError}</p> : null}
 
       {tab === "active" && activeCount !== null ? (
         <div className="flex justify-end">
@@ -510,7 +510,7 @@ export function VerificationPage() {
       ) : null}
 
       {verificationError ? (
-        <p className="text-sm text-[#b04c43]">
+        <p className="text-sm text-[var(--danger-text)]">
           {verificationError instanceof Error
             ? verificationError.message
             : "Не удалось загрузить список поверок."}
@@ -1275,7 +1275,7 @@ function VerificationBatchCard({
             </div>
           </div>
         ) : null}
-          {actionError ? <p className="mt-3 text-sm text-[#b04c43]">{actionError}</p> : null}
+          {actionError ? <p className="mt-3 text-sm text-[var(--danger-text)]">{actionError}</p> : null}
         </article>
         <DeleteConfirmModal
           confirmLabel="Удалить из архива"
@@ -1443,7 +1443,7 @@ function VerificationBatchCard({
                     Даты заполняются для всей группы сразу.
                   </p>
                 </div>
-                {formError ? <p className="text-sm text-[#b04c43]">{formError}</p> : null}
+                {formError ? <p className="text-sm text-[var(--danger-text)]">{formError}</p> : null}
                 {stageRows.map((row) => (
                   <Fragment key={row.key}>
                   <div
@@ -1600,7 +1600,7 @@ function VerificationBatchCard({
                 <p className="text-sm text-steel">Загружаем общий диалог поверки...</p>
               ) : null}
               {messagesQuery.isError ? (
-                <p className="text-sm text-[#b04c43]">
+                <p className="text-sm text-[var(--danger-text)]">
                   {messagesQuery.error instanceof Error
                     ? messagesQuery.error.message
                     : "Не удалось загрузить сообщения поверки."}
@@ -1609,7 +1609,7 @@ function VerificationBatchCard({
               {!messagesQuery.isLoading && !messagesQuery.data?.length ? (
                 <p className="text-sm text-steel">Диалог группы пока пуст.</p>
               ) : null}
-              {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
+              {actionError ? <p className="text-sm text-[var(--danger-text)]">{actionError}</p> : null}
 
               {messagesQuery.data?.map((message) => (
                 <article
@@ -2420,7 +2420,7 @@ function VerificationQueueRow({
             ))}
           </div>
         ) : null}
-          {actionError ? <p className="mt-3 text-sm text-[#b04c43]">{actionError}</p> : null}
+          {actionError ? <p className="mt-3 text-sm text-[var(--danger-text)]">{actionError}</p> : null}
         </article>
         <DeleteConfirmModal
           confirmLabel="Удалить из архива"
@@ -2584,7 +2584,7 @@ function VerificationQueueRow({
                     </div>
                   ) : null}
                 </div>
-                {formError ? <p className="text-sm text-[#b04c43]">{formError}</p> : null}
+                {formError ? <p className="text-sm text-[var(--danger-text)]">{formError}</p> : null}
 
                 {stageRows.map((row) => (
                   <Fragment key={row.key}>
@@ -2726,7 +2726,7 @@ function VerificationQueueRow({
                   <p className="text-sm text-steel">Загружаем диалог поверки...</p>
                 ) : null}
                 {messagesQuery.isError ? (
-                  <p className="text-sm text-[#b04c43]">
+                  <p className="text-sm text-[var(--danger-text)]">
                     {messagesQuery.error instanceof Error
                       ? messagesQuery.error.message
                       : "Не удалось загрузить сообщения поверки."}
@@ -2735,7 +2735,7 @@ function VerificationQueueRow({
                 {!messagesQuery.isLoading && !messagesQuery.data?.length ? (
                   <p className="text-sm text-steel">Диалог поверки пока пуст.</p>
                 ) : null}
-                {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
+                {actionError ? <p className="text-sm text-[var(--danger-text)]">{actionError}</p> : null}
 
                 {messagesQuery.data?.map((message) => (
                   <article

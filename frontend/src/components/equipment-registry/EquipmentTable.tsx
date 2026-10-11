@@ -42,7 +42,7 @@ export function EquipmentRow({
         <div className="mt-1 text-xs text-steel">{item.modification || "Без модификации"}</div>
       </td>
       <td className="px-3 py-3 align-top">
-        <span className="rounded-full bg-[#edf2f5] px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
+        <span className="rounded-full tint-neutral px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-steel">
           {equipmentTypeLabels[item.equipmentType]}
         </span>
       </td>

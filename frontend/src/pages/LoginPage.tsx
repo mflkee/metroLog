@@ -62,7 +62,7 @@ export function LoginPage() {
           onChange={(event) => setPassword(event.target.value)}
         />
         {stateMessage ? <p className="text-sm text-signal-ok">{stateMessage}</p> : null}
-        {error ? <p className="text-sm text-[#b04c43]">{error}</p> : null}
+        {error ? <p className="text-sm text-[var(--danger-text)]">{error}</p> : null}
         <button className="btn-primary disabled:opacity-60" type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Входим..." : "Войти"}
         </button>

@@ -53,7 +53,7 @@ export function DeveloperDashboardPage() {
 
       {usersQuery.isLoading ? <p className="text-sm text-steel">Собираем служебную статистику...</p> : null}
       {usersQuery.error ? (
-        <p className="text-sm text-[#b04c43]">
+        <p className="text-sm text-[var(--danger-text)]">
           {usersQuery.error instanceof Error
             ? usersQuery.error.message
             : "Не удалось загрузить статистику разработчика."}

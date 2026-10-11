@@ -45,7 +45,7 @@ export function UserDetailsPage() {
         ) : null}
 
         {userQuery.isError ? (
-          <p className="text-sm text-[#b04c43]">
+          <p className="text-sm text-[var(--danger-text)]">
             {userQuery.error instanceof Error
               ? userQuery.error.message
               : "Не удалось загрузить профиль пользователя."}

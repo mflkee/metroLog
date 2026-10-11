@@ -1409,7 +1409,7 @@ export function EquipmentDetailsPage() {
 
       {equipmentQuery.isError ? (
         <div className="rounded-3xl border border-line bg-white p-5 shadow-panel">
-          <p className="text-sm text-[#b04c43]">
+          <p className="text-sm text-[var(--danger-text)]">
             {equipmentQuery.error instanceof Error
               ? equipmentQuery.error.message
               : "Не удалось загрузить карточку прибора."}
@@ -1690,7 +1690,7 @@ export function EquipmentDetailsPage() {
                         <p className="text-sm text-steel">Загружаем диалог ремонта...</p>
                       ) : null}
                       {repairMessagesQuery.isError ? (
-                        <p className="text-sm text-[#b04c43]">
+                        <p className="text-sm text-[var(--danger-text)]">
                           {repairMessagesQuery.error instanceof Error
                             ? repairMessagesQuery.error.message
                             : "Не удалось загрузить сообщения ремонта."}
@@ -1702,7 +1702,7 @@ export function EquipmentDetailsPage() {
                         </p>
                       ) : null}
                       {repairActionError ? (
-                        <p className="text-sm text-[#b04c43]">{repairActionError}</p>
+                        <p className="text-sm text-[var(--danger-text)]">{repairActionError}</p>
                       ) : null}
                       {repairMessages.map((message) => (
                         <article
@@ -1779,7 +1779,7 @@ export function EquipmentDetailsPage() {
                                 onInput={(event) => resizeCommentInput(event.currentTarget)}
                               />
                               {updateRepairMessageMutation.isError ? (
-                                <p className="text-sm text-[#b04c43]">
+                                <p className="text-sm text-[var(--danger-text)]">
                                   {updateRepairMessageMutation.error instanceof Error
                                     ? updateRepairMessageMutation.error.message
                                     : "Не удалось сохранить сообщение ремонта."}
@@ -2047,7 +2047,7 @@ export function EquipmentDetailsPage() {
                         <p className="text-sm text-steel">Загружаем диалог поверки...</p>
                       ) : null}
                       {verificationMessagesQuery.isError ? (
-                        <p className="text-sm text-[#b04c43]">
+                        <p className="text-sm text-[var(--danger-text)]">
                           {verificationMessagesQuery.error instanceof Error
                             ? verificationMessagesQuery.error.message
                             : "Не удалось загрузить сообщения поверки."}
@@ -2059,7 +2059,7 @@ export function EquipmentDetailsPage() {
                         </p>
                       ) : null}
                       {verificationActionError ? (
-                        <p className="text-sm text-[#b04c43]">{verificationActionError}</p>
+                        <p className="text-sm text-[var(--danger-text)]">{verificationActionError}</p>
                       ) : null}
                       {verificationMessages.map((message) => (
                         <article
@@ -2138,7 +2138,7 @@ export function EquipmentDetailsPage() {
                                 onInput={(event) => resizeCommentInput(event.currentTarget)}
                               />
                               {updateVerificationMessageMutation.isError ? (
-                                <p className="text-sm text-[#b04c43]">
+                                <p className="text-sm text-[var(--danger-text)]">
                                   {updateVerificationMessageMutation.error instanceof Error
                                     ? updateVerificationMessageMutation.error.message
                                     : "Не удалось сохранить сообщение поверки."}
@@ -2395,7 +2395,7 @@ export function EquipmentDetailsPage() {
                             </span>
                           </label>
                           {updateArshinRefreshExclusionMutation.isError ? (
-                            <p className="mt-3 text-sm text-[#b04c43]">
+                            <p className="mt-3 text-sm text-[var(--danger-text)]">
                               {updateArshinRefreshExclusionMutation.error instanceof Error
                                 ? updateArshinRefreshExclusionMutation.error.message
                                 : "Не удалось сохранить настройку проверки Аршина."}
@@ -2434,7 +2434,7 @@ export function EquipmentDetailsPage() {
                                 }
                               />
                               {loadEsiCompositionPreviewMutation.isError ? (
-                                <p className="text-sm text-[#b04c43]">
+                                <p className="text-sm text-[var(--danger-text)]">
                                   {getArshinErrorMessage(
                                     loadEsiCompositionPreviewMutation.error,
                                     "Не удалось загрузить подробную запись ЭСИ.",
@@ -2569,7 +2569,7 @@ export function EquipmentDetailsPage() {
                             />
                           </form>
                           {searchSiRefreshMutation.isError ? (
-                            <p className="mt-3 text-sm text-[#b04c43]">
+                            <p className="mt-3 text-sm text-[var(--danger-text)]">
                               {getArshinErrorMessage(
                                 searchSiRefreshMutation.error,
                                 "Не удалось выполнить поиск в Аршине.",
@@ -2636,7 +2636,7 @@ export function EquipmentDetailsPage() {
                             </div>
                           ) : null}
                           {loadSiRefreshDetailMutation.isError ? (
-                            <p className="mt-3 text-sm text-[#b04c43]">
+                            <p className="mt-3 text-sm text-[var(--danger-text)]">
                               {getArshinErrorMessage(
                                 loadSiRefreshDetailMutation.error,
                                 "Не удалось загрузить подробную запись Аршина.",
@@ -2673,7 +2673,7 @@ export function EquipmentDetailsPage() {
                                 ]}
                               />
                               {refreshSiMutation.isError ? (
-                                <p className="text-sm text-[#b04c43]">
+                                <p className="text-sm text-[var(--danger-text)]">
                                   {refreshSiMutation.error instanceof Error
                                     ? refreshSiMutation.error.message
                                     : equipment.equipmentType === "ESI"
@@ -2778,7 +2778,7 @@ export function EquipmentDetailsPage() {
                         onRemove={handleRemoveCommentFile}
                       />
                       {commentActionError ? (
-                        <p className="text-sm text-[#b04c43]">{commentActionError}</p>
+                        <p className="text-sm text-[var(--danger-text)]">{commentActionError}</p>
                       ) : null}
                       <div className="flex justify-end gap-2">
                         {canManage ? (
@@ -2880,7 +2880,7 @@ export function EquipmentDetailsPage() {
                                 onInput={(event) => resizeCommentInput(event.currentTarget)}
                               />
                               {updateCommentMutation.isError ? (
-                                <p className="text-sm text-[#b04c43]">
+                                <p className="text-sm text-[var(--danger-text)]">
                                   {updateCommentMutation.error instanceof Error
                                     ? updateCommentMutation.error.message
                                     : "Не удалось сохранить комментарий."}
@@ -2990,7 +2990,7 @@ export function EquipmentDetailsPage() {
                     showRemove={false}
                   />
                   {attachmentActionError ? (
-                    <p className="text-sm text-[#b04c43]">{attachmentActionError}</p>
+                    <p className="text-sm text-[var(--danger-text)]">{attachmentActionError}</p>
                   ) : null}
                   {!attachments.length && !pendingAttachmentFiles.length ? (
                     <p className="text-sm text-steel">Пока пусто.</p>
@@ -3233,7 +3233,7 @@ export function EquipmentDetailsPage() {
               В ремонт сейчас уйдет 1 прибор.
             </div>
             {createRepairMutation.isError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {createRepairMutation.error instanceof Error
                   ? createRepairMutation.error.message
                   : "Не удалось отправить прибор в ремонт."}
@@ -3445,7 +3445,7 @@ export function EquipmentDetailsPage() {
               В поверку сейчас уйдет 1 прибор.
             </div>
             {createVerificationMutation.isError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {createVerificationMutation.error instanceof Error
                   ? createVerificationMutation.error.message
                   : "Не удалось отправить прибор в поверку."}
@@ -3542,7 +3542,7 @@ export function EquipmentDetailsPage() {
           {shareRecipientsQuery.isLoading ? (
             <p className="text-sm text-steel">Загружаем список получателей...</p>
           ) : shareRecipientsQuery.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {shareRecipientsQuery.error instanceof Error
                 ? shareRecipientsQuery.error.message
                 : "Не удалось загрузить список получателей."}
@@ -3601,7 +3601,7 @@ export function EquipmentDetailsPage() {
             <p className="text-sm text-steel">Для этой папки нет доступных получателей.</p>
           )}
           {shareEquipmentMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {shareEquipmentMutation.error instanceof Error
                 ? shareEquipmentMutation.error.message
                 : "Не удалось отправить ссылку на прибор."}
@@ -3677,7 +3677,7 @@ export function EquipmentDetailsPage() {
             </form>
 
             {searchEsiCompositionMutation.isError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {getArshinErrorMessage(
                   searchEsiCompositionMutation.error,
                   "Не удалось выполнить поиск по свидетельству.",
@@ -3735,7 +3735,7 @@ export function EquipmentDetailsPage() {
             ) : null}
 
             {loadEsiCompositionDetailMutation.isError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {getArshinErrorMessage(
                   loadEsiCompositionDetailMutation.error,
                   "Не удалось загрузить запись ЭСИ.",
@@ -3744,7 +3744,7 @@ export function EquipmentDetailsPage() {
             ) : null}
 
             {createEsiCompositionEntryMutation.isError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {createEsiCompositionEntryMutation.error instanceof Error
                   ? createEsiCompositionEntryMutation.error.message
                   : "Не удалось добавить запись в состав ЭСИ."}
@@ -3819,7 +3819,7 @@ export function EquipmentDetailsPage() {
               />
             </label>
             {updateEsiCompositionEntryMutation.isError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {updateEsiCompositionEntryMutation.error instanceof Error
                   ? updateEsiCompositionEntryMutation.error.message
                   : "Не удалось обновить модуль ЭСИ."}
@@ -4156,7 +4156,7 @@ export function EquipmentDetailsPage() {
               />
             </label>
             {updateEquipmentMutation.isError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {updateEquipmentMutation.error instanceof Error
                   ? updateEquipmentMutation.error.message
                   : "Не удалось сохранить изменения."}

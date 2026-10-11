@@ -74,7 +74,7 @@ export function EsiMonitoringPage() {
       ) : null}
 
       {foldersQuery.isError ? (
-        <div className="rounded-3xl border border-line bg-white px-5 py-4 text-sm text-[#b04c43] shadow-panel">
+        <div className="rounded-3xl border border-line bg-white px-5 py-4 text-sm text-[var(--danger-text)] shadow-panel">
           {foldersQuery.error instanceof Error
             ? foldersQuery.error.message
             : "Не удалось загрузить список папок."}
@@ -94,7 +94,7 @@ export function EsiMonitoringPage() {
           ) : null}
 
           {monitoringQuery.isError ? (
-            <div className="text-sm text-[#b04c43]">
+            <div className="text-sm text-[var(--danger-text)]">
               {monitoringQuery.error instanceof Error
                 ? monitoringQuery.error.message
                 : "Не удалось загрузить мониторинг эталонов."}

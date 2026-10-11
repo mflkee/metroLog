@@ -1587,7 +1587,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
 
           {foldersQuery.isLoading ? <p className="text-sm text-steel">Загружаем папки...</p> : null}
           {foldersQuery.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {foldersQuery.error instanceof Error
                 ? foldersQuery.error.message
                 : "Не удалось загрузить папки."}
@@ -1869,14 +1869,14 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
 
             {isEquipmentLoading ? <p className="text-sm text-steel">Загружаем оборудование...</p> : null}
             {equipmentError ? (
-              <p className="text-sm text-[#b04c43]">
+              <p className="text-sm text-[var(--danger-text)]">
                 {equipmentError instanceof Error
                   ? equipmentError.message
                   : "Не удалось загрузить оборудование."}
               </p>
             ) : null}
             {exportError ? (
-              <p className="text-sm text-[#b04c43]">{exportError}</p>
+              <p className="text-sm text-[var(--danger-text)]">{exportError}</p>
             ) : null}
 
             {!isEquipmentLoading && !equipmentTotalCount ? (
@@ -2063,14 +2063,14 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
             />
           </label>
           {deadlinePresetsQuery.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {deadlinePresetsQuery.error instanceof Error
                 ? deadlinePresetsQuery.error.message
                 : "Не удалось загрузить пресеты дедлайнов."}
             </p>
           ) : null}
           {(createFolderMutation.isError || updateFolderMutation.isError) ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(createFolderMutation.error ?? updateFolderMutation.error, "Не удалось сохранить папку.")}
             </p>
           ) : null}
@@ -2137,7 +2137,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           {folderProcessSubscriptionsQuery.isLoading ? (
             <p className="text-sm text-steel">Загружаю список сотрудников…</p>
           ) : folderProcessSubscriptionsQuery.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 folderProcessSubscriptionsQuery.error,
                 "Не удалось загрузить настройки рассылки.",
@@ -2195,7 +2195,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
             <p className="text-sm text-steel">Для этой папки пока нет доступных сотрудников.</p>
           )}
           {updateFolderProcessSubscriptionsMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 updateFolderProcessSubscriptionsMutation.error,
                 "Не удалось сохранить настройки рассылки.",
@@ -2275,7 +2275,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
             </span>
           </label>
           {importSIExcelMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(importSIExcelMutation.error, "Не удалось импортировать Excel-файл.")}
             </p>
           ) : null}
@@ -2329,10 +2329,10 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                         className={[
                           "rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
                           row.status === "created"
-                            ? "bg-[#e7f3eb] text-[#2f7a4f]"
+                            ? "tint-success text-[var(--success)]"
                             : row.status === "skipped"
-                              ? "bg-[#f3efe5] text-[#8c6a2b]"
-                              : "bg-[#f8e8e6] text-[#b04c43]",
+                              ? "tint-warning text-[var(--warning)]"
+                              : "tint-danger text-[var(--danger-text)]",
                         ].join(" ")}
                       >
                         {row.status === "created"
@@ -2470,7 +2470,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                   </div>
 
                   {siSearchMutation.isError ? (
-                    <p className="text-sm text-[#b04c43]">
+                    <p className="text-sm text-[var(--danger-text)]">
                       {getArshinErrorMessage(
                         siSearchMutation.error,
                         "Не удалось выполнить поиск по Аршину.",
@@ -2544,7 +2544,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                     </p>
                   ) : null}
                   {selectedSiResult && siDetailMutation.isError ? (
-                    <p className="text-sm text-[#b04c43]">
+                    <p className="text-sm text-[var(--danger-text)]">
                       {getArshinErrorMessage(
                         siDetailMutation.error,
                         equipmentForm.equipmentType === "ESI"
@@ -2981,7 +2981,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
             />
           </label>
           {(createEquipmentMutation.isError || updateEquipmentMutation.isError) ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(createEquipmentMutation.error ?? updateEquipmentMutation.error, "Не удалось сохранить прибор.")}
             </p>
           ) : null}
@@ -3202,7 +3202,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
               : `В ремонт сейчас уйдет ${selectedEquipmentIds.length} прибор(ов).`}
           </div>
           {createRepairBatchMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 createRepairBatchMutation.error,
                 selectedEquipmentIds.length === 1
@@ -3437,7 +3437,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
               : `В группу сейчас войдет ${selectedEquipmentIds.length} прибор(ов).`}
           </div>
           {createVerificationBatchMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 createVerificationBatchMutation.error,
                 selectedEquipmentIds.length === 1
@@ -3572,7 +3572,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           ) : null}
 
           {startFolderRefreshMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 startFolderRefreshMutation.error,
                 "Не удалось запустить поиск обновлений.",
@@ -3598,13 +3598,13 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
               </div>
               <span className="text-sm font-semibold text-ink">{folderRefreshTask.progress}%</span>
               {folderRefreshTask.errorMessage ? (
-                <span className="w-full text-sm text-[#b04c43]">{folderRefreshTask.errorMessage}</span>
+                <span className="w-full text-sm text-[var(--danger-text)]">{folderRefreshTask.errorMessage}</span>
               ) : null}
             </div>
           ) : null}
 
           {applyFolderRefreshMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 applyFolderRefreshMutation.error,
                 "Не удалось применить выбранные обновления.",
@@ -3623,7 +3623,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           ) : null}
 
           {folderRefreshTaskQuery.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 folderRefreshTaskQuery.error,
                 "Не удалось загрузить результаты поиска обновлений.",
@@ -3632,7 +3632,7 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
           ) : null}
 
           {excludeFolderRefreshSelectionMutation.isError ? (
-            <p className="text-sm text-[#b04c43]">
+            <p className="text-sm text-[var(--danger-text)]">
               {getMutationErrorMessage(
                 excludeFolderRefreshSelectionMutation.error,
                 "Не удалось исключить выбранные приборы из следующих проверок.",

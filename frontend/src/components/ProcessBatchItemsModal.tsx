@@ -75,7 +75,7 @@ export function ProcessBatchItemsModal({
           />
         </label>
 
-        {errorMessage ? <p className="text-sm text-[#b04c43]">{errorMessage}</p> : null}
+        {errorMessage ? <p className="text-sm text-[var(--danger-text)]">{errorMessage}</p> : null}
         {isLoading ? <p className="text-sm text-steel">Загружаем список приборов...</p> : null}
 
         {!isLoading && !items.length ? (

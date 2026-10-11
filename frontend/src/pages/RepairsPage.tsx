@@ -474,7 +474,7 @@ export function RepairsPage() {
         </div>
       </div>
 
-      {exportError ? <p className="text-sm text-[#b04c43]">{exportError}</p> : null}
+      {exportError ? <p className="text-sm text-[var(--danger-text)]">{exportError}</p> : null}
 
       {tab === "active" && activeCount !== null ? (
         <div className="flex justify-end">
@@ -498,7 +498,7 @@ export function RepairsPage() {
       {isRepairsLoading ? <p className="text-sm text-steel">Загружаем список ремонтов...</p> : null}
 
       {repairsError ? (
-        <p className="text-sm text-[#b04c43]">
+        <p className="text-sm text-[var(--danger-text)]">
           {repairsError instanceof Error
             ? repairsError.message
             : "Не удалось загрузить список ремонтов."}
@@ -1175,7 +1175,7 @@ function RepairQueueRow({
                 ) : null}
               </div>
 
-              {formError ? <p className="mt-3 text-sm text-[#b04c43]">{formError}</p> : null}
+              {formError ? <p className="mt-3 text-sm text-[var(--danger-text)]">{formError}</p> : null}
               {!isArchived && canManage && !isProcessReadyToClose(stageRows) ? (
                 <p className="mt-3 text-sm text-steel">
                   {getProcessCloseBlockedMessage()}
@@ -1342,7 +1342,7 @@ function RepairQueueRow({
                     <p className="text-sm text-steel">Загружаем диалог ремонта...</p>
                   ) : null}
                   {messagesQuery.isError ? (
-                    <p className="text-sm text-[#b04c43]">
+                    <p className="text-sm text-[var(--danger-text)]">
                       {messagesQuery.error instanceof Error
                         ? messagesQuery.error.message
                         : "Не удалось загрузить сообщения ремонта."}
@@ -1351,7 +1351,7 @@ function RepairQueueRow({
                   {!messagesQuery.isLoading && !messagesQuery.data?.length ? (
                     <p className="text-sm text-steel">Диалог ремонта пока пуст.</p>
                   ) : null}
-                  {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
+                  {actionError ? <p className="text-sm text-[var(--danger-text)]">{actionError}</p> : null}
 
                   {messagesQuery.data?.map((message) => (
                     <article
@@ -2323,7 +2323,7 @@ function RepairBatchCard({
             </div>
           </div>
           ) : null}
-          {actionError ? <p className="px-4 pb-4 text-sm text-[#b04c43] md:px-5">{actionError}</p> : null}
+          {actionError ? <p className="px-4 pb-4 text-sm text-[var(--danger-text)] md:px-5">{actionError}</p> : null}
         </article>
         <DeleteConfirmModal
           confirmLabel="Удалить из архива"
@@ -2508,7 +2508,7 @@ function RepairBatchCard({
                 ) : null}
               </div>
 
-              {formError ? <p className="mt-3 text-sm text-[#b04c43]">{formError}</p> : null}
+              {formError ? <p className="mt-3 text-sm text-[var(--danger-text)]">{formError}</p> : null}
               {!isProcessReadyToClose(stageRows) && canManage ? (
                 <p className="mt-3 text-sm text-steel">
                   {getProcessCloseBlockedMessage()}
@@ -2674,7 +2674,7 @@ function RepairBatchCard({
                   <p className="text-sm text-steel">Загружаем диалог ремонта...</p>
                 ) : null}
                 {messagesQuery.isError ? (
-                  <p className="text-sm text-[#b04c43]">
+                  <p className="text-sm text-[var(--danger-text)]">
                     {messagesQuery.error instanceof Error
                       ? messagesQuery.error.message
                       : "Не удалось загрузить сообщения ремонта."}
@@ -2683,7 +2683,7 @@ function RepairBatchCard({
                 {!messagesQuery.isLoading && !messagesQuery.data?.length ? (
                   <p className="text-sm text-steel">Диалог ремонта пока пуст.</p>
                 ) : null}
-                {actionError ? <p className="text-sm text-[#b04c43]">{actionError}</p> : null}
+                {actionError ? <p className="text-sm text-[var(--danger-text)]">{actionError}</p> : null}
 
                 {messagesQuery.data?.map((message) => (
                   <article

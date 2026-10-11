@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.repositories.equipment_repository import EquipmentFolderRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import (
@@ -15,6 +15,7 @@ from app.schemas.auth import (
     LoginRequest,
 )
 from app.schemas.user import UserProfileUpdateRequest
+from app.services import accounts_client
 from app.services.notification_service import (
     NotificationConfigurationError,
     NotificationDeliveryError,
@@ -22,6 +23,7 @@ from app.services.notification_service import (
 )
 from app.services.user_service import (
     _filter_dashboard_folder_ids_for_scope,
+    _normalize_allowed_folder_scope,
     is_folder_access_allowed,
 )
 from app.utils.password_policy import validate_password_policy
@@ -41,18 +43,10 @@ class AuthService:
 
     def login(self, payload: LoginRequest) -> tuple[User, str]:
         email = _normalize_email(payload.email)
-        user = self.users.get_by_email(email)
-        if user is None or not verify_password(payload.password, user.password_hash):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password.",
-            )
-
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User account is inactive.",
-            )
+        if accounts_client.is_enabled():
+            user = self._login_via_registry(email, payload.password)
+        else:
+            user = self._login_locally(email, payload.password)
 
         now = datetime.now(tz=UTC)
         user.last_login_at = now
@@ -62,13 +56,56 @@ class AuthService:
 
         return user, self._create_access_token_for_user(user)
 
-    def change_password(self, *, user: User, payload: ChangePasswordRequest) -> None:
-        if not verify_password(payload.current_password, user.password_hash):
+    def _login_locally(self, email: str, password: str) -> User:
+        user = self.users.get_by_email(email)
+        if user is None or not verify_password(password, user.password_hash):
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Current password is incorrect.",
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password.",
             )
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive.",
+            )
+        return user
 
+    def _login_via_registry(self, email: str, password: str) -> User:
+        account = accounts_client.verify(email=email, password=password)
+        role = _coerce_role(account.get("role"))
+
+        user = self.users.get_by_email(email)
+        if user is None:
+            # The registry is the source of truth: a person granted access there can
+            # sign in even before a local row exists.
+            user = User(
+                first_name=str(account.get("first_name") or email.split("@")[0]),
+                last_name=str(account.get("last_name") or ""),
+                patronymic=account.get("patronymic"),
+                email=email,
+                password_hash="!",
+                role=role or UserRole.CUSTOMER,
+                is_active=True,
+                must_change_password=False,
+                allowed_folder_ids=_normalize_allowed_folder_scope(
+                    role=role or UserRole.CUSTOMER,
+                    values=None,
+                    folders=self.folders,
+                ),
+            )
+            self.users.add(user)
+        elif role is not None and user.role != role:
+            user.role = role
+
+        user.is_active = bool(account.get("is_active", True))
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive.",
+            )
+        return user
+
+    def change_password(self, *, user: User, payload: ChangePasswordRequest) -> None:
         if payload.new_password != payload.confirm_new_password:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -82,6 +119,19 @@ class AuthService:
             )
         validate_password_policy(payload.new_password)
 
+        if accounts_client.is_enabled():
+            accounts_client.change_password(
+                email=user.email,
+                current_password=payload.current_password,
+                new_password=payload.new_password,
+            )
+        elif not verify_password(payload.current_password, user.password_hash):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Current password is incorrect.",
+            )
+
+        # Keep the local hash in sync so the offline fallback keeps working.
         user.password_hash = hash_password(payload.new_password)
         user.must_change_password = False
         user.password_changed_at = datetime.now(tz=UTC)
@@ -181,6 +231,15 @@ class AuthService:
             secret_key=settings.secret_key,
             ttl_hours=settings.access_token_ttl_hours,
         )
+
+
+def _coerce_role(value: object) -> UserRole | None:
+    if not value:
+        return None
+    try:
+        return UserRole(str(value))
+    except ValueError:
+        return None
 
 
 def _normalize_email(email: str) -> str:

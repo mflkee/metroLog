@@ -20,7 +20,8 @@ const defaultRole: UserRole = "CUSTOMER";
 type CredentialPacket = {
   fullName: string;
   email: string;
-  temporaryPassword: string;
+  temporaryPassword: string | null;
+  message: string | null;
   reason: "create" | "reset";
 };
 
@@ -181,7 +182,7 @@ export function AdminUsersPage() {
     }
 
     try {
-      await navigator.clipboard.writeText(credentialPacket.temporaryPassword);
+      await navigator.clipboard.writeText(credentialPacket.temporaryPassword ?? "");
       setCopyMessage("Временный пароль скопирован.");
     } catch {
       setCopyMessage("Не удалось скопировать пароль автоматически.");
@@ -206,6 +207,7 @@ export function AdminUsersPage() {
         fullName: response.user.fullName,
         email: response.user.email,
         temporaryPassword: response.temporaryPassword,
+        message: response.message,
         reason: "create",
       });
       setLastName("");
@@ -229,6 +231,7 @@ export function AdminUsersPage() {
         fullName: userFullName,
         email: userEmail,
         temporaryPassword: response.temporaryPassword,
+        message: response.message,
         reason: "reset",
       });
     } catch {
@@ -377,24 +380,38 @@ export function AdminUsersPage() {
                 <p className="text-sm font-semibold text-ink">
                   {credentialPacket.reason === "create"
                     ? "Пользователь создан."
-                    : "Временный пароль обновлен."}
+                    : "Пароль обновлён."}
                 </p>
                 <p className="text-sm text-steel">
                   {credentialPacket.fullName} · {credentialPacket.email}
                 </p>
-                <p className="font-mono text-sm text-ink">{credentialPacket.temporaryPassword}</p>
-                <p className="text-xs text-steel">
-                  Передай этот пароль пользователю безопасным способом. При первом входе пароль нужно будет сменить.
-                </p>
+                {credentialPacket.temporaryPassword ? (
+                  <>
+                    <p className="font-mono text-sm text-ink">
+                      {credentialPacket.temporaryPassword}
+                    </p>
+                    <p className="text-xs text-steel">
+                      Передай этот пароль пользователю безопасным способом. При первом входе пароль
+                      нужно будет сменить.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-steel">
+                    {credentialPacket.message ??
+                      "Ссылка для задания пароля отправлена на email сотрудника."}
+                  </p>
+                )}
               </div>
               <div className="flex flex-col gap-2">
-                <button
-                  className="rounded-full border border-signal-info px-4 py-2 text-sm text-ink transition hover:bg-[var(--accent-soft)]"
-                  type="button"
-                  onClick={() => void copyTemporaryPassword()}
-                >
-                  Скопировать пароль
-                </button>
+                {credentialPacket.temporaryPassword ? (
+                  <button
+                    className="rounded-full border border-signal-info px-4 py-2 text-sm text-ink transition hover:bg-[var(--accent-soft)]"
+                    type="button"
+                    onClick={() => void copyTemporaryPassword()}
+                  >
+                    Скопировать пароль
+                  </button>
+                ) : null}
                 {copyMessage ? <p className="text-xs text-steel">{copyMessage}</p> : null}
               </div>
             </div>

@@ -11,6 +11,7 @@ from app.models.user import User, UserRole
 from app.repositories.equipment_repository import EquipmentFolderRepository
 from app.repositories.user_repository import UserRepository
 from app.schemas.user import UserCreateRequest, UserMentionRead, UserUpdateRequest
+from app.services import accounts_client
 from app.services.notification_service import (
     NotificationConfigurationError,
     NotificationDeliveryError,
@@ -103,7 +104,7 @@ class UserService:
         payload: UserCreateRequest,
         *,
         current_user: User,
-    ) -> tuple[User, str]:
+    ) -> tuple[User, str | None]:
         self._assert_user_management_target_access(
             current_user=current_user,
             target_user=None,
@@ -118,6 +119,37 @@ class UserService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail="A user with this email already exists.",
             )
+
+        if accounts_client.is_enabled():
+            # The registry owns the credentials and sends the invitation link; the
+            # local row only carries the app's own role and folder scope.
+            accounts_client.create_account(
+                email=email,
+                first_name=first_name,
+                last_name=last_name,
+                patronymic=patronymic,
+                role=payload.role.value,
+            )
+            user = User(
+                first_name=first_name,
+                last_name=last_name,
+                patronymic=patronymic,
+                email=email,
+                password_hash="!",
+                role=payload.role,
+                is_active=payload.is_active,
+                allowed_folder_ids=_normalize_allowed_folder_scope(
+                    role=payload.role,
+                    values=payload.allowed_folder_ids,
+                    folders=self.folders,
+                ),
+                must_change_password=False,
+                password_changed_at=None,
+            )
+            self.users.add(user)
+            self.session.commit()
+            self.session.refresh(user)
+            return user, None
 
         temporary_password = (
             payload.temporary_password.strip()
@@ -274,7 +306,7 @@ class UserService:
         self.session.refresh(user)
         return user
 
-    def reset_password(self, *, user_id: int, current_user: User) -> tuple[User, str]:
+    def reset_password(self, *, user_id: int, current_user: User) -> tuple[User, str | None]:
         user = self.users.get_by_id_for_update(user_id)
         if user is None:
             raise HTTPException(
@@ -287,6 +319,12 @@ class UserService:
             target_user=user,
             next_role=user.role,
         )
+
+        if accounts_client.is_enabled():
+            # No administrator-issued password: the registry mails a one-time link.
+            accounts_client.send_invite(email=user.email)
+            return user, None
+
         temporary_password = create_temporary_password()
         user.password_hash = hash_password(temporary_password)
         user.must_change_password = True

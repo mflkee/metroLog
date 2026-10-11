@@ -1,10 +1,9 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
-import { getOidcStatus, loginUser, oidcLoginUrl } from "@/api/auth";
+import { loginUser } from "@/api/auth";
 import { PasswordInput } from "@/components/PasswordInput";
 import { getLoginStateMessage, resolvePostLoginRedirect } from "@/lib/authRedirect";
-import { oidcErrorMessage, parseOidcFragment } from "@/lib/oidc";
 import { useAuthStore } from "@/store/auth";
 
 export function LoginPage() {
@@ -15,30 +14,7 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [ssoEnabled, setSsoEnabled] = useState(false);
   const stateMessage = getLoginStateMessage(location.state);
-  const ssoError = oidcErrorMessage(parseOidcFragment(location.hash).error);
-  const postLoginRedirect = resolvePostLoginRedirect(location.state, "/dashboard");
-
-  useEffect(() => {
-    let cancelled = false;
-    getOidcStatus()
-      .then((status) => {
-        if (!cancelled) {
-          setSsoEnabled(status.enabled);
-        }
-      })
-      .catch(() => {
-        // Single sign-on is optional: a failure just hides the button.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  function handleSsoLogin() {
-    window.location.href = oidcLoginUrl(postLoginRedirect);
-  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -48,7 +24,12 @@ export function LoginPage() {
     try {
       const session = await loginUser({ email, password });
       setSession({ token: session.accessToken, user: session.user });
-      navigate(session.user.mustChangePassword ? "/profile" : postLoginRedirect, { replace: true });
+      navigate(
+        session.user.mustChangePassword
+          ? "/profile"
+          : resolvePostLoginRedirect(location.state, "/dashboard"),
+        { replace: true },
+      );
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "Не удалось выполнить вход.");
     } finally {
@@ -64,15 +45,6 @@ export function LoginPage() {
           Войди под учетной записью, которую создал администратор.
         </p>
       </div>
-      {ssoError ? <p className="text-sm text-[#b04c43]">{ssoError}</p> : null}
-      {ssoEnabled ? (
-        <div className="space-y-3">
-          <button className="btn-primary w-full" type="button" onClick={handleSsoLogin}>
-            Войти через МКАИР
-          </button>
-          <p className="text-sm text-steel">или войдите по email и паролю</p>
-        </div>
-      ) : null}
       <form className="space-y-4" onSubmit={handleSubmit}>
         <label className="block text-sm text-steel">
           Email
@@ -96,7 +68,8 @@ export function LoginPage() {
         </button>
       </form>
       <p className="text-sm text-steel">
-        Нет доступа? Администратор должен создать учетную запись и передать временный пароль.
+        Нет доступа? Администратор должен создать учётную запись — на email придёт ссылка для
+        задания пароля.
       </p>
     </section>
   );

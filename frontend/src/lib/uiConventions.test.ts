@@ -20,6 +20,11 @@ const SOURCE_FILES = Object.entries(RAW_SOURCES)
 /**
  * The stylesheet is read from disk: `?raw` on a `.css` file comes back empty, because Vite runs the
  * CSS pipeline on it even when only the source is asked for.
+ *
+ * `styles.css` is now a thin entry point that imports the fleet theme vendored from `metro-ui`
+ * (`src/metro-theme.css`), so the guards read the whole local `@import` chain — a written rule is a
+ * rule wherever the rule lives, and the theme moving into the registry must not silence the check.
+ * Package imports (`@import "tailwindcss"`, the font) are not local files and are skipped.
  */
 function readStyles(): string {
   const candidates = [
@@ -30,7 +35,19 @@ function readStyles(): string {
   if (!found) {
     throw new Error("frontend/src/shared/styles.css was not found");
   }
-  return readFileSync(found, "utf8");
+
+  const seen = new Set<string>();
+  const read = (file: string): string => {
+    if (seen.has(file) || !existsSync(file)) {
+      return "";
+    }
+    seen.add(file);
+    const text = readFileSync(file, "utf8");
+    const imported = [...text.matchAll(/@import\s+"(\.[^"]+)"/g)].map((match) => match[1]);
+    return [text, ...imported.map((rel) => read(path.resolve(path.dirname(file), rel)))].join("\n");
+  };
+
+  return read(found);
 }
 
 const STYLES = readStyles();

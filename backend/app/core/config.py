@@ -15,6 +15,17 @@ class Settings(BaseSettings):
     api_v1_prefix: str = "/api/v1"
     secret_key: str = "change-me"
     access_token_ttl_hours: int = 12
+    # Single sign-on (Authentik OIDC). Disabled until explicitly enabled in the env.
+    oidc_enabled: bool = False
+    oidc_issuer: str = "https://auth.mkair-it.ru/application/o/metrolog/"
+    oidc_client_id: str = "metrolog"
+    oidc_client_secret: str | None = None
+    oidc_redirect_uri: str = "https://metrolog.mkair-it.ru/api/v1/auth/oidc/callback"
+    oidc_scopes: str = "openid email profile groups"
+    oidc_auto_provision: bool = False
+    oidc_transaction_ttl_seconds: int = 600
+    oidc_http_timeout_seconds: float = 10.0
+    oidc_cookie_secure: bool = True
     bootstrap_admin_first_name: str = "Bootstrap"
     bootstrap_admin_last_name: str = "Administrator"
     bootstrap_admin_patronymic: str = ""

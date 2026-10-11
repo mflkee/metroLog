@@ -1,4 +1,4 @@
-import { apiRequest } from "@/api/client";
+import { apiBaseUrl, apiRequest } from "@/api/client";
 import { type DashboardLayoutEntry, type DashboardWidgetKey, normalizeDashboardLayout } from "@/lib/dashboard";
 import type { ThemeName } from "@/store/theme";
 
@@ -127,6 +127,27 @@ export async function getCurrentUser(token: string): Promise<AuthUser> {
     token,
   });
   return mapUser(response);
+}
+
+export type OidcStatus = {
+  enabled: boolean;
+};
+
+export async function getOidcStatus(): Promise<OidcStatus> {
+  return apiRequest<OidcStatus>("/auth/oidc/status", {
+    method: "GET",
+    silentUnauthorized: true,
+  });
+}
+
+/** Absolute URL of the backend endpoint that starts the SSO flow. */
+export function oidcLoginUrl(redirect?: string | null): string {
+  const params = new URLSearchParams();
+  if (redirect) {
+    params.set("redirect", redirect);
+  }
+  const query = params.toString();
+  return `${apiBaseUrl}/auth/oidc/login${query ? `?${query}` : ""}`;
 }
 
 export async function changePassword(

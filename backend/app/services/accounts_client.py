@@ -34,7 +34,7 @@ def _headers() -> dict[str, str]:
 
 
 def _request(method: str, path: str, *, json: dict[str, Any] | None = None) -> dict[str, Any]:
-    url = f"{settings.accounts_url.rstrip('/')}{path}"
+    url = f"{settings.accounts_url.rstrip('/')}/api/v1{path}"
     try:
         response = httpx.request(
             method,

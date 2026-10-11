@@ -48,6 +48,33 @@ def _registry_account(**overrides) -> dict:
 
 
 @pytest.mark.anyio
+def test_accounts_client_calls_the_versioned_internal_path(monkeypatch):
+    _enable_registry(monkeypatch)
+    captured: dict = {}
+
+    class _Response:
+        status_code = 200
+
+        def json(self) -> dict:
+            return {"ok": True, "account": {"email": "x@mkair.ru"}, "role": "MKAIR"}
+
+    def fake_request(method: str, url: str, **kwargs):
+        captured["method"] = method
+        captured["url"] = url
+        captured["headers"] = kwargs.get("headers")
+        return _Response()
+
+    monkeypatch.setattr(accounts_client.httpx, "request", fake_request)
+
+    result = accounts_client.verify(email="x@mkair.ru", password="secret")
+
+    assert captured["method"] == "POST"
+    assert captured["url"].endswith("/api/v1/internal/verify")
+    assert captured["headers"]["X-Service-Name"] == "metrolog"
+    assert result["role"] == "MKAIR"
+
+
+@pytest.mark.anyio
 async def test_login_via_registry_provisions_and_maps_role(client, db_engine, monkeypatch):
     _enable_registry(monkeypatch)
     monkeypatch.setattr(accounts_client, "verify", lambda **_: _registry_account())

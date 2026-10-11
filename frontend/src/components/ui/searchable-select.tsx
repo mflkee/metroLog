@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
-import { FloatingAutocompleteMenu } from "@/components/FloatingAutocompleteMenu";
+import { FloatingAutocompleteMenu } from "@/components/floating-autocomplete-menu";
 
 export type SearchableOption<T extends string | number = number> = {
   value: T;

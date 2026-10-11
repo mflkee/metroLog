@@ -8,7 +8,7 @@ import { Select } from "@/components/ui/select";
 import { DateInput } from "@/components/DateInput";
 import { EquipmentReferenceLink } from "@/components/EquipmentReferenceLink";
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { ProcessBadge } from "@/components/ProcessBadge";
 import { PageHeader } from "@/components/layout/PageHeader";
 import {

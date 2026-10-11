@@ -20,7 +20,7 @@ import {
 } from "@/api/equipment";
 import { Icon } from "@/components/Icon";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { Modal } from "@/components/Modal";
 import { NumberInput } from "@/components/NumberInput";
 import { PageHeader } from "@/components/layout/PageHeader";

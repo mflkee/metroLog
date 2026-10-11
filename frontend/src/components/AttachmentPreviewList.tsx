@@ -2,7 +2,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { formatFileSize, getAttachmentPreviewKind, getFileExtension } from "@/lib/attachments";
 
 type PreviewableAttachment = {

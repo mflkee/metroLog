@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 
-import { FloatingAutocompleteMenu } from "@/components/FloatingAutocompleteMenu";
+import { FloatingAutocompleteMenu } from "@/components/floating-autocomplete-menu";
 
 const defaultEmojis = ["😀", "👍", "✅", "⚠️", "❗", "🔧", "🧪", "📦", "📄", "📷", "🚚", "📝"];
 

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import {
   buildPendingFileKey,
   formatFileSize,

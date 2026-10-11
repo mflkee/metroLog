@@ -13,7 +13,7 @@ import {
 import {
   type FloatingAutocompleteMenuPlacement,
   FloatingAutocompleteMenu,
-} from "@/components/FloatingAutocompleteMenu";
+} from "@/components/floating-autocomplete-menu";
 import { rankAutocompleteSuggestions } from "@/lib/autocomplete";
 
 type AutocompleteInputProps = Omit<

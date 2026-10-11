@@ -1,7 +1,7 @@
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { Modal } from "@/components/Modal";
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 
 export type ProcessBatchItemCandidate = {
   id: number;

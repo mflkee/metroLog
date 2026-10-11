@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect } from "react";
 import { createPortal } from "react-dom";
 
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 
 type ModalProps = {
   title: string;

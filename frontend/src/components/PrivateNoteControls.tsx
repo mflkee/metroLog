@@ -1,4 +1,4 @@
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 
 type PrivateNoteToggleButtonProps = {
   active: boolean;

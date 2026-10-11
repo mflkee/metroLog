@@ -1,6 +1,6 @@
 import { DateInput } from "@/components/DateInput";
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 
 type ProcessStageDateControlProps = {
   disabled?: boolean;

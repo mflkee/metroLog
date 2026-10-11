@@ -57,7 +57,7 @@ import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { Modal } from "@/components/Modal";
 import { NumberInput } from "@/components/NumberInput";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";

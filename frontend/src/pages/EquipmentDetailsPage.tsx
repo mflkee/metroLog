@@ -54,7 +54,7 @@ import { Select } from "@/components/ui/select";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { useEquipmentDetailsQueries } from "@/hooks/useEquipmentDetailsQueries";
 import { useEquipmentComments } from "@/hooks/useEquipmentComments";
 import { useEquipmentAttachments } from "@/hooks/useEquipmentAttachments";

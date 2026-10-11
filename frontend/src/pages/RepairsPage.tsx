@@ -47,7 +47,7 @@ import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { IconActionLink } from "@/components/IconActionLink";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { PaginationControls } from "@/components/PaginationControls";

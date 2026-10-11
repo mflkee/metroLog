@@ -1,10 +1,3 @@
-/*
- * A mention is what makes the notification fire, so it is worth seeing in the text. The backend
- * builds the key from the name (`build_user_mention_base`): the surname plus the initials with
- * everything that is not alphanumeric removed (`БулашевАН`, and `БулашевАН12` when two people
- * collide), then looks for `@key` in the text. The highlight follows the same shape.
- */
-
 export type MentionTextPart = {
   type: "text" | "mention";
   value: string;

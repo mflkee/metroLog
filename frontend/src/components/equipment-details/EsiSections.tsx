@@ -3,7 +3,7 @@ import { renderTechnicalText } from "./SiSections";
 import { ArshinVriDetail } from "@/api/arshin";
 import { ESIModuleKind } from "@/api/equipment/esi";
 import { Icon } from "@/components/Icon";
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { IconActionLink } from "@/components/IconActionLink";
 import { getFirstString } from "@/lib/esiModules";
 import { formatBooleanLabel, formatSIReferenceRank } from "@/pages/EquipmentDetailsPage";

@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 
-import { IconActionButton } from "@/components/IconActionButton";
+import { IconActionButton } from "@/components/icon-action-button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@/components/ui/dialog";
 
 type AppDialogProps = {

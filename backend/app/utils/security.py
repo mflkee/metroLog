@@ -85,6 +85,47 @@ def decode_access_token(token: str, secret_key: str) -> dict[str, int | str]:
     return payload
 
 
+def create_signed_payload(payload: dict[str, object], *, secret_key: str, ttl_seconds: int) -> str:
+    """HMAC-sign an arbitrary payload with an expiry (used for the OIDC transaction cookie)."""
+
+    body = dict(payload)
+    now = int(datetime.now(tz=UTC).timestamp())
+    body["iat"] = now
+    body["exp"] = now + ttl_seconds
+    encoded_payload = _b64encode(json.dumps(body, separators=(",", ":")).encode("utf-8"))
+    signature = _sign(secret_key, encoded_payload)
+    return f"{encoded_payload}.{signature}"
+
+
+def decode_signed_payload(token: str, *, secret_key: str) -> dict[str, object]:
+    """Verify a payload produced by :func:`create_signed_payload` and return it."""
+
+    try:
+        encoded_payload, encoded_signature = token.split(".", maxsplit=1)
+    except ValueError as exc:
+        raise ValueError("Malformed signed payload.") from exc
+
+    expected_signature = _sign(secret_key, encoded_payload)
+    if not hmac.compare_digest(encoded_signature, expected_signature):
+        raise ValueError("Invalid signature.")
+
+    try:
+        payload = json.loads(_b64decode(encoded_payload).decode("utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+        raise ValueError("Signed payload is invalid.") from exc
+
+    if int(payload.get("exp", 0)) < int(datetime.now(tz=UTC).timestamp()):
+        raise ValueError("Signed payload has expired.")
+
+    return payload
+
+
+def _sign(secret_key: str, message: str) -> str:
+    return _b64encode(
+        hmac.new(secret_key.encode("utf-8"), message.encode("utf-8"), hashlib.sha256).digest()
+    )
+
+
 def _b64encode(raw: bytes) -> str:
     return base64.urlsafe_b64encode(raw).decode("utf-8").rstrip("=")
 

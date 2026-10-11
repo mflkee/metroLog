@@ -44,6 +44,9 @@ const LoginPage = lazy(() =>
 const NotFoundPage = lazy(() =>
   import("@/pages/NotFoundPage").then((module) => ({ default: module.NotFoundPage })),
 );
+const OidcCallbackPage = lazy(() =>
+  import("@/pages/OidcCallbackPage").then((module) => ({ default: module.OidcCallbackPage })),
+);
 const ProfilePage = lazy(() =>
   import("@/pages/ProfilePage").then((module) => ({ default: module.ProfilePage })),
 );
@@ -70,6 +73,10 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: <Navigate to="/dashboard" replace />,
+  },
+  {
+    element: <AuthLayout />,
+    children: [{ path: "/auth/callback", element: <OidcCallbackPage /> }],
   },
   {
     element: <RequireGuest />,

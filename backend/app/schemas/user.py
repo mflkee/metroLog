@@ -90,4 +90,5 @@ class UserProfileUpdateRequest(BaseModel):
 
 class UserTemporaryPasswordResponse(BaseModel):
     user: UserRead
-    temporary_password: str
+    temporary_password: str | None = None
+    message: str | None = None

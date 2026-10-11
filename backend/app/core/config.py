@@ -26,6 +26,12 @@ class Settings(BaseSettings):
     oidc_transaction_ttl_seconds: int = 600
     oidc_http_timeout_seconds: float = 10.0
     oidc_cookie_secure: bool = True
+    # Unified account registry (metroAccounts). When enabled, credentials are checked there.
+    accounts_enabled: bool = False
+    accounts_url: str = ""
+    accounts_service_name: str = "metrolog"
+    accounts_service_token: str | None = None
+    accounts_timeout_seconds: float = 10.0
     bootstrap_admin_first_name: str = "Bootstrap"
     bootstrap_admin_last_name: str = "Administrator"
     bootstrap_admin_patronymic: str = ""

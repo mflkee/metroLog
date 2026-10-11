@@ -112,6 +112,16 @@ def _stub_jwks(monkeypatch: pytest.MonkeyPatch, key) -> None:
             return _StubKey()
 
     monkeypatch.setattr(oidc_service, "_get_jwks_client", lambda _uri: _StubClient())
+    monkeypatch.setattr(
+        oidc_service,
+        "_get_discovery",
+        lambda: oidc_service._Discovery(
+            authorization_endpoint="https://auth.example/authorize",
+            token_endpoint="https://auth.example/token",
+            jwks_uri="https://auth.example/jwks",
+            fetched_at=0.0,
+        ),
+    )
 
 
 def test_verify_id_token_accepts_valid_and_rejects_wrong_nonce(

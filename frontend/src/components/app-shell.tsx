@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react"
-import { NavLink, useLocation } from "react-router-dom"
+import { Link, NavLink, useLocation } from "react-router-dom"
 
 export type NavItem = {
   to: string
@@ -337,9 +337,10 @@ function Topbar({
             )}
           </button>
           <div className="flex min-w-0 items-baseline gap-1.5">
-            <NavLink className="shrink-0 text-sm font-semibold text-ink sm:text-base" to={brandTo}>
+            {/* A plain link on purpose: the wordmark is the way home, not the current page. */}
+            <Link className="shrink-0 text-sm font-semibold text-ink sm:text-base" to={brandTo}>
               {brand}
-            </NavLink>
+            </Link>
             {versionBadge}
           </div>
         </div>

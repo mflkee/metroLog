@@ -21,6 +21,6 @@
 ## 4. Verification and rollout
 
 - [x] 4.1 Run backend `ruff check`/`pytest` and frontend `lint`/`test`/`build`; verify all pass.
-- [ ] 4.2 Register the staging redirect URI on the Authentik MetroLog provider and set the staging `OIDC_*` env; verify a real SSO login on Stage.
+- [x] 4.2 Register the staging redirect URI on the Authentik MetroLog provider and set the staging `OIDC_*` env; verify a real SSO login on Stage. Verified 2026-10-11: the button leads to Authentik, the probe account signs in, the callback lands on `/dashboard`, and `metrolog-mkair` raised the local role `CUSTOMER` → `MKAIR`.
 - [ ] 4.3 Set the production `OIDC_*` env and enable `OIDC_ENABLED`; verify a real SSO login on Prod with a known account.
 - [ ] 4.4 After SSO is verified for everyone, disable the legacy login form (keep a break-glass admin path).

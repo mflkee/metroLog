@@ -139,14 +139,15 @@ function check() {
       }
       const lines = readFileSync(file, "utf8").split("\n");
       lines.forEach((line, index) => {
+        // A comment may name a colour to explain why it is not used.
+        const isComment = /^\s*(\*|\/\/|\/\*)/.test(line);
+        if (isComment) {
+          return;
+        }
         if (PALETTE_UTILITY.test(line)) {
           problems.push(`${rel}:${index + 1}: Tailwind palette colour — use a theme token (text-steel, var(--danger-text), …)`);
         }
-        if (
-          HEX_COLOUR.test(line) &&
-          !HEX_ALLOWED_IN.some((pattern) => pattern.test(rel)) &&
-          !/^\s*(\*|\/\/|\/\*)/.test(line)
-        ) {
+        if (HEX_COLOUR.test(line) && !HEX_ALLOWED_IN.some((pattern) => pattern.test(rel))) {
           problems.push(`${rel}:${index + 1}: hardcoded colour — use a theme token`);
         }
       });

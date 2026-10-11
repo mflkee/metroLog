@@ -121,7 +121,7 @@ export function FolderRefreshDock() {
           </div>
         ) : null}
 
-        {task.errorMessage ? <p className="text-sm text-[#b04c43]">{task.errorMessage}</p> : null}
+        {task.errorMessage ? <p className="text-sm text-[var(--danger-text)]">{task.errorMessage}</p> : null}
 
         {!isProcessing ? (
           <div className="flex justify-end">

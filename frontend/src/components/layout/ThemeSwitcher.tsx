@@ -1,22 +1,24 @@
-import { useEffect, useRef, useState } from "react";
-
 import { updateProfile } from "@/api/auth";
-import { getVisibleThemes, themeOptions, useThemeStore } from "@/store/theme";
+import { ThemeSwitcher as FleetThemeSwitcher } from "@/components/theme-switcher";
 import { useAuthStore } from "@/store/auth";
+import { getVisibleThemes, useThemeStore, type ThemeName } from "@/store/theme";
 
+/**
+ * The app's theme switcher: the fleet picker (from `@metro/theme-switcher`) plus metroLog's own
+ * behaviour — the list is narrowed by the themes the user enabled in their profile, and a choice is
+ * remembered on the profile so it follows the user to another browser.
+ *
+ * The theme itself is applied by the fleet store (`@/lib/theme-store`) before the request goes out,
+ * so a failed save never leaves the user without their choice.
+ */
 export function ThemeSwitcher() {
   const theme = useThemeStore((state) => state.theme);
-  const setTheme = useThemeStore((state) => state.setTheme);
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const setUser = useAuthStore((state) => state.setUser);
   const visibleThemes = getVisibleThemes(user?.enabledThemes, theme);
-  const visibleOptions = themeOptions.filter((option) => visibleThemes.includes(option.value));
 
-  async function handleSelect(value: string) {
-    const nextTheme = value as typeof theme;
-    setTheme(nextTheme);
-
+  async function handleSelect(nextTheme: ThemeName) {
     if (!token || !user || user.themePreference === nextTheme) {
       return;
     }
@@ -31,105 +33,5 @@ export function ThemeSwitcher() {
     }
   }
 
-  return (
-    <div className="theme-switcher">
-      <Picker
-        activeLabel={(themeOptions.find((option) => option.value === theme) ?? themeOptions[0]).label}
-        label="Тема"
-        options={visibleOptions.map((option) => ({
-          value: option.value,
-          label: option.label,
-        }))}
-        selectedValue={theme}
-        onSelect={(value) => void handleSelect(value)}
-      />
-    </div>
-  );
-}
-
-type PickerProps = {
-  label: string;
-  activeLabel: string;
-  selectedValue: string;
-  options: Array<{
-    value: string;
-    label: string;
-  }>;
-  onSelect: (value: string) => void;
-};
-
-function Picker({ label, activeLabel, selectedValue, options, onSelect }: PickerProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const pickerRef = useRef<HTMLDivElement | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return undefined;
-    }
-
-    function handlePointerDown(event: MouseEvent) {
-      if (!pickerRef.current?.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    }
-
-    function handleEscape(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        setIsOpen(false);
-      }
-    }
-
-    document.addEventListener("mousedown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.removeEventListener("mousedown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [isOpen]);
-
-  return (
-    <div ref={pickerRef} className="theme-picker">
-      <div className="theme-menu">
-        <button
-          aria-expanded={isOpen}
-          aria-haspopup="listbox"
-          aria-label={`Выбор: ${label}`}
-          className="btn-secondary btn-sm"
-          type="button"
-          onClick={() => setIsOpen((open) => !open)}
-        >
-          <span>{activeLabel}</span>
-          <span
-            aria-hidden="true"
-            className={["theme-menu__caret", isOpen ? "theme-menu__caret--open" : ""].join(" ")}
-          >
-            ▾
-          </span>
-        </button>
-        {isOpen ? (
-          <div aria-label={`Выбор: ${label}`} className="theme-menu__panel" role="listbox">
-            {options.map((option) => (
-              <button
-                key={option.value}
-                aria-selected={selectedValue === option.value}
-                className={[
-                  "theme-menu__option",
-                  selectedValue === option.value ? "theme-menu__option--active" : "",
-                ].join(" ")}
-                role="option"
-                type="button"
-                onClick={() => {
-                  onSelect(option.value);
-                  setIsOpen(false);
-                }}
-              >
-                <span>{option.label}</span>
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
+  return <FleetThemeSwitcher onChange={(nextTheme) => void handleSelect(nextTheme)} themes={visibleThemes} />;
 }

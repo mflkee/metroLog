@@ -13,6 +13,10 @@ COPY frontend/tsconfig.json frontend/vite.config.ts frontend/vitest.config.ts fr
 COPY frontend/components.json frontend/index.html ./
 COPY frontend/public ./public
 COPY frontend/src ./src
+# The build runs the fleet guard (`npm run check:ui`), which needs both the script
+# and the manifest of the vendored registry files.
+COPY frontend/scripts ./scripts
+COPY frontend/fleet-ui.manifest.json ./
 # CHANGELOG.md lives at the repo root and is imported by the "What's new" view.
 COPY CHANGELOG.md ../CHANGELOG.md
 

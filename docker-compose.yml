@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-metrolog}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-metrolog}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "172.17.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -15,7 +15,7 @@ services:
     image: redis:7-alpine
     restart: unless-stopped
     ports:
-      - "${REDIS_PORT:-6379}:6379"
+      - "172.17.0.1:${REDIS_PORT:-6379}:6379"
     volumes:
       - redis_data:/data
 

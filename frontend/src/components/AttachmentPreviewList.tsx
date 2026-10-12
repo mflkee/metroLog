@@ -309,7 +309,7 @@ function AttachmentPreviewCard<T extends PreviewableAttachment>({
       ? createPortal(
           <div
             aria-modal="true"
-            className="fixed inset-0 z-[280] flex items-center justify-center bg-[rgba(11,20,27,0.82)] px-3 py-3 sm:px-6 sm:py-6"
+            className="fixed inset-0 z-[280] flex items-center justify-center bg-[rgb(var(--scrim-rgb)/0.82)] px-3 py-3 sm:px-6 sm:py-6"
             role="dialog"
             onClick={(event) => {
               if (event.target === event.currentTarget) {
@@ -417,7 +417,7 @@ function AttachmentPreviewCard<T extends PreviewableAttachment>({
               </div>
             ) : null}
           </div>
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-[rgba(11,20,27,0.92)] via-[rgba(11,20,27,0.76)] to-transparent px-3 pb-3 pt-10 text-white">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-[rgb(var(--scrim-rgb)/0.92)] via-[rgb(var(--scrim-rgb)/0.76)] to-transparent px-3 pb-3 pt-10 text-white">
             <div className="truncate text-xs font-semibold">{attachment.fileName}</div>
             {meta ? <div className="truncate text-[11px] text-white/78">{meta}</div> : null}
           </div>
@@ -522,7 +522,7 @@ function AttachmentPreviewCard<T extends PreviewableAttachment>({
             onClick={() => void handleOpenViewer()}
           />
 
-          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-[rgba(11,20,27,0.92)] via-[rgba(11,20,27,0.76)] to-transparent px-3 pb-3 pt-10 text-white">
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-[rgb(var(--scrim-rgb)/0.92)] via-[rgb(var(--scrim-rgb)/0.76)] to-transparent px-3 pb-3 pt-10 text-white">
             <div className="truncate text-xs font-semibold">{attachment.fileName}</div>
             {meta ? <div className="truncate text-[11px] text-white/78">{meta}</div> : null}
           </div>

@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 
 import { changePassword, getCurrentUser, updateProfile } from "@/api/auth";
-import { PasswordInput } from "@/components/PasswordInput";
+import { PasswordInput } from "@/components/ui/password-input";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { isPasswordPolicyValid, passwordPolicyMessage } from "@/lib/password";
 import { roleLabels } from "@/lib/roles";

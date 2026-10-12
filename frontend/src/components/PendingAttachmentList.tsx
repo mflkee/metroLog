@@ -99,7 +99,7 @@ function PendingAttachmentCard({
   return (
     <article className="tone-child relative aspect-square overflow-hidden rounded-2xl border border-line">
       {statusLabel && !isBusy ? (
-        <div className="absolute left-2 top-2 z-20 rounded-full bg-[rgba(11,20,27,0.74)] px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
+        <div className="absolute left-2 top-2 z-20 rounded-full bg-[rgb(var(--scrim-rgb)/0.74)] px-2.5 py-1 text-[11px] font-semibold text-white backdrop-blur-xs">
           {statusLabel}
         </div>
       ) : null}
@@ -146,8 +146,8 @@ function PendingAttachmentCard({
       )}
 
       {isBusy ? (
-        <div className="absolute inset-0 z-[15] flex items-center justify-center bg-[rgba(11,20,27,0.22)] backdrop-blur-[1px]">
-          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgba(11,20,27,0.72)] text-white shadow-lg">
+        <div className="absolute inset-0 z-[15] flex items-center justify-center bg-[rgb(var(--scrim-rgb)/0.22)] backdrop-blur-[1px]">
+          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgb(var(--scrim-rgb)/0.72)] text-white shadow-lg">
             <svg
               aria-hidden="true"
               className="h-5 w-5 animate-spin"
@@ -174,7 +174,7 @@ function PendingAttachmentCard({
         </div>
       ) : null}
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-[rgba(11,20,27,0.92)] via-[rgba(11,20,27,0.76)] to-transparent px-3 pb-3 pt-10 text-white">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 bg-linear-to-t from-[rgb(var(--scrim-rgb)/0.92)] via-[rgb(var(--scrim-rgb)/0.76)] to-transparent px-3 pb-3 pt-10 text-white">
         <div className="truncate text-xs font-semibold">{file.name}</div>
         <div className="truncate text-[11px] text-white/78">{formatFileSize(file.size)}</div>
       </div>

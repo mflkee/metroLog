@@ -2,7 +2,7 @@ import { FormEvent, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 
 import { loginUser } from "@/api/auth";
-import { PasswordInput } from "@/components/PasswordInput";
+import { PasswordInput } from "@/components/ui/password-input";
 import { getLoginStateMessage, resolvePostLoginRedirect } from "@/lib/authRedirect";
 import { useAuthStore } from "@/store/auth";
 

@@ -12,7 +12,7 @@ export function AccountMenu() {
 
   return (
     <FleetAccountMenu
-      identity={user ? `${user.fullName} · ${roleLabels[user.role]}` : undefined}
+      identity={user ? `${user.fullName} · ${roleLabels[user.role] ?? user.role}` : undefined}
       loginTo={user ? undefined : "/login"}
       profileTo={user ? "/profile" : undefined}
       onLogout={clearSession}

@@ -2,6 +2,7 @@
   "$comment": "Hashes of the files vendored from the metro-ui registry. Regenerate with `npm run check:ui -- manifest` right after adding or updating an item; never edit these files by hand.",
   "registry": "https://raw.githubusercontent.com/mflkee/metro-ui/main/public/r/{name}.json",
   "files": {
+    "src/components/account-menu.tsx": "1109e7f1946494539c487a5e28be34008246e7df9b7ad7deb9b041ebb91db427",
     "src/components/app-shell.tsx": "56b64b2198864539468b63bafacc90c091bcaaa37c233f120b52fe99516659b1",
     "src/components/date-input.tsx": "a4b8b238f29b6a18bcec6515235b7bab04f9cbf9ca7361d91623a13b71613a07",
     "src/components/floating-autocomplete-menu.tsx": "f725a1aa63f2efcbc6de3e64c38fe30f37f82e0262ec9f077c874a579d9d49e3",
@@ -21,6 +22,7 @@
     "src/components/ui/searchable-select.tsx": "aaf34083e02b85fa122482db12e1ca350b013c32bd5d3d3b49f85745617f01c1",
     "src/components/ui/select.test.tsx": "033fdaad4e68bb8e3ca887f2fb727c8c26efeffa08454de245c9879c521fc71a",
     "src/components/ui/select.tsx": "9fc525dd09d5f99614a3a70ee2d2bd715a59ed089bb29be63dc60a338d8dd697",
+    "src/components/ui/settings-section.tsx": "67b5c917179db810055e2bb2ab7f57d4d0ab732b4a9e5a223c60ac970e0befd7",
     "src/components/ui/stat-card.tsx": "fd997fff47509befc72185fec7ce5414cd2fd34df6adf534fe4dac422f5b4a27",
     "src/components/ui/status-badge.tsx": "974207a52c2e1aad73a0eb013d2c5c73e382875f0370b2637e4ad27fe5786553",
     "src/components/ui/switch.tsx": "04da97e811949323d32e64d3200bf651c6312876ee2fee61634fdf347ced4ec4",

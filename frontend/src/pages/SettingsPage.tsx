@@ -33,6 +33,7 @@ import {
 import { numericInputValue } from "@/lib/numericInput";
 import { hasAdminAccess } from "@/lib/roles";
 import { Select } from "@/components/ui/select";
+import { SettingsSection } from "@/components/ui/settings-section";
 import { Switch } from "@/components/ui/switch";
 import { useAuthStore } from "@/store/auth";
 import {
@@ -629,7 +630,7 @@ export function SettingsPage() {
       />
 
       <div className="tone-parent space-y-4 rounded-3xl border border-line p-5 shadow-panel">
-        <SettingsSectionCard
+        <SettingsSection
           description="Папки для аналитики на главной странице и персонально скрытые папки в оборудовании."
           expanded={expandedSections.folders}
           title="Папки"
@@ -742,9 +743,9 @@ export function SettingsPage() {
               )}
             </SettingsSubsectionCard>
           </div>
-        </SettingsSectionCard>
+        </SettingsSection>
 
-        <SettingsSectionCard
+        <SettingsSection
           description="Что показывать на главной. Порядок, ширину и сворачивание модулей настраивают на самой главной."
           expanded={expandedSections.dashboard}
           title="Информационная панель"
@@ -772,10 +773,10 @@ export function SettingsPage() {
             </div>
 
           </div>
-        </SettingsSectionCard>
+        </SettingsSection>
 
         {canManagePresets ? (
-          <SettingsSectionCard
+          <SettingsSection
             description="Конфигуратор пресетов дедлайнов для новых папок и будущих ремонтов."
             expanded={expandedSections.presets}
             title="Пресеты"
@@ -872,10 +873,10 @@ export function SettingsPage() {
               {presetError ? <p className="text-sm text-[var(--danger-text)]">{presetError}</p> : null}
               {presetFeedback ? <p className="text-sm text-signal-ok">{presetFeedback}</p> : null}
             </div>
-          </SettingsSectionCard>
+          </SettingsSection>
         ) : null}
 
-        <SettingsSectionCard
+        <SettingsSection
           description="Список тем, которые будут доступны тебе в верхнем переключателе."
           expanded={expandedSections.themes}
           title="Темы интерфейса"
@@ -907,9 +908,9 @@ export function SettingsPage() {
               </span>
             </div>
           </div>
-        </SettingsSectionCard>
+        </SettingsSection>
 
-        <SettingsSectionCard
+        <SettingsSection
           description="Письма при упоминаниях и тестовая проверка почтовых уведомлений."
           expanded={expandedSections.notifications}
           title="Уведомления"
@@ -952,7 +953,7 @@ export function SettingsPage() {
             {testEmailError ? <p className="text-sm text-[var(--danger-text)]">{testEmailError}</p> : null}
             {testEmailMessage ? <p className="text-sm text-signal-ok">{testEmailMessage}</p> : null}
           </div>
-        </SettingsSectionCard>
+        </SettingsSection>
 
         {error ? <p className="text-sm text-[var(--danger-text)]">{error}</p> : null}
         {isSubmitting ? (
@@ -1101,46 +1102,6 @@ export function SettingsPage() {
         }}
         onConfirm={confirmDeletePreset}
       />
-    </section>
-  );
-}
-
-function SettingsSectionCard({
-  title,
-  description,
-  expanded,
-  onToggle,
-  children,
-}: {
-  title: string;
-  description: string;
-  expanded: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="tone-child overflow-hidden rounded-3xl border border-line shadow-panel">
-      <button
-        aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-4 px-5 py-4 text-left transition hover:bg-black/5"
-        type="button"
-        onClick={onToggle}
-      >
-        <div className="min-w-0">
-          <h3 className="text-base font-semibold text-ink">{title}</h3>
-          <p className="mt-1 max-w-[64ch] text-sm text-steel">{description}</p>
-        </div>
-        <svg
-          className={["h-5 w-5 shrink-0 text-steel transition-transform", expanded ? "rotate-180" : ""].join(" ")}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth="1.9"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 9-7.5 7.5L4.5 9" />
-        </svg>
-      </button>
-      {expanded ? <div className="space-y-4 border-t border-line px-5 py-4">{children}</div> : null}
     </section>
   );
 }

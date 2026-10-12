@@ -99,6 +99,10 @@ jobs:
         run: npm --prefix frontend run lint
       - name: Frontend tests
         run: npm --prefix frontend run test -- --run
+      # The fleet guard runs inside the image build too, but only here can it see the
+      # Dockerfile and say that the image would not have the files it needs.
+      - name: Fleet UI guard
+        run: npm --prefix frontend run check:ui
 
   # Version numbers must agree before anything ships. The single source is
   # frontend/package.json (mirrored in the root manifest), and a release branch is

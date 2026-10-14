@@ -149,25 +149,40 @@ class UserService:
             if grant is None or grant.role is None:
                 continue
             stamp = _parse_stamp(grant.role_updated_at)
-            if grant.role == user.role and _as_utc(stamp) == _as_utc(user.role_synced_at):
+            role_changed = grant.role != user.role
+            access_changed = grant.is_active is not None and grant.is_active != user.is_active
+            if (
+                not role_changed
+                and not access_changed
+                and _as_utc(stamp) == _as_utc(user.role_synced_at)
+            ):
                 continue
-            if grant.role != user.role:
+            if role_changed or access_changed:
                 try:
                     self._validate_admin_guardrails(
                         user=user,
                         next_role=grant.role,
-                        next_active=user.is_active,
+                        next_active=grant.is_active
+                        if grant.is_active is not None
+                        else user.is_active,
                     )
-                    apply_role_scope(user, role=grant.role, folders=self.folders)
                 except HTTPException as error:
                     logger.warning(
-                        "Registry role %s for %s was not applied: %s",
-                        grant.role,
+                        "Registry grant for %s was not applied: %s",
                         user.email,
                         getattr(error, "detail", error),
                     )
                     continue
+            if role_changed:
+                apply_role_scope(user, role=grant.role, folders=self.folders)
                 logger.info("Role of %s taken from the registry: %s.", user.email, grant.role)
+            if access_changed:
+                user.is_active = bool(grant.is_active)
+                logger.info(
+                    "Access of %s in the registry is %s.",
+                    user.email,
+                    "on" if grant.is_active else "off",
+                )
             user.role_synced_at = stamp
             changed = True
 
@@ -303,26 +318,32 @@ class UserService:
         )
         self._validate_admin_guardrails(user=user, next_role=next_role, next_active=next_active)
 
-        if payload.role is not None and accounts_client.is_enabled():
-            # The registry owns the role, so the change goes there first and the local copy
-            # follows its answer. The stamp this copy was built from goes with it: the registry
-            # refuses a write that grew out of a role it has already moved past, and that
-            # refusal leaves this row exactly as it was.
-            grant = accounts_client.set_service(
-                email=user.email,
-                role=payload.role.value,
-                if_unmodified_since=user.role_synced_at,
-            )
-            user.role_synced_at = _parse_stamp(grant.role_updated_at)
-            if grant.role is not None and grant.role != payload.role.value:
-                # The registry only accepts the roles the service knows, so this would mean
-                # the two sides disagree about the role set — worth a line in the log.
-                logger.warning(
-                    "Registry put %s in force for %s while %s was requested.",
-                    grant.role,
-                    user.email,
-                    payload.role.value,
+        if accounts_client.is_enabled():
+            role_changed = payload.role is not None and payload.role != user.role
+            access_changed = payload.is_active is not None and payload.is_active != user.is_active
+            if role_changed or access_changed:
+                # The registry owns both the role and the flag, so the change goes there first
+                # and the local copy follows its answer. The stamp this copy was built from goes
+                # with it: the registry refuses a write that grew out of a role it has already
+                # moved past, and that refusal leaves this row exactly as it was.
+                grant = accounts_client.set_service(
+                    email=user.email,
+                    role=payload.role.value if payload.role is not None else user.role.value,
+                    is_active=payload.is_active if access_changed else None,
+                    if_unmodified_since=user.role_synced_at,
                 )
+                user.role_synced_at = _parse_stamp(grant.role_updated_at)
+                if grant.role is not None and grant.role != (
+                    payload.role.value if payload.role is not None else user.role.value
+                ):
+                    # The registry only accepts the roles the service knows, so this would mean
+                    # the two sides disagree about the role set — worth a line in the log.
+                    logger.warning(
+                        "Registry put %s in force for %s while %s was requested.",
+                        grant.role,
+                        user.email,
+                        payload.role.value,
+                    )
 
         if payload.first_name is not None:
             user.first_name = _normalize_required_name(payload.first_name, field_label="First name")
@@ -657,19 +678,17 @@ def coerce_role(value: object) -> UserRole | None:
 def _registry_grant(account: dict[str, Any]) -> accounts_client.Grant | None:
     """This service's grant inside one registry account.
 
-    A flag that is off means sign-in is refused at the registry, so the role carries no
-    meaning and the local copy is left alone. Mirroring `is_active` is a separate question:
-    the registry's flag for a service is not the same thing as the local "active employee"
-    flag, and the two are not kept in step.
+    The flag comes along: a revoked grant is mirrored as an inactive local row, so the service
+    shows the same thing the registry decided. Sign-in is still refused at the registry (403)
+    — the local flag is the mirror, not the lock.
     """
 
     for entry in account.get("services") or []:
         if entry.get("service") != settings.accounts_service_name:
             continue
-        if not entry.get("is_active"):
-            return None
         return accounts_client.Grant(
             role=coerce_role(entry.get("role")),
+            is_active=entry.get("is_active"),
             role_updated_at=entry.get("role_updated_at"),
         )
     return None

@@ -310,6 +310,12 @@ def _as_utc(value: datetime | None) -> datetime | None:
     return value.replace(tzinfo=UTC)
 
 
+def _local_active(db_engine, email: str) -> bool:
+    testing_session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    with testing_session() as session:
+        return session.query(User).filter_by(email=email).one().is_active
+
+
 def _local_stamp(db_engine, email: str) -> datetime | None:
     testing_session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
     with testing_session() as session:
@@ -341,7 +347,9 @@ async def test_role_update_is_written_into_the_registry(client, db_engine, monke
     def fake_set(**kwargs):
         written.append(kwargs)
         return accounts_client.Grant(
-            role=kwargs["role"], role_updated_at="2026-10-14T06:00:00.000000Z"
+            role=kwargs["role"],
+            is_active=kwargs["is_active"],
+            role_updated_at="2026-10-14T06:00:00.000000Z",
         )
 
     monkeypatch.setattr(accounts_client, "set_service", fake_set)
@@ -355,6 +363,8 @@ async def test_role_update_is_written_into_the_registry(client, db_engine, monke
     assert response.status_code == 200, response.text
     assert written and written[0]["email"] == "target@mkair.ru"
     assert written[0]["role"] == "ADMINISTRATOR"
+    # ...and says nothing about access: moving a role must not turn a revoked grant back on.
+    assert written[0]["is_active"] is None
     assert response.json()["role"] == "ADMINISTRATOR"
     assert _local_role(db_engine, "target@mkair.ru") is UserRole.ADMINISTRATOR
 
@@ -520,7 +530,9 @@ async def test_role_write_sends_the_stamp_it_read(client, db_engine, monkeypatch
     def fake_set(**kwargs):
         written.append(kwargs)
         return accounts_client.Grant(
-            role=kwargs["role"], role_updated_at="2026-10-14T06:00:00.000000Z"
+            role=kwargs["role"],
+            is_active=kwargs["is_active"],
+            role_updated_at="2026-10-14T06:00:00.000000Z",
         )
 
     monkeypatch.setattr(accounts_client, "set_service", fake_set)
@@ -558,3 +570,97 @@ def test_a_second_page_load_writes_nothing(db_engine, monkeypatch):
         assert UserService(db).list_users()[0].role is UserRole.ADMINISTRATOR
 
     assert len(commits) == 1
+
+
+@pytest.mark.anyio
+async def test_user_list_takes_the_access_flag_from_the_registry(client, db_engine, monkeypatch):
+    """A revoked grant shows up as an inactive row here too, without waiting for a sign-in."""
+
+    token = await _login_admin_token(client, db_engine, monkeypatch)
+    _add_local_user(db_engine, role=UserRole.MKAIR)
+    monkeypatch.setattr(
+        accounts_client,
+        "list_accounts",
+        lambda: _registry_listing(role="MKAIR", service_active=False),
+    )
+
+    response = await client.get("/api/v1/users", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200, response.text
+    listed = {item["email"]: item["is_active"] for item in response.json()}
+    assert listed["target@mkair.ru"] is False
+    assert _local_active(db_engine, "target@mkair.ru") is False
+
+
+@pytest.mark.anyio
+async def test_user_list_keeps_the_last_developer_switched_on(client, db_engine, monkeypatch):
+    """Even when the registry says otherwise, the mirror leaves a way in to manage users."""
+
+    token = await _login_admin_token(client, db_engine, monkeypatch)
+    _add_local_user(db_engine, role=UserRole.DEVELOPER)
+    monkeypatch.setattr(
+        accounts_client,
+        "list_accounts",
+        lambda: _registry_listing(role="DEVELOPER", service_active=False),
+    )
+
+    response = await client.get("/api/v1/users", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200, response.text
+    assert _local_active(db_engine, "target@mkair.ru") is True
+
+
+@pytest.mark.anyio
+async def test_an_access_change_is_written_into_the_registry(client, db_engine, monkeypatch):
+    """The switch in the user list is the registry's flag, so flipping it writes there."""
+
+    email, password = _create_local_admin(db_engine)
+    login = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    token = login.json()["access_token"]
+    target_id = _add_local_user(db_engine, role=UserRole.MKAIR)
+
+    _enable_registry(monkeypatch)
+    written: list[dict] = []
+
+    def fake_set(**kwargs):
+        written.append(kwargs)
+        return accounts_client.Grant(
+            role=kwargs["role"],
+            is_active=kwargs["is_active"],
+            role_updated_at="2026-10-14T06:00:00.000000Z",
+        )
+
+    monkeypatch.setattr(accounts_client, "set_service", fake_set)
+
+    response = await client.patch(
+        f"/api/v1/users/{target_id}",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"is_active": False},
+    )
+
+    assert response.status_code == 200, response.text
+    assert written[0]["is_active"] is False
+    assert written[0]["role"] == "MKAIR"  # the role is carried along, unchanged
+    assert response.json()["is_active"] is False
+    assert _local_active(db_engine, "target@mkair.ru") is False
+
+
+@pytest.mark.anyio
+async def test_login_does_not_switch_the_local_row_back_on(client, db_engine, monkeypatch):
+    """The flag mirrors the registry; a sign-in is not a reason to raise it."""
+
+    _create_local_admin(db_engine)
+    _add_local_user(db_engine, role=UserRole.MKAIR, is_active=False)
+    _enable_registry(monkeypatch)
+    monkeypatch.setattr(
+        accounts_client,
+        "verify",
+        lambda **_: _registry_account(email="target@mkair.ru", role="MKAIR"),
+    )
+
+    response = await client.post(
+        "/api/v1/auth/login", json={"email": "target@mkair.ru", "password": "Whatever-1"}
+    )
+
+    assert response.status_code == 200, response.text
+    assert _local_active(db_engine, "target@mkair.ru") is False

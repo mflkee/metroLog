@@ -101,12 +101,9 @@ class AuthService:
             # they no longer have.
             apply_role_scope(user, role=role, folders=self.folders)
 
-        user.is_active = bool(account.get("is_active", True))
-        if not user.is_active:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User account is inactive.",
-            )
+        # The access flag belongs to the registry and is enforced there: a revoked grant never
+        # reaches this point (`verify` answers 403), and a local row mirrors the registry on the
+        # next read instead of being raised here by a sign-in.
         return user
 
     def change_password(self, *, user: User, payload: ChangePasswordRequest) -> None:

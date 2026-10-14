@@ -3,6 +3,7 @@ import { Link } from "react-router-dom"
 
 import { ThemeSwitcher } from "@/components/theme-switcher"
 import { AppDialog } from "@/components/ui/app-dialog"
+import type { ThemeName } from "@/lib/theme-store"
 
 type AccountMenuProps = {
   /** Who is signed in, as the dialog's second line ("Фамилия Имя · Роль", or an email). */
@@ -14,6 +15,10 @@ type AccountMenuProps = {
   /** Where to send a visitor who is not signed in (renders a login button instead). */
   loginTo?: string
   className?: string
+  /** Themes to offer in the picker; defaults to the whole catalogue. */
+  themes?: ThemeName[]
+  /** Called after the theme is applied — a service persists it on the profile. */
+  onThemeChange?: (theme: ThemeName) => void
 }
 
 /**
@@ -22,8 +27,13 @@ type AccountMenuProps = {
  *
  * Each service used to assemble this itself — metroLog and metroGen had a menu, metroCheck a
  * bare «Выйти», the console an address and a button — so the right-hand side of the top bar
- * differed in every service. The shape is the same here; only `profileTo` and the identity
- * vary, because only the service knows whether it has a profile page and who is signed in.
+ * differed in every service. The shape is the same here; only `profileTo`, the identity and the
+ * theme wiring vary, because only the service knows whether it has a profile page, who is signed
+ * in, and where a theme choice should be stored.
+ *
+ * The picker is a passthrough: `themes` narrows the list and `onThemeChange` lets the service
+ * persist the choice (for example on the profile). Without `onThemeChange` the choice stays local,
+ * which is what a service with no user profile wants.
  */
 export function AccountMenu({
   identity,
@@ -31,6 +41,8 @@ export function AccountMenu({
   onLogout,
   loginTo,
   className,
+  themes,
+  onThemeChange,
 }: AccountMenuProps) {
   const [accountOpen, setAccountOpen] = useState(false)
   const [logoutOpen, setLogoutOpen] = useState(false)
@@ -40,7 +52,7 @@ export function AccountMenu({
     <>
       <div className={["flex min-w-0 items-center justify-end gap-2", className ?? ""].join(" ").trim()}>
         <div className="hidden md:flex">
-          <ThemeSwitcher />
+          <ThemeSwitcher onChange={onThemeChange} themes={themes} />
         </div>
         {profileTo ? (
           <Link className="btn-secondary btn-sm hidden shrink-0 xl:inline-flex" to={profileTo}>
@@ -72,7 +84,7 @@ export function AccountMenu({
       >
         <div className="space-y-3">
           <div className="md:hidden">
-            <ThemeSwitcher />
+            <ThemeSwitcher onChange={onThemeChange} themes={themes} />
           </div>
           {profileTo ? (
             <Link

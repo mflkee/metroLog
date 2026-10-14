@@ -664,3 +664,36 @@ async def test_login_does_not_switch_the_local_row_back_on(client, db_engine, mo
 
     assert response.status_code == 200, response.text
     assert _local_active(db_engine, "target@mkair.ru") is False
+
+
+@pytest.mark.anyio
+async def test_a_role_change_works_for_a_row_the_registry_does_not_know(
+    client, db_engine, monkeypatch
+):
+    """Сервисные и «дореестровые» строки живут только здесь: их роль остаётся локальной."""
+
+    email, password = _create_local_admin(db_engine)
+    login = await client.post("/api/v1/auth/login", json={"email": email, "password": password})
+    token = login.json()["access_token"]
+    target_id = _add_local_user(db_engine)  # например, test@mail.ru: в реестре его нет
+
+    _enable_registry(monkeypatch)
+
+    class _NotFound:
+        status_code = 404
+
+        def json(self) -> dict:
+            return {"detail": "Account not found"}
+
+    monkeypatch.setattr(accounts_client.httpx, "request", lambda *args, **kwargs: _NotFound())
+
+    response = await client.patch(
+        f"/api/v1/users/{target_id}/role",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"role": "ADMINISTRATOR"},
+    )
+
+    assert response.status_code == 200, response.text
+    assert response.json()["role"] == "ADMINISTRATOR"
+    assert _local_role(db_engine, "target@mkair.ru") is UserRole.ADMINISTRATOR
+    assert _local_stamp(db_engine, "target@mkair.ru") is None

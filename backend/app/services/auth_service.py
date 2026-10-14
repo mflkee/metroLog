@@ -24,6 +24,8 @@ from app.services.notification_service import (
 from app.services.user_service import (
     _filter_dashboard_folder_ids_for_scope,
     _normalize_allowed_folder_scope,
+    apply_role_scope,
+    coerce_role,
     is_folder_access_allowed,
 )
 from app.utils.password_policy import validate_password_policy
@@ -72,7 +74,7 @@ class AuthService:
 
     def _login_via_registry(self, email: str, password: str) -> User:
         account = accounts_client.verify(email=email, password=password)
-        role = _coerce_role(account.get("role"))
+        role = coerce_role(account.get("role"))
 
         user = self.users.get_by_email(email)
         if user is None:
@@ -95,7 +97,9 @@ class AuthService:
             )
             self.users.add(user)
         elif role is not None and user.role != role:
-            user.role = role
+            # The scope has to follow the role, or the person keeps the folders of the role
+            # they no longer have.
+            apply_role_scope(user, role=role, folders=self.folders)
 
         user.is_active = bool(account.get("is_active", True))
         if not user.is_active:
@@ -231,15 +235,6 @@ class AuthService:
             secret_key=settings.secret_key,
             ttl_hours=settings.access_token_ttl_hours,
         )
-
-
-def _coerce_role(value: object) -> UserRole | None:
-    if not value:
-        return None
-    try:
-        return UserRole(str(value))
-    except ValueError:
-        return None
 
 
 def _normalize_email(email: str) -> str:

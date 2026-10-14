@@ -43,6 +43,15 @@ class User(Base):
         nullable=False,
         default=UserRole.CUSTOMER,
     )
+    # The registry's `role_updated_at` for the grant this row mirrors: which registry value the
+    # role here was last taken from. It is what lets a write say "I am editing the role I read",
+    # so a change made in the console in the meantime is a conflict instead of a silent
+    # overwrite. NULL means the copy predates this bookkeeping — the registry wins on the next
+    # read, which is the right answer for every existing row.
+    role_synced_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     email_verified_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,

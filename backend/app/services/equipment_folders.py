@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException, status
@@ -27,6 +28,8 @@ from app.services.equipment_text import (
     _normalize_optional_text,
 )
 from app.services.user_service import get_user_allowed_folder_ids
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -243,6 +246,11 @@ class EquipmentFoldersMixin:
         self.process_subscriptions.delete_by_folder_id(folder_id=folder.id)
         self.folder_process_subscriptions.delete_by_folder_id(folder_id=folder.id)
         self.equipment.delete_by_folder_id(folder_id=folder.id)
+        # Nothing cascades from the JSON scope lists: a folder that is left in them cannot be
+        # taken out by a later edit either, because the scope is validated on every write.
+        released = self.users.remove_folder_reference(folder_id=folder.id)
+        if released:
+            logger.info("Folder %s was removed from %s user scope(s).", folder.id, released)
         self.folders.delete(folder)
         self.session.commit()
 

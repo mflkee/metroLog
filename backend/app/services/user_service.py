@@ -314,6 +314,9 @@ class UserService:
                 role=next_role,
                 values=user.allowed_folder_ids,
                 folders=self.folders,
+                # Carrying the row's own scope along: a folder deleted since it was granted is
+                # dropped, and does not stop a role or activity change.
+                strict=False,
             )
         )
         self._validate_admin_guardrails(user=user, next_role=next_role, next_active=next_active)
@@ -533,27 +536,43 @@ def _normalize_allowed_folder_scope(
     role: UserRole,
     values: list[object] | None,
     folders: EquipmentFolderRepository,
+    strict: bool = True,
 ) -> list[int] | None:
+    """The folder scope a role keeps.
+
+    ``strict`` is the difference between "this is a scope I am setting" and "this scope came
+    with the row": a folder id that no longer exists is an error in the first case (the caller
+    got it wrong), while carrying a row's own scope over a role change must not fail — an id
+    left behind by a deleted folder used to make the user impossible to edit at all.
+    """
+
     if not _requires_folder_scope(role):
         return None
     if values is None:
         return []
-    return _normalize_allowed_folder_ids(values, folders=folders)
+    return _normalize_allowed_folder_ids(values, folders=folders, strict=strict)
 
 
 def _normalize_allowed_folder_ids(
     values: list[object],
     *,
     folders: EquipmentFolderRepository,
+    strict: bool = True,
 ) -> list[int]:
     normalized = _coerce_allowed_folder_ids(values)
+    existing: list[int] = []
+    missing: list[int] = []
     for folder_id in normalized:
-        if folders.get_by_id(folder_id) is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Разрешенная папка {folder_id} не найдена.",
-            )
-    return normalized
+        target = existing if folders.get_by_id(folder_id) is not None else missing
+        target.append(folder_id)
+    if missing and strict:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Разрешенная папка {missing[0]} не найдена.",
+        )
+    if missing:
+        logger.info("Dropped folders that no longer exist from a scope: %s.", missing)
+    return existing
 
 
 def _coerce_allowed_folder_ids(values: list[object] | None) -> list[int]:
@@ -637,6 +656,9 @@ def apply_role_scope(user: User, *, role: UserRole, folders: EquipmentFolderRepo
         role=role,
         values=user.allowed_folder_ids,
         folders=folders,
+        # The scope comes with the row: an id whose folder has been deleted is dropped here
+        # rather than blocking the role change that brought us in.
+        strict=False,
     )
     user.role = role
     user.allowed_folder_ids = allowed_folder_ids

@@ -5,6 +5,7 @@ from httpx import AsyncClient
 from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
+from app.models.equipment import EquipmentFolder
 from app.models.user import User, UserRole
 from app.services.user_service import UserService
 from app.utils.security import hash_password
@@ -927,3 +928,131 @@ async def test_dashboard_layout_round_trips_through_the_profile(
     me = await client.get("/api/v1/auth/me", headers=headers)
     assert me.status_code == 200
     assert me.json()["dashboard_layout"] == layout
+
+
+@pytest.mark.anyio
+async def test_a_role_change_drops_a_folder_that_no_longer_exists(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    """Папку удалили, её id остался в области — смена роли не должна упираться в него.
+
+    Так выглядела живая заявка: у пользователя в области лежал id удалённой папки, и любая
+    правка роли отвечала «Разрешенная папка 30 не найдена», то есть строку нельзя было
+    отредактировать вообще, пока кто-нибудь не почистит данные руками.
+    """
+
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=admin_headers,
+        json={"name": "Папка под удаление"},
+    )
+    assert folder_response.status_code == 201
+    folder_id = folder_response.json()["id"]
+
+    create_response = await client.post(
+        "/api/v1/users",
+        headers=admin_headers,
+        json={
+            "first_name": "Стейл",
+            "last_name": "Тестов",
+            "email": "stale@example.com",
+            "role": "CUSTOMER",
+            "is_active": True,
+        },
+    )
+    assert create_response.status_code == 201
+    user_id = create_response.json()["user"]["id"]
+
+    allowed = await client.patch(
+        f"/api/v1/users/{user_id}",
+        headers=admin_headers,
+        json={"allowed_folder_ids": [folder_id]},
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["allowed_folder_ids"] == [folder_id]
+
+    # Папка исчезает в обход приложения — так её и оставлял старый путь удаления.
+    testing_session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    with testing_session() as session:
+        stored = session.query(EquipmentFolder).filter_by(id=folder_id).one()
+        session.delete(stored)
+        session.commit()
+
+    changed = await client.patch(
+        f"/api/v1/users/{user_id}/role",
+        headers=admin_headers,
+        json={"role": "MKAIR"},
+    )
+
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["role"] == "MKAIR"
+    assert changed.json()["allowed_folder_ids"] == []
+
+
+@pytest.mark.anyio
+async def test_deleting_a_folder_takes_it_out_of_every_scope(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    """Корень той же проблемы: удаление папки должно чистить области у людей."""
+
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=admin_headers,
+        json={"name": "Удаляемая папка"},
+    )
+    folder_id = folder_response.json()["id"]
+
+    create_response = await client.post(
+        "/api/v1/users",
+        headers=admin_headers,
+        json={
+            "first_name": "Скоуп",
+            "last_name": "Тестов",
+            "email": "scope@example.com",
+            "role": "MKAIR",
+            "is_active": True,
+        },
+    )
+    user_id = create_response.json()["user"]["id"]
+    user_password = create_response.json()["temporary_password"]
+
+    allowed = await client.patch(
+        f"/api/v1/users/{user_id}",
+        headers=admin_headers,
+        json={"allowed_folder_ids": [folder_id], "role": "MKAIR"},
+    )
+    assert allowed.status_code == 200
+    assert allowed.json()["allowed_folder_ids"] == [folder_id]
+
+    # человек выбирает эту папку своей рабочей
+    user = await login_user(client, email="scope@example.com", password=user_password)
+    user_headers = {"Authorization": f"Bearer {user['access_token']}"}
+    dashboard = await client.patch(
+        "/api/v1/auth/me",
+        headers=user_headers,
+        json={"dashboard_folder_id": folder_id},
+    )
+    assert dashboard.status_code == 200, dashboard.text
+    assert dashboard.json()["dashboard_folder_id"] == folder_id
+
+    deleted = await client.delete(
+        f"/api/v1/equipment/folders/{folder_id}",
+        headers=admin_headers,
+    )
+    assert deleted.status_code == 204, deleted.text
+
+    after = await client.get(f"/api/v1/users/{user_id}", headers=admin_headers)
+    assert after.status_code == 200
+    assert after.json()["allowed_folder_ids"] == []
+    assert after.json()["dashboard_folder_id"] is None
+    assert after.json()["dashboard_folder_ids"] == []

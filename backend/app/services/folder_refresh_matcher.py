@@ -17,6 +17,54 @@ from app.schemas.arshin import (
 from app.schemas.equipment import SIVerificationCreateRequest
 from app.services.arshin_service import ArshinService
 
+SERIAL_MATCH_EXACT = "exact"
+SERIAL_MATCH_CONFIDENT = "confident"
+SERIAL_MATCH_DIGITS_ONLY = "digits_only"
+SERIAL_MATCH_NONE = "none"
+
+# Short digit strings collide far too easily ("12" against "A12"), so a digit-only
+# serial match is only considered from four digits up.
+MIN_SERIAL_DIGITS = 4
+
+# Latin and Cyrillic letters that are visually identical. A serial typed in the wrong
+# alphabet is the same serial — see the `C133358228` / `С133358228` case.
+_CYRILLIC_TO_LATIN = {
+    "А": "A",
+    "В": "B",
+    "Е": "E",
+    "К": "K",
+    "М": "M",
+    "Н": "H",
+    "О": "O",
+    "Р": "P",
+    "С": "C",
+    "Т": "T",
+    "У": "Y",
+    "Х": "X",
+}
+_LATIN_TO_CYRILLIC = {latin: cyrillic for cyrillic, latin in _CYRILLIC_TO_LATIN.items()}
+_CYRILLIC_TO_LATIN_TABLE = str.maketrans(_CYRILLIC_TO_LATIN)
+_LATIN_TO_CYRILLIC_TABLE = str.maketrans(_LATIN_TO_CYRILLIC)
+
+# Exact equality (or equality after folding punctuation and spaces) is the same written
+# serial; equality of the digits alone only means "maybe the same instrument" and is
+# surfaced for review.
+_CERTAIN_SERIAL_MATCHES = frozenset({SERIAL_MATCH_EXACT, SERIAL_MATCH_CONFIDENT})
+
+
+@dataclass(slots=True, frozen=True)
+class _Stage2Attempt:
+    """One stage-2 query. ``None`` in a filter field means "do not send it"."""
+
+    year: int | None
+    serial: str | None
+    modification: str | None
+    notation: str | None
+
+    @property
+    def filtered_by_serial(self) -> bool:
+        return self.serial is not None
+
 
 @dataclass(slots=True)
 class FolderRefreshMatchResult:
@@ -35,6 +83,11 @@ class FolderRefreshMatchResult:
     matched_valid_date: datetime | None
     payload: SIVerificationCreateRequest | None
     notes: str | None = None
+    # The matched record spells the serial differently from the current one, and whether
+    # that difference is only in the digits (which needs a human to confirm).
+    serial_relaxed: bool = False
+    serial_requires_review: bool = False
+    serial_candidates: int = 0
 
 
 class FolderRefreshMatcher:
@@ -100,6 +153,9 @@ class FolderRefreshMatcher:
             matched_valid_date=_coerce_datetime_string(detail.valid_until),
             payload=payload,
             notes=_build_match_note(stage1_record),
+            serial_relaxed=bool(stage1_record["serial_relaxed"]),
+            serial_requires_review=bool(stage1_record["serial_requires_review"]),
+            serial_candidates=int(stage1_record["serial_candidates"]),
         )
 
     async def match_esi(
@@ -208,6 +264,9 @@ class FolderRefreshMatcher:
             matched_valid_date=_coerce_datetime_string(detail.valid_until),
             payload=payload,
             notes=_build_match_note(matched_record),
+            serial_relaxed=bool(matched_record["serial_relaxed"]),
+            serial_requires_review=bool(matched_record["serial_requires_review"]),
+            serial_candidates=int(matched_record["serial_candidates"]),
         )
 
     async def _resolve_latest_vri_candidate(
@@ -269,47 +328,52 @@ class FolderRefreshMatcher:
         stage2_successful = False
         include_modification_flag = True
         include_notation_flag = True
+        chosen_serial_match = SERIAL_MATCH_EXACT
+        serial_candidates = 0
 
-        for candidate_year, include_modification, include_notation in _build_stage2_attempts(
-            target_year
+        for attempt in _build_stage2_attempts(
+            target_year=target_year,
+            mi_number=mi_number,
+            mi_modification=mi_modification,
+            mit_notation=mit_notation,
         ):
             attempt_records = await self._search_by_instrument_params(
                 mit_number=mit_number,
                 mit_title=mit_title,
-                mit_notation=mit_notation if include_notation else None,
-                mi_modification=mi_modification if include_modification else None,
-                mi_number=mi_number,
-                year=candidate_year,
+                mit_notation=attempt.notation,
+                mi_modification=attempt.modification,
+                mi_number=attempt.serial,
+                year=attempt.year,
             )
             if not attempt_records:
                 continue
 
             stage2_successful = True
-            updated_candidates: list[dict[str, Any]] = []
-            for record in attempt_records:
-                record_docnum = _normalize_certificate_number(
-                    _normalize_value(record.get("result_docnum"))
-                )
-                if record_docnum == selected_stage1_docnum:
-                    continue
-                record_date = _extract_record_date(record)
-                if (
-                    current_reference_date is not None
-                    and record_date is not None
-                    and record_date < current_reference_date
-                ):
-                    continue
-                updated_candidates.append(record)
-
+            updated_candidates = _without_current_and_older_records(
+                attempt_records,
+                current_docnum=selected_stage1_docnum,
+                reference_date=current_reference_date,
+            )
             if not updated_candidates:
                 continue
 
-            selected_candidate = _select_most_recent_record(updated_candidates)
+            # Arshin filters the serial itself when the attempt carries one; when it does
+            # not, the records of the whole instrument type come back and the serial has to
+            # be checked here (see `_classify_serial_match`).
+            accepted = _accept_serial_candidates(
+                records=updated_candidates,
+                current_serial=mi_number,
+                filtered_by_serial=attempt.filtered_by_serial,
+            )
+            if not accepted:
+                continue
+
+            selected_candidate = _select_best_serial_candidate(accepted)
             if selected_candidate is None:
                 continue
-            chosen_record = selected_candidate
-            include_modification_flag = include_modification
-            include_notation_flag = include_notation
+            chosen_record, chosen_serial_match, serial_candidates = selected_candidate
+            include_modification_flag = attempt.modification is not None
+            include_notation_flag = attempt.notation is not None
             break
 
         modification_relaxed = bool(has_modification and not include_modification_flag)
@@ -325,6 +389,14 @@ class FolderRefreshMatcher:
                 "stage2_successful": stage2_successful,
                 "modification_relaxed": modification_relaxed,
                 "notation_relaxed": notation_relaxed,
+                "serial_relaxed": _serial_spelling_drifted(
+                    current_serial=mi_number,
+                    matched_serial=_normalize_value(chosen_record.get("mi_number")),
+                ),
+                "serial_requires_review": chosen_serial_match == SERIAL_MATCH_DIGITS_ONLY,
+                "serial_candidates": serial_candidates,
+                "current_serial": mi_number,
+                "matched_serial": _normalize_value(chosen_record.get("mi_number")),
             },
             final_result,
         )
@@ -501,26 +573,240 @@ def _determine_stage2_year(
 
 
 def _build_stage2_attempts(
+    *,
     target_year: int | None,
-) -> list[tuple[int | None, bool, bool]]:
-    # A yearless search makes Arshin return the latest applicable verification
-    # record for the instrument, so it still finds a new certificate when the
-    # instrument was re-verified well before the previous certificate expired
-    # (досрочная поверка). Searching only the year taken from the current
-    # certificate's validity date misses such early re-verifications.
-    # Year-scoped attempts are kept as a fallback.
-    attempts: list[tuple[int | None, bool, bool]] = [
-        (None, True, True),
-        (None, False, False),
+    mi_number: str | None,
+    mi_modification: str | None,
+    mit_notation: str | None,
+) -> list[_Stage2Attempt]:
+    # The order encodes precision: the serial as recorded, then exact-query spellings of it,
+    # then serial-free queries whose records are validated locally. A yearless
+    # instrument-parameter search makes Arshin return the latest applicable verification
+    # record for the instrument, so it still finds a new certificate when the instrument was
+    # re-verified well before the previous certificate expired (досрочная поверка); the
+    # year-scoped attempts are kept from the previous behaviour as a fallback.
+    attempts: list[_Stage2Attempt] = [
+        _Stage2Attempt(
+            year=None, serial=mi_number, modification=mi_modification, notation=mit_notation
+        ),
+        _Stage2Attempt(year=None, serial=mi_number, modification=None, notation=None),
     ]
     if target_year is not None:
-        attempts.extend(
-            [
-                (target_year, True, True),
-                (target_year, False, False),
-            ]
+        attempts.append(
+            _Stage2Attempt(
+                year=target_year,
+                serial=mi_number,
+                modification=mi_modification,
+                notation=mit_notation,
+            )
         )
-    return attempts
+        attempts.append(
+            _Stage2Attempt(year=target_year, serial=mi_number, modification=None, notation=None)
+        )
+
+    if not mi_number:
+        return _dedupe_stage2_attempts(attempts)
+
+    # A serial drifts between verifications in two structured ways: the spacing around its
+    # separators and the alphabet of its look-alike letters. Each variant is still an exact
+    # query, so a hit is the same instrument and needs no review.
+    for variant in _serial_variants(mi_number):
+        attempts.append(
+            _Stage2Attempt(
+                year=None, serial=variant, modification=mi_modification, notation=mit_notation
+            )
+        )
+
+    # A letter added to a serial cannot be derived from the old spelling (`418007` vs
+    # `L418007`), so the serial has to be dropped and the returned records checked locally.
+    # The modification narrows a heavy instrument type to a handful of records — 3 and 23 in
+    # the measured cases — which is what makes these levels usable.
+    for modification_variant in (mi_modification, *_spacing_variants(mi_modification or "")):
+        attempts.append(
+            _Stage2Attempt(
+                year=target_year, serial=None, modification=modification_variant, notation=None
+            )
+        )
+        attempts.append(
+            _Stage2Attempt(year=None, serial=None, modification=modification_variant, notation=None)
+        )
+    attempts.append(_Stage2Attempt(year=target_year, serial=None, modification=None, notation=None))
+    attempts.append(_Stage2Attempt(year=None, serial=None, modification=None, notation=None))
+    return _dedupe_stage2_attempts(attempts)
+
+
+def _dedupe_stage2_attempts(attempts: list[_Stage2Attempt]) -> list[_Stage2Attempt]:
+    seen: set[tuple[int | None, str | None, str | None, str | None]] = set()
+    unique: list[_Stage2Attempt] = []
+    for attempt in attempts:
+        key = (attempt.year, attempt.serial, attempt.modification, attempt.notation)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(attempt)
+    return unique
+
+
+def _serial_variants(serial: str) -> list[str]:
+    variants: list[str] = []
+    for candidate in (*_spacing_variants(serial), *_homoglyph_variants(serial)):
+        if candidate not in variants:
+            variants.append(candidate)
+    return variants
+
+
+def _spacing_variants(value: str) -> list[str]:
+    """Spellings of one value that differ only in spacing.
+
+    Arshin stores what the operator typed, so `21202377-19011936` and
+    `21202377 - 19011936` are two spellings of the same serial.
+    """
+    if not value:
+        return []
+    spaced = re.sub(r"\s*([-/])\s*", r" \1 ", value)
+    spaced = re.sub(r"\s+", " ", spaced).strip()
+    compact = re.sub(r"\s+", "", value)
+    variants: list[str] = []
+    for candidate in (spaced, compact):
+        if candidate and candidate != value and candidate not in variants:
+            variants.append(candidate)
+    return variants
+
+
+def _homoglyph_variants(value: str) -> list[str]:
+    """The same value with its letters written in the other alphabet."""
+    if not value:
+        return []
+    variants: list[str] = []
+    for candidate in (
+        value.translate(_LATIN_TO_CYRILLIC_TABLE),
+        value.translate(_CYRILLIC_TO_LATIN_TABLE),
+    ):
+        if candidate != value and candidate not in variants:
+            variants.append(candidate)
+    return variants
+
+
+def _serial_key(value: str) -> str:
+    """A serial reduced to letters and digits, case folded, punctuation dropped."""
+    return re.sub(r"[^0-9A-Za-zА-Яа-яЁё]", "", value or "").upper()
+
+
+def _serial_folded(value: str) -> str:
+    """A serial written in one alphabet: look-alike letters folded to Latin."""
+    return _serial_key(value).translate(_CYRILLIC_TO_LATIN_TABLE)
+
+
+def _serial_digits(value: str) -> str:
+    return re.sub(r"\D", "", value or "")
+
+
+def _classify_serial_match(*, current: str | None, candidate: str | None) -> str:
+    """How a record's serial relates to the serial of the current verification.
+
+    ``exact`` means the same written serial; ``confident`` means the same serial with its
+    letters written in the other alphabet; ``digits_only`` means the digits agree while the
+    letters differ — the serial may belong to another instrument, so a human has to confirm.
+    """
+    if not current or not candidate:
+        return SERIAL_MATCH_NONE
+    if _serial_key(current) == _serial_key(candidate):
+        return SERIAL_MATCH_EXACT
+    if _serial_folded(current) == _serial_folded(candidate):
+        return SERIAL_MATCH_CONFIDENT
+
+    current_digits = _serial_digits(current)
+    candidate_digits = _serial_digits(candidate)
+    if len(current_digits) < MIN_SERIAL_DIGITS or current_digits != candidate_digits:
+        return SERIAL_MATCH_NONE
+
+    # Digits alone are too weak, so the shorter serial has to be the other one minus a
+    # leading or trailing letter (`418007` vs `L418007`), not a different number.
+    folded_current = _serial_folded(current)
+    folded_candidate = _serial_folded(candidate)
+    if (
+        folded_current.startswith(folded_candidate)
+        or folded_candidate.startswith(folded_current)
+        or folded_current.endswith(folded_candidate)
+        or folded_candidate.endswith(folded_current)
+    ):
+        return SERIAL_MATCH_DIGITS_ONLY
+    return SERIAL_MATCH_NONE
+
+
+def _serial_spelling_drifted(*, current_serial: str | None, matched_serial: str | None) -> bool:
+    if not current_serial or not matched_serial:
+        return False
+    return _collapse_spaces(current_serial) != _collapse_spaces(matched_serial)
+
+
+def _collapse_spaces(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _serial_match_rank(match: str) -> int:
+    return 0 if match in _CERTAIN_SERIAL_MATCHES else 1
+
+
+def _without_current_and_older_records(
+    records: list[dict[str, Any]],
+    *,
+    current_docnum: str,
+    reference_date: datetime | None,
+) -> list[dict[str, Any]]:
+    updated: list[dict[str, Any]] = []
+    for record in records:
+        record_docnum = _normalize_certificate_number(_normalize_value(record.get("result_docnum")))
+        if record_docnum == current_docnum:
+            continue
+        record_date = _extract_record_date(record)
+        if reference_date is not None and record_date is not None and record_date < reference_date:
+            continue
+        updated.append(record)
+    return updated
+
+
+def _accept_serial_candidates(
+    *,
+    records: list[dict[str, Any]],
+    current_serial: str | None,
+    filtered_by_serial: bool,
+) -> list[tuple[dict[str, Any], str]]:
+    """Keep the records of *this* instrument and say how each one's serial relates to it.
+
+    An attempt that carries a serial is filtered by Arshin already, so nothing is dropped
+    there (the classification only describes the match). An attempt that carries none
+    returns the records of the whole instrument type, and only a compatible serial passes.
+    """
+    accepted: list[tuple[dict[str, Any], str]] = []
+    for record in records:
+        match = _classify_serial_match(
+            current=current_serial,
+            candidate=_normalize_value(record.get("mi_number")),
+        )
+        if match == SERIAL_MATCH_NONE and (filtered_by_serial or not current_serial):
+            # Nothing to compare: Arshin matched the serial itself, or the instrument has
+            # no serial to compare against (the pre-drift behaviour).
+            match = SERIAL_MATCH_EXACT
+        if match == SERIAL_MATCH_NONE:
+            continue
+        accepted.append((record, match))
+    return accepted
+
+
+def _select_best_serial_candidate(
+    accepted: list[tuple[dict[str, Any], str]],
+) -> tuple[dict[str, Any], str, int] | None:
+    """The most precise match wins; recency only decides inside one match class."""
+    if not accepted:
+        return None
+    best_rank = min(_serial_match_rank(match) for _, match in accepted)
+    tier = [record for record, match in accepted if _serial_match_rank(match) == best_rank]
+    chosen = _select_most_recent_record(tier)
+    if chosen is None:
+        return None
+    chosen_match = next(match for record, match in accepted if record is chosen)
+    return chosen, chosen_match, len(tier)
 
 
 def _select_most_recent_record(records: list[dict[str, Any]]) -> dict[str, Any] | None:
@@ -633,11 +919,28 @@ def _extract_record_year(value: datetime | None) -> int | None:
 def _build_match_note(result: dict[str, Any]) -> str | None:
     if result["certificate_updated"]:
         if result["modification_relaxed"] or result["notation_relaxed"]:
-            return "Найдено обновление после ослабления части фильтров. Нужна ручная проверка."
-        return "Найдено новое свидетельство о поверке."
-    if result["stage2_successful"] is False:
-        return "Новая запись не найдена, сохранена текущая версия свидетельства."
-    return "Актуальная запись подтверждена."
+            note = "Найдено обновление после ослабления части фильтров. Нужна ручная проверка."
+        elif result.get("serial_requires_review"):
+            note = "Найдено новое свидетельство о поверке. Нужна ручная проверка."
+        else:
+            note = "Найдено новое свидетельство о поверке."
+    elif result["stage2_successful"] is False:
+        note = "Новая запись не найдена, сохранена текущая версия свидетельства."
+    else:
+        note = "Актуальная запись подтверждена."
+
+    sentences = [note]
+    if result.get("serial_relaxed"):
+        sentences.append(
+            "Заводской номер в Аршине записан иначе: "
+            f"«{result.get('matched_serial')}» вместо «{result.get('current_serial')}»."
+        )
+    if (result.get("serial_candidates") or 0) > 1:
+        sentences.append(
+            f"Подходящих записей несколько ({result['serial_candidates']}) — "
+            "выберите нужную вручную."
+        )
+    return " ".join(sentences)
 
 
 def _looks_like_esi_detail(raw_payload: dict[str, Any] | None) -> bool:

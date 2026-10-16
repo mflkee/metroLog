@@ -116,16 +116,17 @@ def _is_retryable_arshin_exception(exc: BaseException) -> bool:
 def _map_folder_refresh_row_status(
     *,
     match: FolderRefreshMatchResult,
+    uncertain_update: bool,
     created_manually: bool = False,
 ) -> EquipmentFolderRefreshRowStatus:
     if not match.found:
         return EquipmentFolderRefreshRowStatus.NOT_FOUND
     if created_manually:
-        if match.uncertain_update:
+        if uncertain_update:
             return EquipmentFolderRefreshRowStatus.UPDATED_UNCERTAIN
         return EquipmentFolderRefreshRowStatus.UPDATED
     if match.certificate_updated:
-        if match.uncertain_update:
+        if uncertain_update:
             return EquipmentFolderRefreshRowStatus.UPDATED_UNCERTAIN
         return EquipmentFolderRefreshRowStatus.UPDATED
     return EquipmentFolderRefreshRowStatus.UNCHANGED
@@ -550,7 +551,10 @@ class EquipmentFolderRefreshMixin:
             row.notes = str(exc)
             return row
 
-        row.uncertain_update = match.uncertain_update
+        # A serial that only matched in its digits is a question for the reviewer, exactly
+        # like an update found after loosening the filters.
+        uncertain_update = match.uncertain_update or match.serial_requires_review
+        row.uncertain_update = uncertain_update
         row.stage2_successful = match.stage2_successful
         row.modification_relaxed = match.modification_relaxed
         row.notation_relaxed = match.notation_relaxed
@@ -573,6 +577,7 @@ class EquipmentFolderRefreshMixin:
         )
         row.status = _map_folder_refresh_row_status(
             match=match,
+            uncertain_update=uncertain_update,
             created_manually=(
                 target.equipment.created_manually
                 and target.target_kind

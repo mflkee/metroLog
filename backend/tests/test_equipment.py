@@ -8201,6 +8201,132 @@ async def test_folder_refresh_marks_manual_si_as_updated_and_clears_flags_after_
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("serial_requires_review", "expected_status"),
+    [(True, "UPDATED_UNCERTAIN"), (False, "UPDATED")],
+)
+async def test_folder_refresh_maps_serial_drift_to_the_row(
+    client: AsyncClient,
+    db_engine,
+    monkeypatch: pytest.MonkeyPatch,
+    serial_requires_review: bool,
+    expected_status: str,
+) -> None:
+    """A serial that only matches in its digits has to reach the reviewer as a question."""
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Папка дрейфа номера"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    create_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "СИКН 1520",
+            "equipment_type": "SI",
+            "name": "Весы лабораторные",
+            "modification": "мод. ВЛЭ-6202CI",
+            "serial_number": "418007",
+            "status": "IN_WORK",
+            "created_manually": True,
+            "exclude_from_arshin_refresh": False,
+            "si_verification": {
+                "vri_id": None,
+                "arshin_url": None,
+                "org_title": None,
+                "mit_number": None,
+                "mit_title": "Весы лабораторные",
+                "mit_notation": "ВЛ, ВЛЭ",
+                "mi_number": "418007",
+                "certificate_number": "С-АС/21-07-2025/449195436",
+                "result_docnum": "С-АС/21-07-2025/449195436",
+                "verification_date": "2025-07-21T00:00:00",
+                "valid_date": "2026-07-20T00:00:00",
+                "raw_payload_json": None,
+                "detail_payload_json": None,
+            },
+        },
+    )
+    assert create_response.status_code == 201
+    equipment = create_response.json()
+
+    async def fake_match_si(
+        self: FolderRefreshMatcher,
+        *,
+        current_certificate_number: str,
+        current_verification_date,
+        current_valid_date,
+    ) -> FolderRefreshMatchResult:
+        return FolderRefreshMatchResult(
+            found=True,
+            certificate_updated=False,
+            uncertain_update=False,
+            stage2_successful=True,
+            modification_relaxed=False,
+            notation_relaxed=False,
+            current_certificate_number=current_certificate_number,
+            matched_certificate_number="С-АС/15-07-2026/541666004",
+            matched_registry_number=None,
+            matched_vri_id="1-541666004",
+            matched_arshin_url="https://fgis.gost.ru/fundmetrology/cm/results/1-541666004",
+            matched_verification_date=datetime.fromisoformat("2026-07-15T00:00:00"),
+            matched_valid_date=datetime.fromisoformat("2027-07-14T00:00:00"),
+            payload=SIVerificationCreateRequest(
+                vri_id="1-541666004",
+                arshin_url="https://fgis.gost.ru/fundmetrology/cm/results/1-541666004",
+                org_title='ФБУ "ЯКУТСКИЙ ЦСМ"',
+                mit_number="58760-14",
+                mit_title="Весы лабораторные",
+                mit_notation="ВЛ, ВЛЭ",
+                mi_number="L418007",
+                certificate_number="С-АС/15-07-2026/541666004",
+                result_docnum="С-АС/15-07-2026/541666004",
+                verification_date=datetime.fromisoformat("2026-07-15T00:00:00"),
+                valid_date=datetime.fromisoformat("2027-07-14T00:00:00"),
+                raw_payload_json=None,
+                detail_payload_json=None,
+            ),
+            notes=(
+                "Найдено новое свидетельство о поверке. "
+                "Заводской номер в Аршине записан иначе: «L418007» вместо «418007»."
+            ),
+            serial_relaxed=True,
+            serial_requires_review=serial_requires_review,
+            serial_candidates=1,
+        )
+
+    monkeypatch.setattr(FolderRefreshMatcher, "match_si", fake_match_si)
+
+    task_id = create_folder_refresh_task(
+        db_engine,
+        folder_id=folder["id"],
+        user_email=admin_email,
+    )
+    await process_folder_refresh_task(db_engine, task_id=task_id)
+
+    details_response = await client.get(
+        f"/api/v1/equipment/folders/{folder['id']}/refresh-tasks/{task_id}",
+        headers=headers,
+    )
+    assert details_response.status_code == 200
+    row = details_response.json()["rows"][0]
+
+    assert row["equipment_id"] == equipment["id"]
+    assert row["status"] == expected_status
+    assert row["uncertain_update"] is serial_requires_review
+    assert "записан иначе" in row["notes"]
+    assert row["matched_certificate_number"] == "С-АС/15-07-2026/541666004"
+
+
+@pytest.mark.anyio
 async def test_folder_refresh_retries_target_on_transient_arshin_error(
     client: AsyncClient,
     db_engine,

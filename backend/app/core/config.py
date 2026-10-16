@@ -14,7 +14,10 @@ class Settings(BaseSettings):
     app_env: str = "development"
     api_v1_prefix: str = "/api/v1"
     secret_key: str = "change-me"
-    access_token_ttl_hours: int = 12
+    # Sessions do not expire in any practical sense: people sign in once and stay in (see
+    # metroAuth's README, «Сессии»). Revocation is by turning the account off — checked on
+    # every request — or by rotating the secret key, which ends every session at once.
+    access_token_ttl_hours: int = 87600  # 10 years
     # Unified account registry (metroAccounts). When enabled, credentials are checked there.
     accounts_enabled: bool = False
     accounts_url: str = ""

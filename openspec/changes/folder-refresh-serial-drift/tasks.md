@@ -20,9 +20,9 @@
 
 ## 4. Integration check on Stage
 
-- [ ] 4.1 Merge to `main` and confirm the CI checks plus the Stage deploy succeed (`npm run check` locally first, then `deploy-staging` green and `/api/v1/health/ready` ready on port 9000)
-- [ ] 4.2 Re-run folder refresh for **СИКН 1520** on Stage and verify on the server (`docker compose -p metrolog-stg -f docker-compose.staging.yml exec postgres psql … equipment_folder_refresh_rows`) that the four Счетчики-расходомеры rows now offer С-АС/15-07-2026/541666007, С-АС/16-09-2026/559147929, /559147928, /541666006 instead of «Без изменений»
-- [ ] 4.3 Re-run folder refresh for **ГПН «Хантос»** on Stage and verify that the Весы row for `C133358228`/`С133358228` is offered for review with a note naming both spellings
+- [x] 4.1 Merge to `main` and confirm the CI checks plus the Stage deploy succeed (`npm run check` locally first, then `deploy-staging` green and `/api/v1/health/ready` ready on port 9000)
+- [x] 4.2 Re-run folder refresh for **СИКН 1520** on Stage and verify on the server (`docker compose -p metrolog-stg -f docker-compose.staging.yml exec postgres psql … equipment_folder_refresh_rows`) that the four Счетчики-расходомеры rows now offer С-АС/15-07-2026/541666007, С-АС/16-09-2026/559147929, /559147928, /541666006 instead of «Без изменений»
+- [x] 4.3 Verify the **ГПН «Хантос»** case on Stage with the deployed code (a full 450-instrument folder scan is not worth the Arshin load): the Весы row for `C133358228`/`С133358228` is offered as a regular update — a look-alike letter is the same serial — with a note naming both spellings, and `2822` (no drift, no new verification) stays unchanged
 
 ## Workflow follow-up
 

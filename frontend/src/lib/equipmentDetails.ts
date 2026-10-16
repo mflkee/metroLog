@@ -350,3 +350,91 @@ export function normalizeDisplayDate(value: string | null): string | null {
     year: "numeric",
   }).format(parsed);
 }
+
+// Сверка тождества: поверка в карточке могла быть притянута по одному зав. номеру, а короткие
+// номера (45549, 201003) в Аршине принадлежат сразу нескольким приборам разных типов.
+const INSTRUMENT_STOPWORDS = new Set([
+  "мод",
+  "нет",
+  "модификации",
+  "исполнение",
+  "типа",
+  "для",
+  "из",
+  "на",
+  "по",
+  "the",
+]);
+
+function instrumentStem(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^0-9a-zа-яё]+/gi, " ")
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !INSTRUMENT_STOPWORDS.has(word))
+    .map((word) => word.slice(0, 7))
+    .join(" ");
+}
+
+function instrumentTokens(value: string): Set<string> {
+  return new Set(instrumentStem(value).split(" ").filter(Boolean));
+}
+
+function instrumentOverlap(left: Set<string>, right: Set<string>): number {
+  if (!left.size || !right.size) {
+    return 0;
+  }
+  const shared = [...left].filter((token) => right.has(token)).length;
+  return shared / (left.size + right.size - shared);
+}
+
+function normalizeInstrumentPart(value: string | null | undefined): string {
+  return (value ?? "").toLowerCase().replace(/[^0-9a-zа-яё]+/gi, "");
+}
+
+export type VerificationInstrumentCheck = {
+  equipmentName: string;
+  equipmentModification: string | null;
+  certificateRegistryNumber: string | null;
+  certificateTypeName: string | null;
+  certificateModification: string | null;
+};
+
+/**
+ * Предупреждение, если сохранённое свидетельство похоже на поверку другого прибора.
+ * Модификация — самый точный признак: если она сходится с записанной в свидетельстве,
+ * прибор опознан и предупреждения нет. Иначе сравниваем основу наименований и модификаций.
+ */
+export function findVerificationInstrumentMismatch(
+  input: VerificationInstrumentCheck,
+): string | null {
+  const certificateParts = [
+    input.certificateRegistryNumber,
+    input.certificateTypeName,
+    input.certificateModification ? `мод. ${input.certificateModification}` : null,
+  ].filter((part): part is string => Boolean(part && part.trim()));
+
+  if (!certificateParts.length) {
+    return null;
+  }
+
+  const cardModification = normalizeInstrumentPart(input.equipmentModification);
+  const certificateModification = normalizeInstrumentPart(input.certificateModification);
+  if (
+    cardModification &&
+    certificateModification &&
+    (cardModification === certificateModification ||
+      cardModification.includes(certificateModification) ||
+      certificateModification.includes(cardModification))
+  ) {
+    return null;
+  }
+
+  const cardTokens = instrumentTokens(`${input.equipmentName} ${input.equipmentModification ?? ""}`);
+  const certificateTokens = instrumentTokens(certificateParts.join(" "));
+  if (instrumentOverlap(cardTokens, certificateTokens) >= 0.3) {
+    return null;
+  }
+
+  return `Свидетельство похоже на поверку другого прибора: «${certificateParts.join(" · ")}». Проверьте, тот ли это прибор.`;
+}

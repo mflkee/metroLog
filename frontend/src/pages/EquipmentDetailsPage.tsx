@@ -1,4 +1,4 @@
-import { buildSIReferenceTableRow, extractSiCardDetail, extractYearFromDateValue, normalizeDisplayDate } from "@/lib/equipmentDetails";
+import { buildSIReferenceTableRow, extractSiCardDetail, extractYearFromDateValue, findVerificationInstrumentMismatch, normalizeDisplayDate } from "@/lib/equipmentDetails";
 import { ESICompositionDetailCard, ESICompositionSection, ESIRelatedProfileRow } from "@/components/equipment-details/EsiSections";
 import { SIListSection, SIReferenceTableRow, SIReferenceTableSection, SISection } from "@/components/equipment-details/SiSections";
 import { type ChangeEvent, type FormEvent, type KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -702,6 +702,21 @@ export function EquipmentDetailsPage() {
         ? extractSiCardDetail(equipment.equipmentType, equipment.siVerification)
         : null,
     [equipment?.equipmentType, equipment?.siVerification],
+  );
+  // Поверка могла быть притянута по одному зав. номеру: показываем предупреждение, если тип в
+  // свидетельстве не похож на прибор в карточке. Данные не меняем — решает человек.
+  const siInstrumentWarning = useMemo(
+    () =>
+      equipment && siDetail
+        ? findVerificationInstrumentMismatch({
+            equipmentName: equipment.name,
+            equipmentModification: equipment.modification,
+            certificateRegistryNumber: siDetail.regNumber,
+            certificateTypeName: siDetail.typeName,
+            certificateModification: siDetail.modification,
+          })
+        : null,
+    [equipment, siDetail],
   );
   const esiCompositionRows = useMemo(() => {
     if (equipment?.equipmentType !== "ESI") {
@@ -2444,6 +2459,14 @@ export function EquipmentDetailsPage() {
                             </>
                           ) : (
                             <>
+                              {siInstrumentWarning ? (
+                                <p
+                                  className="tone-parent rounded-3xl tint-warning px-4 py-3 text-sm font-medium text-[var(--warning)]"
+                                  role="status"
+                                >
+                                  {siInstrumentWarning}
+                                </p>
+                              ) : null}
                               <SISection
                                 title="Сведения о результатах поверки СИ"
                                 rows={[

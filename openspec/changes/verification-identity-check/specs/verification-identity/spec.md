@@ -11,8 +11,9 @@ a mismatch is made visible.
 ### Requirement: A serial carried by several instruments is never auto-applied
 
 When the serial of a matched verification is also carried by Arshin instruments belonging to another
-type or modification, the refresh SHALL NOT treat the match as resolved: the row SHALL require
-review and SHALL name the conflicting instruments.
+type or modification, the refresh SHALL NOT treat the match as resolved: the row SHALL be marked as
+requiring review and SHALL name the conflicting instruments. When the refresh also found an update,
+that update SHALL require review instead of being offered as a regular one.
 
 #### Scenario: Short serial shared across types
 
@@ -25,6 +26,12 @@ review and SHALL name the conflicting instruments.
 
 - **WHEN** the only Arshin record with that serial is of the same type and modification as the match
 - **THEN** the row is offered as a regular update
+
+#### Scenario: Nothing newer, but the serial is shared
+
+- **WHEN** the serial is carried by several instruments and no newer verification exists
+- **THEN** the row is marked as requiring review
+- **AND** the note says that the serial belongs to several instruments
 
 ### Requirement: The certificate's instrument is shown on the card
 

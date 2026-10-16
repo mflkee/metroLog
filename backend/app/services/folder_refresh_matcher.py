@@ -147,13 +147,17 @@ class FolderRefreshMatcher:
                 matched_certificate_number
                 != _normalize_certificate_number(current_certificate_number)
             ),
+            # A serial carried by several instruments is a question in itself, even when the
+            # refresh found nothing newer: the stored certificate may be someone else's.
             uncertain_update=bool(
-                stage1_record["certificate_updated"]
-                and (
-                    stage1_record["modification_relaxed"]
-                    or stage1_record["notation_relaxed"]
-                    or stage1_record["serial_requires_review"]
-                    or stage1_record["serial_ambiguous"]
+                stage1_record["serial_ambiguous"]
+                or (
+                    stage1_record["certificate_updated"]
+                    and (
+                        stage1_record["modification_relaxed"]
+                        or stage1_record["notation_relaxed"]
+                        or stage1_record["serial_requires_review"]
+                    )
                 )
             ),
             stage2_successful=stage1_record["stage2_successful"],
@@ -265,13 +269,17 @@ class FolderRefreshMatcher:
                 matched_certificate_number
                 != _normalize_certificate_number(current_certificate_number)
             ),
+            # A serial carried by several instruments is a question in itself, even when the
+            # refresh found nothing newer: the stored certificate may be someone else's.
             uncertain_update=bool(
-                matched_record["certificate_updated"]
-                and (
-                    matched_record["modification_relaxed"]
-                    or matched_record["notation_relaxed"]
-                    or matched_record["serial_requires_review"]
-                    or matched_record["serial_ambiguous"]
+                matched_record["serial_ambiguous"]
+                or (
+                    matched_record["certificate_updated"]
+                    and (
+                        matched_record["modification_relaxed"]
+                        or matched_record["notation_relaxed"]
+                        or matched_record["serial_requires_review"]
+                    )
                 )
             ),
             stage2_successful=matched_record["stage2_successful"],

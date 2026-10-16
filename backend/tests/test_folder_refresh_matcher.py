@@ -519,6 +519,38 @@ async def test_match_si_requires_review_when_several_instruments_share_the_seria
 
 
 @pytest.mark.anyio
+async def test_match_si_asks_for_review_even_when_nothing_is_newer(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A stored certificate of an ambiguous serial must not read as «актуальная запись»."""
+    # Запись чужого прибора старше текущей поверки: обновлять нечего, но зав. № всё равно
+    # принадлежит нескольким приборам.
+    other_instrument = _make_record(
+        vri_id="1-508809244",
+        result_docnum="С-ВУ/10-01-2025/508809244",
+        verification_date="10.01.2025",
+        valid_date="09.01.2026",
+        mi_number=MI_NUMBER,
+        mit_number="56431-14",
+        mit_title="Манометры, вакуумметры и мановакуумметры",
+        mi_modification="МКУ",
+    )
+    _install_drift_arshin(
+        monkeypatch,
+        current_serial=MI_NUMBER,
+        serial_records={MI_NUMBER: [_old_record(), other_instrument]},
+        serial_free_records=[],
+    )
+
+    result = await _match_si()
+
+    assert result.certificate_updated is False
+    assert result.serial_ambiguous is True
+    assert result.uncertain_update is True
+    assert "проверьте, чей это сертификат" in (result.notes or "")
+
+
+@pytest.mark.anyio
 async def test_match_si_keeps_a_unique_serial_confident(monkeypatch: pytest.MonkeyPatch) -> None:
     _install_drift_arshin(
         monkeypatch,

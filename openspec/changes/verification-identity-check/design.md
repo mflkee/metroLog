@@ -58,6 +58,14 @@ instrument — not for targets that found nothing at all. It also runs when the 
 that must not read as «Актуальная запись подтверждена». A folder refresh of 450 instruments pays one
 extra request per instrument that carries a certificate.
 
+### The probe covers shared serials; the card covers contradictions
+
+The probe cannot catch a card whose serial is unique in Arshin but whose certificate is of another
+type (the ХАЛ case `685826`: a pressure calibrator card carrying an electricity-meter certificate,
+whose serial matches the card). There the only signal is the contradiction between the card's
+modification and the certificate's type, which is exactly what the card warning shows. The two
+mechanisms are complementary, and neither rewrites data.
+
 ### The card warning uses the operator-visible anchors
 
 The card compares the verification's type + modification with the card's own modification and name

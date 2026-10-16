@@ -26,6 +26,10 @@ SERIAL_MATCH_NONE = "none"
 # serial match is only considered from four digits up.
 MIN_SERIAL_DIGITS = 4
 
+# One page is enough to see that a serial is shared: the probe only asks whether more than one
+# instrument carries it, not which one is the newest.
+SERIAL_INSTRUMENT_PROBE_MAX_RESULTS = 100
+
 # Latin and Cyrillic letters that are visually identical. A serial typed in the wrong
 # alphabet is the same serial — see the `C133358228` / `С133358228` case.
 _CYRILLIC_TO_LATIN = {
@@ -87,10 +91,13 @@ class FolderRefreshMatchResult:
     payload: SIVerificationCreateRequest | None
     notes: str | None = None
     # The matched record spells the serial differently from the current one, and whether
-    # that difference is only in the digits (which needs a human to confirm).
+    # that difference is only in the digits (which needs a human to confirm). A serial that
+    # Arshin carries for several instruments of different types cannot identify one at all.
     serial_relaxed: bool = False
     serial_requires_review: bool = False
     serial_candidates: int = 0
+    serial_ambiguous: bool = False
+    ambiguous_instruments: tuple[str, ...] = ()
 
 
 class FolderRefreshMatcher:
@@ -146,6 +153,7 @@ class FolderRefreshMatcher:
                     stage1_record["modification_relaxed"]
                     or stage1_record["notation_relaxed"]
                     or stage1_record["serial_requires_review"]
+                    or stage1_record["serial_ambiguous"]
                 )
             ),
             stage2_successful=stage1_record["stage2_successful"],
@@ -163,6 +171,8 @@ class FolderRefreshMatcher:
             serial_relaxed=bool(stage1_record["serial_relaxed"]),
             serial_requires_review=bool(stage1_record["serial_requires_review"]),
             serial_candidates=int(stage1_record["serial_candidates"]),
+            serial_ambiguous=bool(stage1_record["serial_ambiguous"]),
+            ambiguous_instruments=tuple(stage1_record["ambiguous_instruments"]),
         )
 
     async def match_esi(
@@ -261,6 +271,7 @@ class FolderRefreshMatcher:
                     matched_record["modification_relaxed"]
                     or matched_record["notation_relaxed"]
                     or matched_record["serial_requires_review"]
+                    or matched_record["serial_ambiguous"]
                 )
             ),
             stage2_successful=matched_record["stage2_successful"],
@@ -278,6 +289,8 @@ class FolderRefreshMatcher:
             serial_relaxed=bool(matched_record["serial_relaxed"]),
             serial_requires_review=bool(matched_record["serial_requires_review"]),
             serial_candidates=int(matched_record["serial_candidates"]),
+            serial_ambiguous=bool(matched_record["serial_ambiguous"]),
+            ambiguous_instruments=tuple(matched_record["ambiguous_instruments"]),
         )
 
     async def _resolve_latest_vri_candidate(
@@ -392,6 +405,11 @@ class FolderRefreshMatcher:
             include_notation_flag = attempt.notation is not None or attempt.serial_is_variant
             break
 
+        ambiguous_instruments = await self._describe_serial_instruments(
+            serial=mi_number,
+            matched_serial=_normalize_value(chosen_record.get("mi_number")),
+        )
+
         modification_relaxed = bool(has_modification and not include_modification_flag)
         notation_relaxed = bool(has_notation and not include_notation_flag)
         final_result = _map_vri_search_result(chosen_record)
@@ -411,11 +429,61 @@ class FolderRefreshMatcher:
                 ),
                 "serial_requires_review": chosen_serial_match == SERIAL_MATCH_DIGITS_ONLY,
                 "serial_candidates": serial_candidates,
+                "serial_ambiguous": bool(ambiguous_instruments),
+                "ambiguous_instruments": ambiguous_instruments,
                 "current_serial": mi_number,
                 "matched_serial": _normalize_value(chosen_record.get("mi_number")),
             },
             final_result,
         )
+
+    async def _describe_serial_instruments(
+        self,
+        *,
+        serial: str | None,
+        matched_serial: str | None,
+    ) -> list[str]:
+        """Which instruments Arshin carries for this serial.
+
+        A short serial (``45549``, ``201003``) belongs to many instruments of different types, so
+        the serial alone cannot say that a verification is the one on the card. Every distinct
+        instrument found here turns the match into a question for the operator.
+        """
+        spellings: list[str] = []
+        for value in (matched_serial, serial):
+            if value and value not in spellings:
+                spellings.append(value)
+        if not spellings:
+            return []
+
+        signatures: dict[tuple[str, str], str] = {}
+        for spelling in spellings:
+            records = await self.client.search_records(
+                params={"mi_number": spelling},
+                registry_kind=ArshinRegistryKind.SI,
+                max_results=SERIAL_INSTRUMENT_PROBE_MAX_RESULTS,
+            )
+            for record in records:
+                if (
+                    _classify_serial_match(
+                        current=serial or matched_serial,
+                        candidate=_normalize_value(record.get("mi_number")),
+                    )
+                    == SERIAL_MATCH_NONE
+                ):
+                    continue
+                mit_number = _normalize_value(record.get("mit_number")) or ""
+                modification = _normalize_value(record.get("mi_modification")) or ""
+                signature = (mit_number, modification)
+                if signature in signatures:
+                    continue
+                title = _normalize_value(record.get("mit_title")) or ""
+                parts = (mit_number, title)
+                signatures[signature] = " ".join(part for part in parts if part).strip()
+
+        if len(signatures) <= 1:
+            return []
+        return [signatures[key] for key in signatures]
 
     async def _run_stage1_lookup_sequence(
         self,
@@ -959,6 +1027,12 @@ def _build_match_note(result: dict[str, Any]) -> str | None:
         note = "Актуальная запись подтверждена."
 
     sentences = [note]
+    if result.get("serial_ambiguous"):
+        instruments = ", ".join(result.get("ambiguous_instruments") or ())
+        sentences.append(
+            f"Заводской номер в Аршине есть у нескольких приборов ({instruments}) — "
+            "проверьте, чей это сертификат."
+        )
     if result.get("serial_relaxed"):
         sentences.append(
             "Заводской номер в Аршине записан иначе: "

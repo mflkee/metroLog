@@ -484,6 +484,57 @@ async def test_match_esi_matches_module_with_drifted_serial(
 
 
 @pytest.mark.anyio
+async def test_match_si_requires_review_when_several_instruments_share_the_serial(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A short serial belongs to several instruments, so the serial alone cannot confirm a match."""
+    other_instrument = _make_record(
+        vri_id="1-508809244",
+        result_docnum="С-ВУ/27-02-2026/508809244",
+        verification_date="27.02.2026",
+        valid_date="26.02.2028",
+        mi_number=MI_NUMBER,
+        mit_number="56431-14",
+        mit_title="Манометры, вакуумметры и мановакуумметры",
+        mi_modification="МКУ",
+    )
+    _install_drift_arshin(
+        monkeypatch,
+        current_serial=MI_NUMBER,
+        serial_records={MI_NUMBER: [_new_record(), other_instrument]},
+        serial_free_records=[],
+    )
+
+    result = await _match_si()
+
+    assert result.found is True
+    assert result.serial_ambiguous is True
+    assert result.uncertain_update is True
+    assert result.ambiguous_instruments == (
+        "14061-15 Преобразователи давления измерительные",
+        "56431-14 Манометры, вакуумметры и мановакуумметры",
+    )
+    assert "у нескольких приборов" in (result.notes or "")
+    assert "56431-14" in (result.notes or "")
+
+
+@pytest.mark.anyio
+async def test_match_si_keeps_a_unique_serial_confident(monkeypatch: pytest.MonkeyPatch) -> None:
+    _install_drift_arshin(
+        monkeypatch,
+        current_serial=MI_NUMBER,
+        serial_records={MI_NUMBER: [_new_record()]},
+        serial_free_records=[],
+    )
+
+    result = await _match_si()
+
+    assert result.certificate_updated is True
+    assert result.serial_ambiguous is False
+    assert result.uncertain_update is False
+
+
+@pytest.mark.anyio
 async def test_match_si_keeps_current_certificate_when_no_newer_exists(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

@@ -8268,7 +8268,7 @@ async def test_folder_refresh_maps_serial_drift_to_the_row(
         return FolderRefreshMatchResult(
             found=True,
             certificate_updated=False,
-            uncertain_update=False,
+            uncertain_update=serial_requires_review,
             stage2_successful=True,
             modification_relaxed=False,
             notation_relaxed=False,

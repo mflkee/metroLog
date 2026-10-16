@@ -9,12 +9,12 @@
 
 - [x] 2.1 Extend the attempt ladder in `_build_stage2_attempts`/`_resolve_latest_vri_candidate` with the `mi_number`-free attempts from design.md (modification + year, modification only, registry number + title only), keeping today's serial-scoped attempts first — verify with a test where the serial-scoped search returns nothing and only the fallback finds the new record
 - [x] 2.2 Filter fallback results locally with the compatibility rules from group 1, keep the existing "not earlier than the current verification" rule, and rank candidates by class before recency — verify with a test where a digits-only candidate from a foreign instrument is newer than the confident one and the confident one still wins
-- [x] 2.3 Report the match class on `FolderRefreshMatchResult` (`serial_relaxed`, `serial_candidates`) and verify with tests that a normalized-equal match leaves `uncertain_update` false while a digits-only match sets it true and counts the candidates
+- [x] 2.3 Report the match class on `FolderRefreshMatchResult` (`serial_relaxed`, `serial_requires_review`, `serial_candidates`) and verify with tests that a normalized-equal match leaves `uncertain_update` false while a digits-only match sets it true and counts the candidates
 - [x] 2.4 Cover the ESI path with a test that a module whose new record spells the serial differently is matched by the same rules (`match_esi` with the fallback)
 
 ## 3. Row mapping and reviewer-facing diagnostics
 
-- [x] 3.1 Map the new flags in `backend/app/services/equipment_folder_refresh.py` so a digits-only match becomes `UPDATED_UNCERTAIN`, a confident match stays `UPDATED`, and `stage2_successful`/`notes` describe the serial drift with both spellings — verify with a test in `backend/tests/test_equipment.py` asserting the status and the note text for both classes
+- [x] 3.1 Keep the row's status driven by the matcher's `uncertain_update` (which now folds the digits-only review in) so a digits-only match becomes `UPDATED_UNCERTAIN`, a confident match stays `UPDATED`, and `stage2_successful`/`notes` describe the serial drift with both spellings — verify with a test in `backend/tests/test_equipment.py` asserting the status and the note text for both classes
 - [x] 3.2 Extend the matcher note (`_build_match_note`) so the ambiguity case states that several records match the serial, and verify with a test that the note mentions the count
 - [x] 3.3 Document the serial-drift rule and the review requirement in `AGENTS.md` (Arshin integration / folder refresh section) and verify the text names the fallback and the digits-only review rule
 

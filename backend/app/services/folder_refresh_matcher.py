@@ -60,6 +60,9 @@ class _Stage2Attempt:
     serial: str | None
     modification: str | None
     notation: str | None
+    # A variant is a different spelling of the serial recorded in the current verification
+    # (spacing or alphabet), not the recorded value itself.
+    serial_is_variant: bool = False
 
     @property
     def filtered_by_serial(self) -> bool:
@@ -139,7 +142,11 @@ class FolderRefreshMatcher:
             ),
             uncertain_update=bool(
                 stage1_record["certificate_updated"]
-                and (stage1_record["modification_relaxed"] or stage1_record["notation_relaxed"])
+                and (
+                    stage1_record["modification_relaxed"]
+                    or stage1_record["notation_relaxed"]
+                    or stage1_record["serial_requires_review"]
+                )
             ),
             stage2_successful=stage1_record["stage2_successful"],
             modification_relaxed=stage1_record["modification_relaxed"],
@@ -250,7 +257,11 @@ class FolderRefreshMatcher:
             ),
             uncertain_update=bool(
                 matched_record["certificate_updated"]
-                and (matched_record["modification_relaxed"] or matched_record["notation_relaxed"])
+                and (
+                    matched_record["modification_relaxed"]
+                    or matched_record["notation_relaxed"]
+                    or matched_record["serial_requires_review"]
+                )
             ),
             stage2_successful=matched_record["stage2_successful"],
             modification_relaxed=matched_record["modification_relaxed"],
@@ -372,8 +383,13 @@ class FolderRefreshMatcher:
             if selected_candidate is None:
                 continue
             chosen_record, chosen_serial_match, serial_candidates = selected_candidate
-            include_modification_flag = attempt.modification is not None
-            include_notation_flag = attempt.notation is not None
+            # Dropping a filter is what makes a match uncertain. A spelling variant of the
+            # serial is the exception: the instrument is identified by its serial there, and
+            # the modification and notation are dropped only because they drift the same way.
+            include_modification_flag = (
+                attempt.modification is not None or attempt.serial_is_variant
+            )
+            include_notation_flag = attempt.notation is not None or attempt.serial_is_variant
             break
 
         modification_relaxed = bool(has_modification and not include_modification_flag)
@@ -609,26 +625,39 @@ def _build_stage2_attempts(
 
     # A serial drifts between verifications in two structured ways: the spacing around its
     # separators and the alphabet of its look-alike letters. Each variant is still an exact
-    # query, so a hit is the same instrument and needs no review.
+    # query, so a hit is the same instrument and needs no review. The variant is searched
+    # without the other filters: the modification drifts the same way, and narrowing with it
+    # would empty the query.
     for variant in _serial_variants(mi_number):
         attempts.append(
             _Stage2Attempt(
-                year=None, serial=variant, modification=mi_modification, notation=mit_notation
+                year=None,
+                serial=variant,
+                modification=None,
+                notation=None,
+                serial_is_variant=True,
             )
         )
 
     # A letter added to a serial cannot be derived from the old spelling (`418007` vs
     # `L418007`), so the serial has to be dropped and the returned records checked locally.
     # The modification narrows a heavy instrument type to a handful of records — 3 and 23 in
-    # the measured cases — which is what makes these levels usable.
+    # the measured cases — which is what makes these levels usable. Its own spelling variants
+    # are tried because the spacing drifts there too; the notation is kept, because a spelling
+    # variant is not a relaxation of a filter and dropping it would flag every row for review.
     for modification_variant in (mi_modification, *_spacing_variants(mi_modification or "")):
         attempts.append(
             _Stage2Attempt(
-                year=target_year, serial=None, modification=modification_variant, notation=None
+                year=target_year,
+                serial=None,
+                modification=modification_variant,
+                notation=mit_notation,
             )
         )
         attempts.append(
-            _Stage2Attempt(year=None, serial=None, modification=modification_variant, notation=None)
+            _Stage2Attempt(
+                year=None, serial=None, modification=modification_variant, notation=mit_notation
+            )
         )
     attempts.append(_Stage2Attempt(year=target_year, serial=None, modification=None, notation=None))
     attempts.append(_Stage2Attempt(year=None, serial=None, modification=None, notation=None))

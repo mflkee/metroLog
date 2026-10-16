@@ -109,6 +109,15 @@ The local serial check runs on the records each serial-free attempt returns, and
 Attempts that find records **do not** short-circuit the ladder when nothing newer comes back: a
 filter that answers for the old record proves nothing about the new one's spelling.
 
+### The review flag follows how the serial was identified
+
+A row asks for review when the instrument's identity is uncertain, not when narrowing filters were
+dropped: a spelling variant is an exact query, so the modification and notation are dropped there
+only because they drift the same way. Therefore a variant hit does not set the relaxation flags,
+while a digits-only serial match does set the review flag. Matched records found after dropping a
+filter from a query that carried the serial *as recorded* keep the previous behaviour (review), and
+so do the serial-free levels that had to drop the modification.
+
 ### Candidate ranking by precision, then recency
 
 Candidates are grouped by the class above; the best class present wins, and within a class the
@@ -119,12 +128,13 @@ way, so the note can state the ambiguity.
 
 ### Diagnostics on the existing columns, no migration
 
-The match result gains `serial_relaxed`, `serial_requires_review` and `serial_candidates`. The
-service turns the review flag into the row's `uncertain_update` (already mapped to
-`UPDATED_UNCERTAIN`), keeps `stage2_successful = true`, and the matcher's note names both spellings —
-«Заводской номер в Аршине записан иначе: «21202377 - 19011936» вместо «21202377-19011936».» — plus
-the ambiguity sentence when several candidates matched. Adding dedicated columns was rejected:
-nothing consumes them yet, and a migration would turn a one-image deploy into a schema rollout.
+The match result gains `serial_relaxed`, `serial_requires_review` and `serial_candidates`, and it
+folds the review reason into `uncertain_update` — the single flag the service maps to the row
+(`UPDATED_UNCERTAIN`) — so the row keeps `stage2_successful = true` and the matcher's note names both
+spellings — «Заводской номер в Аршине записан иначе: «21202377 - 19011936» вместо
+«21202377-19011936».» — plus the ambiguity sentence when several candidates matched. Adding
+dedicated columns was rejected: nothing consumes them yet, and a migration would turn a one-image
+deploy into a schema rollout.
 
 ## Risks / Trade-offs
 

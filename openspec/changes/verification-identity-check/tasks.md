@@ -9,13 +9,13 @@
 ## 2. Row mapping and Stage check
 
 - [x] 2.1 Let the ambiguity ride the existing review flag (the matcher folds it into `uncertain_update`, which the row maps to `UPDATED_UNCERTAIN` with that note) and verify with the matcher test plus the existing row-mapping test in `backend/tests/test_equipment.py`
-- [ ] 2.2 Re-scan the folders touched by the ХАЛ import on Stage and verify that the cards whose serial is shared (2582, 2718, 2719, 2517, 2470) come back as review rows instead of «Актуальная запись подтверждена»
+- [x] 2.2 Re-scan the folders touched by the ХАЛ import on Stage and verify that the cards whose serial is shared (2582, 2718, 2719, 2517, 2470) come back as review rows instead of «Актуальная запись подтверждена»
 
 ## 3. Card shows the certificate's instrument
 
 - [x] 3.1 Confirm the SI block already renders the certificate's registry number, type and modification (`Сведения о результатах поверки СИ` in `EquipmentDetailsPage.tsx`) — no change needed there
 - [x] 3.2 Add the contradiction helper to `frontend/src/lib/equipmentDetails.ts` (stem-based comparison of the certificate's type + modification against the card's) with a unit test covering `ИВТМ-7М`/«Манометры» (warns) and `МКУ`/«Манометры, мод. МКУ» (quiet)
-- [ ] 3.3 Render the warning in the SI block (done) and verify on Stage that a card with a foreign certificate shows it
+- [x] 3.3 Render the warning in the SI block (done) and verify on Stage that a card with a foreign certificate shows it
 
 ## 4. Documentation
 

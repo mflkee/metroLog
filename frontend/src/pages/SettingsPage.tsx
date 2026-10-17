@@ -631,7 +631,7 @@ export function SettingsPage() {
 
       <div className="tone-parent space-y-4 rounded-3xl border border-line p-5 shadow-panel">
         <SettingsSection
-          description="Папки для аналитики на главной странице и персонально скрытые папки в оборудовании."
+          description="Папки для аналитики на главной странице и персонально скрытые папки — в оборудовании и в списках задач."
           expanded={expandedSections.folders}
           title="Папки"
           onToggle={() => toggleSection("folders")}
@@ -689,14 +689,14 @@ export function SettingsPage() {
             </SettingsSubsectionCard>
 
             <SettingsSubsectionCard
-              description="Эти папки останутся доступными, но не будут показываться в общем списке папок на странице оборудования именно для твоего аккаунта."
+              description="Эти папки останутся доступными, но для твоего аккаунта не будут показываться в разделе «Оборудование» и в списках задач — кроме задач, где ты автор или участник."
               expanded={expandedDashboardCards.hiddenEquipmentFolders}
               summary={
                 hiddenEquipmentFolderIds.length
                   ? `Скрыто папок: ${hiddenEquipmentFolderIds.length}`
                   : "Скрытых папок нет"
               }
-              title="Скрытые папки в разделе «Оборудование»"
+              title="Скрытые папки: оборудование и задачи"
               onToggle={() => toggleDashboardCard("hiddenEquipmentFolders")}
             >
               {foldersQuery.isLoading ? (

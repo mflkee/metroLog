@@ -504,6 +504,11 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 - Access: the folder scope, plus anything the viewer is part of — an invitation outranks the
   folder, so a participant always reads their task; a folder-less task is otherwise operators-only. Mutations are for operators, the author and `RESPONSIBLE`/`ASSIGNEE`
   (the payload carries `can_mutate`, which is what the screens hide controls with).
+- Персонально скрытые папки (`users.hidden_equipment_folder_ids`, «Настройки → Папки») убирают папку
+  не только из раздела «Оборудование», но и **из списков задач**: чужие задачи скрытой папки не
+  показываются (список, доска, виджет «Мои задачи»), а свои — где ты автор или участник — остаются.
+  Это фильтр показа, а не доступ: по прямой ссылке задача открывается, и напоминания работают.
+  Фильтр живёт в `task_repository._apply_filters` (`hidden_folder_ids`), область доступа он не меняет.
 - Board order is **shared**: the column is a team queue, so `tasks.board_order` belongs to the task,
   not to a user. The board asks for `sort=board` (explicitly placed tasks first, then the default
   order, so a new task lands at the end of its column) and reordering is an operator action

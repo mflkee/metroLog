@@ -528,6 +528,42 @@ async def test_match_si_requires_review_when_several_instruments_share_the_seria
 
 
 @pytest.mark.anyio
+async def test_materialize_candidate_takes_exactly_the_picked_record(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Выбранная запись тянется по своему ``vri_id``, а не «последняя по свидетельству»."""
+    _install_drift_arshin(
+        monkeypatch,
+        current_serial=MI_NUMBER,
+        serial_records={MI_NUMBER: [_new_record()]},
+        serial_free_records=[],
+    )
+    matcher = FolderRefreshMatcher()
+
+    payload = await matcher.materialize_candidate(
+        candidate={
+            "vri_id": "1-532624130",
+            "certificate_number": NEW_CERT,
+            "mit_number": MIT_NUMBER,
+            "mit_title": MIT_TITLE,
+            "mit_notation": MIT_NOTATION,
+            "mi_modification": MI_MODIFICATION,
+            "mi_number": MI_NUMBER,
+            "org_title": ORG_TITLE,
+            "verification_date": "2026-06-09",
+            "valid_date": "2031-06-08",
+            "arshin_url": "https://fgis.gost.ru/fundmetrology/cm/results/1-532624130",
+        }
+    )
+
+    assert payload is not None
+    assert payload.vri_id == "1-532624130"
+    assert payload.certificate_number == NEW_CERT
+    assert payload.mi_number == MI_NUMBER
+    assert payload.detail_payload_json is not None
+
+
+@pytest.mark.anyio
 async def test_match_si_asks_for_review_even_when_nothing_is_newer(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

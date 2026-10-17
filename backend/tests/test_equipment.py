@@ -8409,29 +8409,6 @@ async def test_folder_refresh_ambiguous_row_needs_a_picked_candidate(
         current_verification_date,
         current_valid_date,
     ) -> FolderRefreshMatchResult:
-        # Выбор оператора приходит сюда со свидетельством выбранной записи.
-        for picked in (own_candidate, older_candidate):
-            if current_certificate_number == picked["certificate_number"]:
-                return FolderRefreshMatchResult(
-                    found=True,
-                    certificate_updated=True,
-                    uncertain_update=True,
-                    stage2_successful=True,
-                    modification_relaxed=False,
-                    notation_relaxed=False,
-                    current_certificate_number=current_certificate_number,
-                    matched_certificate_number=str(picked["certificate_number"]),
-                    matched_registry_number=None,
-                    matched_vri_id=str(picked["vri_id"]),
-                    matched_arshin_url=str(picked["arshin_url"]),
-                    matched_verification_date=datetime.fromisoformat(
-                        f"{picked['verification_date']}T00:00:00"
-                    ),
-                    matched_valid_date=datetime.fromisoformat(f"{picked['valid_date']}T00:00:00"),
-                    payload=payload_from(picked),
-                    notes="Выбран прибор.",
-                )
-
         # Сканирование: номер принадлежит нескольким приборам, поиск предлагает чужую запись.
         return FolderRefreshMatchResult(
             found=True,
@@ -8460,7 +8437,23 @@ async def test_folder_refresh_ambiguous_row_needs_a_picked_candidate(
             candidates=(own_candidate, stranger_candidate, older_candidate),
         )
 
+    async def fake_materialize_candidate(
+        self: FolderRefreshMatcher,
+        *,
+        candidate: dict,
+    ) -> SIVerificationCreateRequest | None:
+        # Выбор оператора тянет ровно выбранную запись (в жизни — деталь из Аршина по vri_id).
+        for picked in (own_candidate, stranger_candidate, older_candidate):
+            if picked["vri_id"] == candidate.get("vri_id"):
+                return payload_from(picked)
+        return None
+
     monkeypatch.setattr(FolderRefreshMatcher, "match_si", fake_match_si)
+    monkeypatch.setattr(
+        FolderRefreshMatcher,
+        "materialize_candidate",
+        fake_materialize_candidate,
+    )
 
     task_id = create_folder_refresh_task(
         db_engine,

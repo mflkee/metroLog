@@ -349,39 +349,25 @@ class EquipmentFolderRefreshMixin:
             )
         equipment = self.get_equipment(equipment_id=row.equipment_id)
 
-        if row.target_kind == EquipmentFolderRefreshTargetKind.SI:
-            match = await self.folder_refresh_matcher.match_si(
-                current_certificate_number=certificate_number,
-                current_verification_date=row.current_verification_date,
-                current_valid_date=row.current_valid_date,
-            )
-        else:
-            match = await self.folder_refresh_matcher.match_esi(
-                current_certificate_number=certificate_number,
-                current_registry_number=row.target_registry_number,
-                current_verification_date=row.current_verification_date,
-                current_valid_date=row.current_valid_date,
-            )
-        if match.payload is None or match.matched_vri_id is None:
+        si_payload = await self.folder_refresh_matcher.materialize_candidate(candidate=candidate)
+        if si_payload is None:
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Аршин не отдал данные по выбранной записи, попробуйте ещё раз.",
             )
 
-        row.matched_vri_id = match.matched_vri_id
-        row.matched_arshin_url = _normalize_long_optional_text(match.matched_arshin_url)
-        row.matched_registry_number = _normalize_optional_text(
-            match.matched_registry_number or match.payload.result_docnum
-        )
-        row.matched_certificate_number = _normalize_optional_text(match.matched_certificate_number)
-        row.matched_verification_date = match.matched_verification_date
+        row.matched_vri_id = _normalize_optional_text(si_payload.vri_id)
+        row.matched_arshin_url = _normalize_long_optional_text(si_payload.arshin_url)
+        row.matched_registry_number = _normalize_optional_text(si_payload.result_docnum)
+        row.matched_certificate_number = _normalize_optional_text(si_payload.certificate_number)
+        row.matched_verification_date = si_payload.verification_date
         row.matched_valid_date = _resolve_equipment_si_valid_date(
             manual_interval_months=equipment.manual_verification_interval_months,
-            verification_date=match.matched_verification_date,
-            fallback_valid_date=match.matched_valid_date,
+            verification_date=si_payload.verification_date,
+            fallback_valid_date=si_payload.valid_date,
         )
-        row.matched_payload_json = match.payload.model_dump(mode="json")
-        row.picked_candidate_vri_id = match.matched_vri_id
+        row.matched_payload_json = si_payload.model_dump(mode="json")
+        row.picked_candidate_vri_id = si_payload.vri_id
         row.notes = self._build_picked_candidate_note(candidate)
         self.session.commit()
         self.session.refresh(row)

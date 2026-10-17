@@ -451,6 +451,37 @@ class FolderRefreshMatcher:
             final_result,
         )
 
+    async def materialize_candidate(
+        self,
+        *,
+        candidate: dict[str, Any],
+    ) -> SIVerificationCreateRequest | None:
+        """Собрать запись Аршина по кандидату, которого выбрал оператор.
+
+        Тянется ровно та запись, что выбрана (по её ``vri_id``), а не «последняя по этому
+        свидетельству»: выбор человека не должен подменяться другой поверкой.
+        """
+        vri_id = _normalize_value(candidate.get("vri_id"))
+        if not vri_id:
+            return None
+        detail = await self.arshin.get_vri_detail(vri_id=vri_id)
+        search_result = ArshinSearchResultRead(
+            vri_id=vri_id,
+            arshin_url=_normalize_value(candidate.get("arshin_url")),
+            org_title=_normalize_value(candidate.get("org_title")),
+            mit_number=_normalize_value(candidate.get("mit_number")),
+            mit_title=_normalize_value(candidate.get("mit_title")),
+            mit_notation=_normalize_value(candidate.get("mit_notation")),
+            mi_modification=_normalize_value(candidate.get("mi_modification")),
+            mi_number=_normalize_value(candidate.get("mi_number")),
+            result_docnum=_normalize_value(candidate.get("certificate_number")),
+            applicability=None,
+            verification_date=_coerce_datetime(candidate.get("verification_date")),
+            valid_date=_coerce_datetime(candidate.get("valid_date")),
+            raw_payload_json=None,
+        )
+        return _build_si_payload(search_result=search_result, detail=detail)
+
     async def _collect_serial_candidates(
         self,
         *,

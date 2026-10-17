@@ -2,20 +2,28 @@ import { markdown } from "@codemirror/lang-markdown";
 import { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
 
-import { activeLineNumbers, planMarkdownDecorations, type MarkdownDecoration } from "@/lib/markdownLivePreview";
+import {
+  planMarkdownDecorations,
+  selectionRanges,
+  type MarkdownDecoration,
+} from "@/lib/markdownLivePreview";
 
 function plan(doc: string, caret = 0): MarkdownDecoration[] {
   const anchor = Math.max(0, Math.min(caret, doc.length));
   const state = EditorState.create({ doc, extensions: [markdown()], selection: { anchor } });
-  return planMarkdownDecorations(state, [{ from: 0, to: doc.length }], activeLineNumbers(state));
+  return planMarkdownDecorations(state, [{ from: 0, to: doc.length }], selectionRanges(state));
 }
 
 function hidden(plan_: MarkdownDecoration[]): string[] {
   return plan_.filter((item) => item.kind === "hide").map((item) => item.from + ".." + item.to);
 }
 
+function bullets(plan_: MarkdownDecoration[]): number {
+  return plan_.filter((item) => item.kind === "widget").length;
+}
+
 describe("живой предпросмотр Markdown", () => {
-  it("заголовок получает строчное оформление, а пометка `#` скрывается на неактивной строке", () => {
+  it("заголовок оформляется сразу, а пометка `#` скрыта, пока курсор не в ней", () => {
     const result = plan("# Заголовок\n\nтекст", 15);
 
     expect(
@@ -24,8 +32,8 @@ describe("живой предпросмотр Markdown", () => {
     expect(hidden(result)).toContain("0..1");
   });
 
-  it("на строке с курсором разметка остаётся видимой", () => {
-    const result = plan("# Заголовок", 3);
+  it("пометка под курсором раскрывается, чтобы её можно было править", () => {
+    const result = plan("# Заголовок", 0);
 
     expect(result.some((item) => item.kind === "line" && item.className === "cm-md-h1")).toBe(true);
     expect(hidden(result)).not.toContain("0..1");
@@ -41,21 +49,26 @@ describe("живой предпросмотр Markdown", () => {
     expect(hidden(result)).toEqual(["3..5", "11..13"]);
   });
 
-  it("у пункта списка пометка заменяется точкой, а не исчезает", () => {
-    const doc = "- первый\n- второй\n\nтекст";
-    const list = plan(doc, doc.length);
+  it("точка у пункта списка видна сразу, даже когда курсор в этой же строке", () => {
+    const doc = "- первый пункт";
+    const result = plan(doc, doc.length);
 
-    const bullets = list.filter((item) => item.kind === "widget");
-    expect(bullets).toHaveLength(2);
-    expect(bullets[0].className).toBe("• ");
-    expect(hidden(list)).toHaveLength(0);
+    expect(bullets(result)).toBe(1);
+    expect(hidden(result)).toHaveLength(0);
+  });
+
+  it("пометка пункта под курсором показывается как есть", () => {
+    const doc = "- первый пункт";
+    const result = plan(doc, 0);
+
+    expect(bullets(result)).toBe(0);
   });
 
   it("у нумерованного списка номер остаётся видимым", () => {
     const doc = "1. первый\n\nтекст";
     const list = plan(doc, doc.length);
 
-    expect(list.some((item) => item.kind === "widget")).toBe(false);
+    expect(bullets(list)).toBe(0);
     expect(hidden(list)).toHaveLength(0);
   });
 

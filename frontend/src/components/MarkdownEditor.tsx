@@ -22,8 +22,8 @@ import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import type { AutocompleteSuggestion } from "@/components/AutocompleteTextarea";
 import {
   LIST_BULLET_TEXT,
-  activeLineNumbers,
   planMarkdownDecorations,
+  selectionRanges,
   type MarkdownDecoration,
 } from "@/lib/markdownLivePreview";
 
@@ -52,7 +52,7 @@ type MarkdownEditorProps = {
 };
 
 function decorationsFor(view: EditorView): DecorationSet {
-  const plan = planMarkdownDecorations(view.state, view.visibleRanges, activeLineNumbers(view.state));
+  const plan = planMarkdownDecorations(view.state, view.visibleRanges, selectionRanges(view.state));
   const builder = new RangeSetBuilder<Decoration>();
   for (const item of plan) {
     builder.add(item.from, item.to, decorationFor(item));

@@ -4,8 +4,9 @@ import type { EditorState } from "@codemirror/state";
 
 /**
  * Живой предпросмотр Markdown: строка получает оформление прямо во время набора, а пометки
- * разметки (`#`, `**`, `-`, `>`) скрыты на строках, которые сейчас не редактируются — как в
- * Obsidian. Линия с курсором показывает разметку как есть, чтобы её можно было править.
+ * разметки (`#`, `**`, `-`, `>`) скрыты — точка у пункта списка видна сразу, а не только в
+ * отправленном сообщении. Разметка раскрывается только там, где стоит курсор (или выделение):
+ * поставил каретку рядом с пометкой — она снова видна и её можно править — как в Obsidian.
  *
  * Планирование декораций вынесено в чистую функцию: она работает от синтаксического дерева
  * состояния, без DOM, и её можно проверить тестом.
@@ -60,22 +61,19 @@ export const LIST_BULLET_TEXT = "• ";
 
 type Range = { from: number; to: number };
 
-export function activeLineNumbers(state: EditorState): Set<number> {
-  const lines = new Set<number>();
-  for (const range of state.selection.ranges) {
-    const from = state.doc.lineAt(range.from).number;
-    const to = state.doc.lineAt(range.to).number;
-    for (let line = from; line <= to; line += 1) {
-      lines.add(line);
-    }
-  }
-  return lines;
+/** Диапазоны выделения: разметка под курсором раскрывается, чтобы её можно было править. */
+export function selectionRanges(state: EditorState): Range[] {
+  return state.selection.ranges.map((range) => ({ from: range.from, to: range.to }));
+}
+
+function selectionTouches(ranges: readonly Range[], from: number, to: number): boolean {
+  return ranges.some((range) => range.from <= to && range.to >= from);
 }
 
 export function planMarkdownDecorations(
   state: EditorState,
   ranges: readonly Range[],
-  activeLines: Set<number>,
+  selection: readonly Range[],
 ): MarkdownDecoration[] {
   const plan: MarkdownDecoration[] = [];
   // Разбор запрашиваем сразу: без этого дерево готово только после простоя и первый кадр был бы
@@ -114,7 +112,7 @@ export function planMarkdownDecorations(
           }
         }
 
-        if (MARKER_NODE_NAMES.has(node.name) && !activeLines.has(line.number)) {
+        if (MARKER_NODE_NAMES.has(node.name) && !selectionTouches(selection, node.from, node.to)) {
           // Пометку списка не «выкидываем», а показываем точкой: иначе строка читается как
           // обычный текст, и точка появлялась только в отправленном сообщении. У нумерованного
           // списка пометка — это номер, его оставляем как есть.

@@ -47,7 +47,10 @@ import {
   uploadEquipmentCommentDraftAttachment,
   updateEquipment } from "@/api/equipment";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
-import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import {
+  AutocompleteTextarea,
+  type AutocompleteTextareaHandle,
+} from "@/components/AutocompleteTextarea";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { DateInput } from "@/components/DateInput";
 import { Select } from "@/components/ui/select";
@@ -64,7 +67,7 @@ import { useEquipmentArshinEsi } from "@/hooks/useEquipmentArshinEsi";
 import { useEquipmentProcessActions } from "@/hooks/useEquipmentProcessActions";
 import { invalidateEquipmentRegistryQueries } from "@/lib/equipmentQueries";
 import { Switch } from "@/components/ui/switch";
-import { MentionText } from "@/components/MentionText";
+import { MarkdownText } from "@/components/MarkdownText";
 import { Modal } from "@/components/Modal";
 import { NumberInput } from "@/components/NumberInput";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
@@ -160,12 +163,12 @@ export function EquipmentDetailsPage() {
   const [downloadingCommentAttachmentId, setDownloadingCommentAttachmentId] = useState<number | null>(null);
   const [commentsExpanded, setCommentsExpanded] = useState(false);
   const [siExpanded, setSiExpanded] = useState(false);
-  const commentInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const repairMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const verificationMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const editCommentInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const editRepairMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const editVerificationMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const commentInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const repairMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const verificationMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const editCommentInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const editRepairMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const editVerificationMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
   const canManage = hasOperatorAccess(user?.role);
   const targetCommentId = Number(searchParams.get("commentId") ?? "");
   const [flashingCommentId, setFlashingCommentId] = useState<number | null>(null);
@@ -1841,9 +1844,7 @@ export function EquipmentDetailsPage() {
                               </div>
                             </form>
                           ) : message.text ? (
-                            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                              <MentionText text={message.text} />
-                            </p>
+                            <MarkdownText className="mt-2 break-words text-sm leading-6 text-ink" text={message.text} />
                           ) : null}
                           <AttachmentPreviewList
                             attachments={message.attachments}
@@ -2200,9 +2201,7 @@ export function EquipmentDetailsPage() {
                               </div>
                             </form>
                           ) : message.text ? (
-                            <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                              <MentionText text={message.text} />
-                            </p>
+                            <MarkdownText className="mt-2 break-words text-sm leading-6 text-ink" text={message.text} />
                           ) : null}
                           <AttachmentPreviewList
                             attachments={message.attachments}
@@ -2946,9 +2945,7 @@ export function EquipmentDetailsPage() {
                               </div>
                             </form>
                           ) : comment.text.trim() ? (
-                            <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                              <MentionText text={comment.text} />
-                            </p>
+                            <MarkdownText className="mt-1 break-words text-sm leading-6 text-ink" text={comment.text} />
                           ) : null}
                           <AttachmentPreviewList
                             attachments={comment.attachments}

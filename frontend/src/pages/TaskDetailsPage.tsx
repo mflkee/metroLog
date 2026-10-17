@@ -30,7 +30,10 @@ import {
   type TaskStatus,
 } from "@/api/tasks";
 import { fetchMentionUsers } from "@/api/users";
-import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import {
+  AutocompleteTextarea,
+  type AutocompleteTextareaHandle,
+} from "@/components/AutocompleteTextarea";
 import { Select } from "@/components/ui/select";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { DateInput } from "@/components/DateInput";
@@ -38,7 +41,7 @@ import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/icon-action-button";
-import { MentionText } from "@/components/MentionText";
+import { MarkdownText } from "@/components/MarkdownText";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import { PrivateNoteBadge, PrivateNoteToggleButton } from "@/components/PrivateNoteControls";
 import { EquipmentPickerModal } from "@/components/EquipmentPickerModal";
@@ -105,7 +108,7 @@ export function TaskDetailsPage() {
   const [messageToDeleteId, setMessageToDeleteId] = useState<number | null>(null);
   const [attachmentToDelete, setAttachmentToDelete] = useState<TaskAttachment | null>(null);
 
-  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
   const messageFilesInputRef = useRef<HTMLInputElement | null>(null);
   const attachmentFilesInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -416,7 +419,7 @@ export function TaskDetailsPage() {
               ) : null}
             </div>
             {task.description ? (
-              <p className="whitespace-pre-wrap text-sm text-ink">{task.description}</p>
+              <MarkdownText className="text-ink" text={task.description} />
             ) : (
               <p className="text-sm text-steel">Описание не задано.</p>
             )}
@@ -503,9 +506,7 @@ export function TaskDetailsPage() {
                     ) : null}
                   </div>
                   {message.text ? (
-                    <p className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 text-ink">
-                      <MentionText text={message.text} />
-                    </p>
+                    <MarkdownText className="mt-1 break-words text-sm leading-6 text-ink" text={message.text} />
                   ) : null}
                   <AttachmentPreviewList
                     attachments={message.attachments}

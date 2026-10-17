@@ -13,4 +13,6 @@
  */
 @import "tailwindcss";
 @import "../metro-theme.css";
+/* Markdown-текст и живой предпросмотр — наши классы поверх темы флота. */
+@import "./markdown.css";
 @config "../../tailwind.config.ts";

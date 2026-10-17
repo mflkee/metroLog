@@ -52,7 +52,10 @@ import {
 } from "@/api/equipment";
 import { updateProfile } from "@/api/auth";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
-import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import {
+  AutocompleteTextarea,
+  type AutocompleteTextareaHandle,
+} from "@/components/AutocompleteTextarea";
 import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
@@ -256,8 +259,8 @@ export function EquipmentPage() {
   const [selectedEquipmentIds, setSelectedEquipmentIds] = useState<number[]>([]);
   const [equipmentPage, setEquipmentPage] = useState(1);
   const [sortState, setSortState] = useState<EquipmentSortState | null>(null);
-  const repairInitialMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const verificationInitialMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const repairInitialMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const verificationInitialMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
   const repairInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const verificationInitialFilesInputRef = useRef<HTMLInputElement | null>(null);
   const deferredSearchQuery = useDeferredValue(searchQuery);

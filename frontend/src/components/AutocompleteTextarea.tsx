@@ -1,24 +1,6 @@
-import {
-  type ComponentPropsWithoutRef,
-  type FocusEvent,
-  type KeyboardEvent as ReactKeyboardEvent,
-  forwardRef,
-  useEffect,
-  useId,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { forwardRef, type ComponentPropsWithoutRef } from "react";
 
-import {
-  type FloatingAutocompleteMenuPlacement,
-  FloatingAutocompleteMenu,
-} from "@/components/floating-autocomplete-menu";
-import {
-  applyAutocompleteSuggestion,
-  getAutocompleteTokenContext,
-  rankAutocompleteSuggestions,
-} from "@/lib/autocomplete";
+import { MarkdownEditor, type MarkdownEditorHandle } from "@/components/MarkdownEditor";
 
 export type AutocompleteSuggestion =
   | string
@@ -26,6 +8,8 @@ export type AutocompleteSuggestion =
     value: string;
     label: string;
   };
+
+export type AutocompleteTextareaHandle = MarkdownEditorHandle;
 
 type AutocompleteTextareaProps = Omit<
   ComponentPropsWithoutRef<"textarea">,
@@ -37,255 +21,50 @@ type AutocompleteTextareaProps = Omit<
   maxSuggestions?: number;
 };
 
-export const AutocompleteTextarea = forwardRef<HTMLTextAreaElement, AutocompleteTextareaProps>(
+/**
+ * Поле человеческого текста: комментарии, сообщения, описание задачи.
+ *
+ * Внутри — Markdown-редактор с живым предпросмотром (см. `MarkdownEditor`), а подсказки
+ * `@упоминаний` открываются по `@` и вставляют значение. Проп `onInput` больше не нужен (редактор
+ * растёт сам), но принимается, чтобы формы не пришлось переписывать: он не вызывается.
+ */
+export const AutocompleteTextarea = forwardRef<AutocompleteTextareaHandle, AutocompleteTextareaProps>(
   function AutocompleteTextarea(
     {
       className,
+      maxLength,
       maxSuggestions = 8,
-      onBlur,
       onChange,
-      onFocus,
+      onInput,
       onKeyDown,
+      placeholder,
+      rows,
       suggestions,
       value,
       ...props
     },
     ref,
   ) {
-    const listboxId = useId();
-    const containerRef = useRef<HTMLDivElement | null>(null);
-    const menuRef = useRef<HTMLDivElement | null>(null);
-    const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-    const [open, setOpen] = useState(false);
-    const [highlightedIndex, setHighlightedIndex] = useState(-1);
-
-    const caretPosition = textareaRef.current?.selectionStart ?? value.length;
-    const normalizedSuggestions = useMemo(
-      () =>
-        Array.from(
-          new Map(
-            suggestions
-              .map((suggestion) =>
-                typeof suggestion === "string"
-                  ? { value: suggestion, label: suggestion }
-                  : suggestion
-              )
-              .map((suggestion) => [suggestion.value, suggestion]),
-          ).values(),
-        ),
-      [suggestions],
-    );
-    const tokenContext = useMemo(
-      () => getAutocompleteTokenContext(value, caretPosition),
-      [caretPosition, value],
-    );
-    const filteredSuggestions = useMemo(
-      () =>
-        tokenContext.token.trim()
-          ? rankAutocompleteSuggestions(
-            normalizedSuggestions.map((suggestion) => suggestion.value),
-            tokenContext.token,
-          )
-            .slice(0, maxSuggestions)
-            .map((rankedValue) =>
-              normalizedSuggestions.find((suggestion) => suggestion.value === rankedValue),
-            )
-            .filter((suggestion): suggestion is { value: string; label: string } => Boolean(suggestion))
-          : [],
-      [maxSuggestions, normalizedSuggestions, tokenContext.token],
-    );
-
-    useEffect(() => {
-      if (!open) {
-        return;
-      }
-      setHighlightedIndex((current) => {
-        if (!filteredSuggestions.length) {
-          return -1;
-        }
-        if (current < 0 || current >= filteredSuggestions.length) {
-          return 0;
-        }
-        return current;
-      });
-    }, [filteredSuggestions.length, open]);
-
-    useEffect(() => {
-      function handlePointerDown(event: MouseEvent) {
-        const targetNode = event.target as Node;
-        if (
-          containerRef.current?.contains(targetNode)
-          || menuRef.current?.contains(targetNode)
-        ) {
-          return;
-        }
-        setOpen(false);
-        setHighlightedIndex(-1);
-      }
-
-      document.addEventListener("mousedown", handlePointerDown);
-      return () => {
-        document.removeEventListener("mousedown", handlePointerDown);
-      };
-    }, []);
-
-    function assignTextareaRef(node: HTMLTextAreaElement | null) {
-      textareaRef.current = node;
-      if (typeof ref === "function") {
-        ref(node);
-        return;
-      }
-      if (ref) {
-        ref.current = node;
-      }
-    }
-
-    function handleSelect(nextValue: string) {
-      const selectionStart = textareaRef.current?.selectionStart ?? value.length;
-      const selectionEnd = textareaRef.current?.selectionEnd ?? selectionStart;
-      const currentContext = getAutocompleteTokenContext(value, selectionStart);
-      const replacement = applyAutocompleteSuggestion(
-        value,
-        currentContext.start,
-        Math.max(currentContext.end, selectionEnd),
-        nextValue,
-      );
-      onChange(replacement.nextValue);
-      setOpen(false);
-      setHighlightedIndex(-1);
-      requestAnimationFrame(() => {
-        if (!textareaRef.current) {
-          return;
-        }
-        textareaRef.current.focus();
-        textareaRef.current.setSelectionRange(replacement.nextCaret, replacement.nextCaret);
-      });
-    }
-
-    function handleFocus(event: FocusEvent<HTMLTextAreaElement>) {
-      if (filteredSuggestions.length > 0) {
-        setOpen(true);
-      }
-      onFocus?.(event);
-    }
-
-    function handleBlur(event: FocusEvent<HTMLTextAreaElement>) {
-      const nextFocusedNode = event.relatedTarget;
-      if (
-        nextFocusedNode
-        && (
-          containerRef.current?.contains(nextFocusedNode)
-          || menuRef.current?.contains(nextFocusedNode)
-        )
-      ) {
-        onBlur?.(event);
-        return;
-      }
-      setOpen(false);
-      setHighlightedIndex(-1);
-      onBlur?.(event);
-    }
-
-    function handleKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>) {
-      if (event.key === "ArrowDown" && filteredSuggestions.length) {
-        event.preventDefault();
-        setOpen(true);
-        setHighlightedIndex((current) =>
-          current < filteredSuggestions.length - 1 ? current + 1 : 0,
-        );
-        return;
-      }
-
-      if (event.key === "ArrowUp" && filteredSuggestions.length) {
-        event.preventDefault();
-        setOpen(true);
-        setHighlightedIndex((current) =>
-          current > 0 ? current - 1 : filteredSuggestions.length - 1,
-        );
-        return;
-      }
-
-      if ((event.key === "Enter" || event.key === "Tab") && open && highlightedIndex >= 0) {
-        event.preventDefault();
-        handleSelect(filteredSuggestions[highlightedIndex].value);
-        return;
-      }
-
-      if (event.key === "Escape" && open) {
-        event.preventDefault();
-        setOpen(false);
-        setHighlightedIndex(-1);
-        return;
-      }
-
-      onKeyDown?.(event);
-    }
-
-    function renderSuggestions(placement: FloatingAutocompleteMenuPlacement) {
-      const orderedSuggestions = filteredSuggestions.map((suggestion, index) => ({
-        index,
-        suggestion,
-      }));
-
-      if (placement === "top") {
-        orderedSuggestions.reverse();
-      }
-
-      return orderedSuggestions.map(({ index, suggestion }) => (
-        <button
-          key={suggestion.value}
-          aria-selected={highlightedIndex === index}
-          className={[
-            "autocomplete-input__option",
-            highlightedIndex === index ? "autocomplete-input__option--active" : "",
-          ]
-            .filter(Boolean)
-            .join(" ")}
-          role="option"
-          tabIndex={-1}
-          type="button"
-          onMouseDown={(event) => {
-            event.preventDefault();
-            handleSelect(suggestion.value);
-          }}
-          onMouseEnter={() => setHighlightedIndex(index)}
-        >
-          {suggestion.label}
-        </button>
-      ));
-    }
+    void onInput;
+    void props;
 
     return (
-      <div className="autocomplete-input" ref={containerRef}>
-        <textarea
-          {...props}
-          aria-autocomplete="list"
-          aria-controls={open && filteredSuggestions.length ? listboxId : undefined}
-          aria-expanded={open && filteredSuggestions.length > 0}
-          className={className}
-          ref={assignTextareaRef}
-          value={value}
-          onBlur={handleBlur}
-          onChange={(event) => {
-            onChange(event.target.value);
-            setOpen(true);
-          }}
-          onFocus={handleFocus}
-          onKeyDown={handleKeyDown}
-        />
-
-        {open && filteredSuggestions.length ? (
-          <FloatingAutocompleteMenu
-            anchorRef={containerRef}
-            id={listboxId}
-            layoutKey={`${value}\0${filteredSuggestions.map((suggestion) => suggestion.value).join("\0")}`}
-            menuRef={menuRef}
-            open={open}
-          >
-            {renderSuggestions}
-          </FloatingAutocompleteMenu>
-        ) : null}
-      </div>
+      <MarkdownEditor
+        ariaLabel={props["aria-label"]}
+        className={className}
+        disabled={props.disabled}
+        maxLength={typeof maxLength === "number" ? maxLength : undefined}
+        maxSuggestions={maxSuggestions}
+        minHeight={typeof rows === "number" ? rows * 24 : undefined}
+        onBlur={undefined}
+        onChange={onChange}
+        onFocus={undefined}
+        onKeyDown={onKeyDown ? (event) => onKeyDown(event as never) : undefined}
+        placeholder={typeof placeholder === "string" ? placeholder : undefined}
+        ref={ref}
+        suggestions={suggestions}
+        value={value}
+      />
     );
   },
 );

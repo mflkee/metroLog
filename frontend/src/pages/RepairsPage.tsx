@@ -43,7 +43,10 @@ import {
 import { fetchMentionUsers } from "@/api/users";
 import { AutocompleteInput } from "@/components/AutocompleteInput";
 import { Select } from "@/components/ui/select";
-import { AutocompleteTextarea } from "@/components/AutocompleteTextarea";
+import {
+  AutocompleteTextarea,
+  type AutocompleteTextareaHandle,
+} from "@/components/AutocompleteTextarea";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
 import { Icon } from "@/components/Icon";
@@ -51,7 +54,7 @@ import { IconActionButton } from "@/components/icon-action-button";
 import { IconActionLink } from "@/components/IconActionLink";
 import { AttachmentPreviewList } from "@/components/AttachmentPreviewList";
 import { PaginationControls } from "@/components/PaginationControls";
-import { MentionText } from "@/components/MentionText";
+import { MarkdownText } from "@/components/MarkdownText";
 import { PendingAttachmentList } from "@/components/PendingAttachmentList";
 import {
   ProcessStageActions,
@@ -596,8 +599,8 @@ function RepairQueueRow({
   const [downloadingArchive, setDownloadingArchive] = useState(false);
   const [messageToDeleteId, setMessageToDeleteId] = useState<number | null>(null);
   const isArchived = lifecycleStatus === "archived";
-  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const editMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const editMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const textSuggestions = useMemo(
@@ -1474,7 +1477,7 @@ function RepairQueueRow({
                           </div>
                         </form>
                       ) : message.text ? (
-                        <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink"><MentionText text={message.text} /></p>
+                        <MarkdownText className="mt-2 break-words text-sm leading-6 text-ink" text={message.text} />
                       ) : null}
 
                       <AttachmentPreviewList
@@ -1656,8 +1659,8 @@ function RepairBatchCard({
   const [pendingMembershipEquipmentId, setPendingMembershipEquipmentId] = useState<number | null>(
     null,
   );
-  const messageInputRef = useRef<HTMLTextAreaElement | null>(null);
-  const editMessageInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const messageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
+  const editMessageInputRef = useRef<AutocompleteTextareaHandle | null>(null);
   const filesInputRef = useRef<HTMLInputElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const textSuggestions = useMemo(
@@ -2806,7 +2809,7 @@ function RepairBatchCard({
                         </div>
                       </form>
                     ) : message.text ? (
-                      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-ink"><MentionText text={message.text} /></p>
+                      <MarkdownText className="mt-2 break-words text-sm leading-6 text-ink" text={message.text} />
                     ) : null}
 
                     <AttachmentPreviewList
@@ -3828,7 +3831,11 @@ function emptyToNull(value: string | null | undefined): string | null {
   return normalized ? normalized : null;
 }
 
-function resizeTextarea(element: HTMLTextAreaElement) {
+function resizeTextarea(element: HTMLTextAreaElement | { focus: () => void } | null) {
+  // Markdown-редактор растёт сам, высоту ему задавать не нужно
+  if (!element || !("style" in element)) {
+    return;
+  }
   element.style.height = "0px";
   element.style.height = `${element.scrollHeight}px`;
 }

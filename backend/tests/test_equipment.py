@@ -8369,6 +8369,21 @@ async def test_folder_refresh_ambiguous_row_needs_a_picked_candidate(
     )
 
     def payload_from(candidate_row: dict[str, object]) -> SIVerificationCreateRequest:
+        detail = {
+            "miInfo": {
+                "singleMI": {
+                    "mitypeNumber": candidate_row["mit_number"],
+                    "mitypeTitle": candidate_row["mit_title"],
+                    "manufactureNum": candidate_row["mi_number"],
+                }
+            },
+            "vriInfo": {
+                "organization": candidate_row["org_title"],
+                "vrfDate": candidate_row["verification_date"],
+                "validDate": candidate_row["valid_date"],
+                "applicable": {"certNum": candidate_row["certificate_number"]},
+            },
+        }
         return SIVerificationCreateRequest(
             vri_id=str(candidate_row["vri_id"]),
             arshin_url=str(candidate_row["arshin_url"]),
@@ -8383,6 +8398,8 @@ async def test_folder_refresh_ambiguous_row_needs_a_picked_candidate(
                 f"{candidate_row['verification_date']}T00:00:00"
             ),
             valid_date=datetime.fromisoformat(f"{candidate_row['valid_date']}T00:00:00"),
+            raw_payload_json=detail,
+            detail_payload_json=detail,
         )
 
     async def fake_match_si(

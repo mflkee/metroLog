@@ -18,4 +18,4 @@
 ## 4. Documentation and Stage check
 
 - [x] 4.1 Record the rule in `AGENTS.md` (tasks: a personally hidden folder hides foreign tasks, own tasks stay)
-- [ ] 4.2 On Stage: hide a folder for a test user, verify the foreign task is hidden in «Задачи» and in «Мои задачи», while the user's own task in the same folder stays visible, and the task opens by its link
+- [x] 4.2 On Stage: hide a folder for a test user, verify the foreign task is hidden in «Задачи» and in «Мои задачи», while the user's own task in the same folder stays visible, and the task opens by its link

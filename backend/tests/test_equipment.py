@@ -1604,6 +1604,77 @@ async def test_operator_can_sort_equipment_registry_page_server_side(
 
 
 @pytest.mark.anyio
+async def test_registry_default_order_follows_equipment_sort_order(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    """Порядок без выбранной колонки — `sort_order`, а нули остаются «сначала новые»."""
+    from sqlalchemy import update
+
+    from app.models.equipment import Equipment
+
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Порядок реестра"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    created_ids: list[int] = []
+    for index in (1, 2, 3):
+        response = await client.post(
+            "/api/v1/equipment",
+            headers=headers,
+            json={
+                "folder_id": folder["id"],
+                "object_name": "СИКН 1520",
+                "equipment_type": "OTHER",
+                "name": f"Прибор #{index}",
+                "status": "IN_WORK",
+            },
+        )
+        assert response.status_code == 201
+        created_ids.append(response.json()["id"])
+
+    # без явного порядка нули сортируются как раньше — сначала добавленные позже
+    default_response = await client.get(
+        f"/api/v1/equipment/page?folder_id={folder['id']}&limit=10&offset=0",
+        headers=headers,
+    )
+    assert default_response.status_code == 200
+    assert [item["name"] for item in default_response.json()["items"]] == [
+        "Прибор #3",
+        "Прибор #2",
+        "Прибор #1",
+    ]
+
+    # порядок как в графике ТО: первый прибор объекта — первым в реестре
+    testing_session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    with testing_session() as session:
+        for place, equipment_id in enumerate(created_ids, start=1):
+            session.execute(
+                update(Equipment).where(Equipment.id == equipment_id).values(sort_order=place * 10)
+            )
+        session.commit()
+
+    ordered_response = await client.get(
+        f"/api/v1/equipment/page?folder_id={folder['id']}&limit=10&offset=0",
+        headers=headers,
+    )
+    assert ordered_response.status_code == 200
+    assert [item["name"] for item in ordered_response.json()["items"]] == [
+        "Прибор #1",
+        "Прибор #2",
+        "Прибор #3",
+    ]
+
+
+@pytest.mark.anyio
 async def test_operator_can_export_filtered_equipment_registry_to_excel(
     client: AsyncClient,
     db_engine,

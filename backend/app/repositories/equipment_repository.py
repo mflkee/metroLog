@@ -451,7 +451,11 @@ class EquipmentRepository:
             )
 
         if sort_key is None:
-            return statement.order_by(Equipment.created_at.desc(), Equipment.id.desc())
+            return statement.order_by(
+                Equipment.sort_order.asc(),
+                Equipment.created_at.desc(),
+                Equipment.id.desc(),
+            )
 
         sort_expression = self._build_equipment_sort_expression(sort_key=sort_key)
         if sort_key in {"manufactureYear", "validFrom", "validTo"}:
@@ -500,7 +504,11 @@ class EquipmentRepository:
             status=status,
             equipment_type=equipment_type,
             allowed_folder_ids=allowed_folder_ids,
-        ).order_by(Equipment.created_at.desc(), Equipment.id.desc())
+        ).order_by(
+            Equipment.sort_order.asc(),
+            Equipment.created_at.desc(),
+            Equipment.id.desc(),
+        )
         equipment_ids_in_order = list(self.session.scalars(equipment_id_statement))
         return self._list_by_ids_in_order(equipment_ids_in_order)
 

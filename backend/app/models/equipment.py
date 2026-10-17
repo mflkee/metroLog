@@ -192,6 +192,9 @@ class Equipment(Base):
     )
     created_manually: Mapped[bool] = mapped_column(nullable=False, default=False)
     exclude_from_arshin_refresh: Mapped[bool] = mapped_column(nullable=False, default=False)
+    # Порядок прибора в реестре, когда колонка не выбрана явно (0 = как раньше: сначала новые).
+    # Так реестр можно выстроить по графику ТО: основные приборы сверху, ТЛ и прочее ниже.
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     current_location_manual: Mapped[str | None] = mapped_column(String(255), nullable=True)
     compliance_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     compliance_interval_months: Mapped[int | None] = mapped_column(Integer, nullable=True)

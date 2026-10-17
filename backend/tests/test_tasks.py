@@ -1022,3 +1022,84 @@ async def test_customer_cannot_reorder_the_board(client: AsyncClient, db_engine)
         json={"task_ids": [task["id"]]},
     )
     assert response.status_code == 403
+
+
+@pytest.mark.anyio
+async def test_hidden_folder_hides_foreign_tasks_but_not_own(
+    client: AsyncClient, db_engine
+) -> None:
+    """Скрытая папка убирает из списков чужие задачи, но не свои и не задачи без папки."""
+    email, password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=email, password=password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+    admin_id = (await current_user(client, admin["access_token"]))["id"]
+
+    folder = await create_folder(client, admin["access_token"], "Задачи: скрытая папка")
+    user = await create_user(
+        client,
+        admin_token=admin["access_token"],
+        email="hidden@example.test",
+        role="MKAIR",
+        allowed_folder_ids=[folder["id"]],
+    )
+    user_id = user["user"]["id"]
+    login = await login_user(client, email="hidden@example.test", password="TestPass123")
+    headers = {"Authorization": f"Bearer {login['access_token']}"}
+
+    async def create_task(payload: dict) -> dict:
+        response = await client.post("/api/v1/tasks", headers=admin_headers, json=payload)
+        assert response.status_code == 201, response.text
+        return response.json()
+
+    foreign = await create_task(
+        {"folder_id": folder["id"], "title": "Чужая задача", "responsible_user_id": admin_id}
+    )
+    await create_task(
+        {"folder_id": folder["id"], "title": "Моя задача", "responsible_user_id": user_id}
+    )
+    # задача без папки видна тому, кто в ней участвует (иначе она операторам в списке не видна)
+    await create_task({"title": "Задача без папки", "responsible_user_id": user_id})
+
+    async def titles(headers_to_use: dict, query: str = "") -> set[str]:
+        response = await client.get(f"/api/v1/tasks{query}", headers=headers_to_use)
+        assert response.status_code == 200, response.text
+        return {item["title"] for item in response.json()["items"]}
+
+    # пока папка не скрыта, пользователь с доступом видит её задачи
+    assert "Чужая задача" in await titles(headers)
+
+    hidden = await client.patch(
+        "/api/v1/auth/me",
+        headers=headers,
+        json={"hidden_equipment_folder_ids": [folder["id"]]},
+    )
+    assert hidden.status_code == 200, hidden.text
+
+    visible = await titles(headers)
+    assert "Чужая задача" not in visible, "чужая задача скрытой папки не должна показываться"
+    assert "Моя задача" in visible, "своя задача (ответственный) должна остаться"
+    assert "Задача без папки" in visible, "задача без папки скрытым фильтром не затрагивается"
+
+    # автор тоже видит свою задачу в скрытой папке
+    authored = await client.post(
+        "/api/v1/tasks",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "title": "Задача пользователя",
+            "responsible_user_id": admin_id,
+        },
+    )
+    assert authored.status_code == 201, authored.text
+    assert "Задача пользователя" in await titles(headers)
+
+    # «Мои задачи» на главной: своя задача в скрытой папке на месте
+    assert "Моя задача" in await titles(headers, f"?responsible_user_id={user_id}")
+
+    # скрытие не отбирает доступ: задача открывается по ссылке
+    detail = await client.get(f"/api/v1/tasks/{foreign['id']}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["title"] == "Чужая задача"
+
+    # у другого пользователя папка не скрыта — он видит задачу
+    assert "Чужая задача" in await titles(admin_headers)

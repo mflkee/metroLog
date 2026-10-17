@@ -77,6 +77,7 @@ class TaskRepository:
         statement,
         *,
         allowed_folder_ids: set[int] | None = None,
+        hidden_folder_ids: set[int] | None = None,
         viewer_user_id: int | None = None,
         folder_id: int | None = None,
         statuses: list[TaskStatus] | None = None,
@@ -102,6 +103,19 @@ class TaskRepository:
             statement = statement.where(
                 or_(
                     folder_scope,
+                    Task.created_by_user_id == viewer_user_id,
+                    _participant_exists(viewer_user_id),
+                )
+            )
+
+        # Personally hidden folders keep their tasks out of the lists, but never hide a task the
+        # viewer can act on: their own (author) or one they take part in. A task without a folder
+        # has nothing to hide by.
+        if hidden_folder_ids:
+            statement = statement.where(
+                or_(
+                    Task.folder_id.is_(None),
+                    Task.folder_id.not_in(sorted(hidden_folder_ids)),
                     Task.created_by_user_id == viewer_user_id,
                     _participant_exists(viewer_user_id),
                 )
@@ -191,6 +205,7 @@ class TaskRepository:
         self,
         *,
         allowed_folder_ids: set[int] | None = None,
+        hidden_folder_ids: set[int] | None = None,
         viewer_user_id: int | None = None,
         folder_id: int | None = None,
         statuses: list[TaskStatus] | None = None,
@@ -211,6 +226,7 @@ class TaskRepository:
         filtered_ids = self._apply_filters(
             select(Task.id),
             allowed_folder_ids=allowed_folder_ids,
+            hidden_folder_ids=hidden_folder_ids,
             viewer_user_id=viewer_user_id,
             folder_id=folder_id,
             statuses=statuses,

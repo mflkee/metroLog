@@ -115,6 +115,12 @@ class TaskService:
 
     # ------------------------------------------------------------------ access
 
+    def _hidden_folder_ids(self) -> set[int] | None:
+        """Folders the viewer hid for themselves; they filter the task lists, not the access."""
+        user = self.access_user
+        hidden = getattr(user, "hidden_equipment_folder_ids", None) if user is not None else None
+        return set(hidden) if hidden else None
+
     def _accessible_folder_ids(self) -> set[int] | None:
         return get_user_allowed_folder_ids(self.access_user)
 
@@ -390,7 +396,8 @@ class TaskService:
         allowed_folder_ids = self._accessible_folder_ids()
         tasks, total = self.tasks.list_page(
             allowed_folder_ids=allowed_folder_ids,
-            viewer_user_id=None if allowed_folder_ids is None else self.access_user.id,
+            hidden_folder_ids=self._hidden_folder_ids(),
+            viewer_user_id=getattr(self.access_user, "id", None),
             folder_id=folder_id,
             statuses=statuses,
             priorities=priorities,

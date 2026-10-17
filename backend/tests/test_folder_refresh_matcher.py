@@ -514,8 +514,17 @@ async def test_match_si_requires_review_when_several_instruments_share_the_seria
         "14061-15 Преобразователи давления измерительные",
         "56431-14 Манометры, вакуумметры и мановакуумметры",
     )
-    assert "у нескольких приборов" in (result.notes or "")
-    assert "56431-14" in (result.notes or "")
+    note = result.notes or ""
+    # Примечание говорит, сколько приборов носят номер, и не вываливает их типы.
+    assert "у 2 приборов" in note
+    assert "56431-14" not in note
+
+    candidates = {candidate["vri_id"]: candidate for candidate in result.candidates}
+    assert set(candidates) == {"1-532624130", "1-508809244"}
+    assert candidates["1-508809244"]["certificate_number"] == "С-ВУ/27-02-2026/508809244"
+    assert candidates["1-508809244"]["org_title"] == ORG_TITLE
+    assert candidates["1-508809244"]["verification_date"] == "2026-02-27"
+    assert candidates["1-532624130"]["certificate_number"] == NEW_CERT
 
 
 @pytest.mark.anyio
@@ -547,7 +556,7 @@ async def test_match_si_asks_for_review_even_when_nothing_is_newer(
     assert result.certificate_updated is False
     assert result.serial_ambiguous is True
     assert result.uncertain_update is True
-    assert "проверьте, чей это сертификат" in (result.notes or "")
+    assert "выберите нужный" in (result.notes or "")
 
 
 @pytest.mark.anyio

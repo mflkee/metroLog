@@ -226,6 +226,22 @@ class EquipmentFolderRefreshTaskRead(BaseModel):
     updated_at: datetime
 
 
+class EquipmentFolderRefreshCandidateRead(BaseModel):
+    """Запись Аршина, найденная по заводскому номеру карточки (вариант для выбора оператором)."""
+
+    vri_id: str
+    mit_number: str | None = None
+    mit_title: str | None = None
+    mit_notation: str | None = None
+    mi_modification: str | None = None
+    mi_number: str | None = None
+    certificate_number: str | None = None
+    org_title: str | None = None
+    verification_date: str | None = None
+    valid_date: str | None = None
+    arshin_url: str | None = None
+
+
 class EquipmentFolderRefreshRowRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -252,6 +268,13 @@ class EquipmentFolderRefreshRowRead(BaseModel):
     modification_relaxed: bool | None = None
     notation_relaxed: bool | None = None
     notes: str | None = None
+    serial_ambiguous: bool = False
+    candidates: list[EquipmentFolderRefreshCandidateRead] | None = Field(
+        default=None,
+        validation_alias="candidates_json",
+        serialization_alias="candidates",
+    )
+    picked_candidate_vri_id: str | None = None
     matched_vri_id: str | None = None
     matched_arshin_url: str | None = None
     matched_registry_number: str | None = None
@@ -273,6 +296,12 @@ class EquipmentFolderRefreshTaskStartRequest(BaseModel):
 
 class EquipmentFolderRefreshApplyRequest(BaseModel):
     row_ids: list[int]
+
+
+class EquipmentFolderRefreshCandidatePickRequest(BaseModel):
+    """Выбор оператором записи Аршина, которая относится к прибору карточки."""
+
+    vri_id: str = Field(min_length=1, max_length=255)
 
 
 class EquipmentFolderRefreshApplyRowResultRead(BaseModel):

@@ -44,6 +44,8 @@ from app.schemas.equipment import (
     EquipmentFolderRead,
     EquipmentFolderRefreshApplyRequest,
     EquipmentFolderRefreshApplyResultRead,
+    EquipmentFolderRefreshCandidatePickRequest,
+    EquipmentFolderRefreshRowRead,
     EquipmentFolderRefreshTaskDetailsRead,
     EquipmentFolderRefreshTaskRead,
     EquipmentFolderRefreshTaskStartRequest,
@@ -434,6 +436,27 @@ async def apply_folder_refresh_task_rows(
     return _equipment_service(db, current_user).apply_folder_refresh_rows(
         folder_id=folder_id,
         task_id=task_id,
+        payload=payload,
+        current_user=current_user,
+    )
+
+
+@router.post(
+    "/folders/{folder_id}/refresh-tasks/{task_id}/rows/{row_id}/candidate",
+    response_model=EquipmentFolderRefreshRowRead,
+)
+async def pick_folder_refresh_candidate(
+    folder_id: int,
+    task_id: int,
+    row_id: int,
+    payload: EquipmentFolderRefreshCandidatePickRequest,
+    current_user: OperatorUser,
+    db: DbSession,
+) -> EquipmentFolderRefreshRowRead:
+    return await _equipment_service(db, current_user).pick_folder_refresh_candidate(
+        folder_id=folder_id,
+        task_id=task_id,
+        row_id=row_id,
         payload=payload,
         current_user=current_user,
     )

@@ -72,6 +72,20 @@ type RawEquipmentFolderRefreshTask = {
   updated_at: string;
 };
 
+type RawEquipmentFolderRefreshCandidate = {
+  vri_id: string;
+  mit_number: string | null;
+  mit_title: string | null;
+  mit_notation: string | null;
+  mi_modification: string | null;
+  mi_number: string | null;
+  certificate_number: string | null;
+  org_title: string | null;
+  verification_date: string | null;
+  valid_date: string | null;
+  arshin_url: string | null;
+};
+
 type RawEquipmentFolderRefreshRow = {
   id: number;
   task_id: number;
@@ -96,6 +110,9 @@ type RawEquipmentFolderRefreshRow = {
   modification_relaxed: boolean | null;
   notation_relaxed: boolean | null;
   notes: string | null;
+  serial_ambiguous: boolean;
+  candidates: RawEquipmentFolderRefreshCandidate[] | null;
+  picked_candidate_vri_id: string | null;
   matched_vri_id: string | null;
   matched_arshin_url: string | null;
   matched_registry_number: string | null;
@@ -183,6 +200,20 @@ export type EquipmentFolderRefreshRowStatus =
 
 export type EquipmentFolderRefreshTargetKind = "SI" | "ESI" | "ESI_INTERNAL" | "ESI_EXTERNAL";
 
+export type EquipmentFolderRefreshCandidate = {
+  vriId: string;
+  mitNumber: string | null;
+  mitTitle: string | null;
+  mitNotation: string | null;
+  miModification: string | null;
+  miNumber: string | null;
+  certificateNumber: string | null;
+  orgTitle: string | null;
+  verificationDate: string | null;
+  validDate: string | null;
+  arshinUrl: string | null;
+};
+
 export type EquipmentFolderRefreshTask = {
   id: number;
   folderId: number;
@@ -223,6 +254,9 @@ export type EquipmentFolderRefreshRow = {
   modificationRelaxed: boolean | null;
   notationRelaxed: boolean | null;
   notes: string | null;
+  serialAmbiguous: boolean;
+  candidates: EquipmentFolderRefreshCandidate[];
+  pickedCandidateVriId: string | null;
   matchedVriId: string | null;
   matchedArshinUrl: string | null;
   matchedRegistryNumber: string | null;
@@ -336,6 +370,26 @@ export async function fetchFolderRefreshTaskDetails(
     task: mapEquipmentFolderRefreshTask(response.task),
     rows: response.rows.map(mapEquipmentFolderRefreshRow),
   };
+}
+
+export async function pickFolderRefreshCandidate(
+  token: string,
+  folderId: number,
+  taskId: number,
+  rowId: number,
+  vriId: string,
+): Promise<EquipmentFolderRefreshRow> {
+  const response = await apiRequest<RawEquipmentFolderRefreshRow>(
+    `/equipment/folders/${folderId}/refresh-tasks/${taskId}/rows/${rowId}/candidate`,
+    {
+      method: "POST",
+      token,
+      body: {
+        vri_id: vriId,
+      },
+    },
+  );
+  return mapEquipmentFolderRefreshRow(response);
 }
 
 export async function applyFolderRefreshRows(
@@ -552,6 +606,21 @@ function mapEquipmentFolderRefreshRow(
     modificationRelaxed: row.modification_relaxed,
     notationRelaxed: row.notation_relaxed,
     notes: row.notes,
+    serialAmbiguous: row.serial_ambiguous,
+    candidates: (row.candidates ?? []).map((candidate) => ({
+      vriId: candidate.vri_id,
+      mitNumber: candidate.mit_number,
+      mitTitle: candidate.mit_title,
+      mitNotation: candidate.mit_notation,
+      miModification: candidate.mi_modification,
+      miNumber: candidate.mi_number,
+      certificateNumber: candidate.certificate_number,
+      orgTitle: candidate.org_title,
+      verificationDate: candidate.verification_date,
+      validDate: candidate.valid_date,
+      arshinUrl: candidate.arshin_url,
+    })),
+    pickedCandidateVriId: row.picked_candidate_vri_id,
     matchedVriId: row.matched_vri_id,
     matchedArshinUrl: row.matched_arshin_url,
     matchedRegistryNumber: row.matched_registry_number,

@@ -98,6 +98,9 @@ class FolderRefreshMatchResult:
     serial_candidates: int = 0
     serial_ambiguous: bool = False
     ambiguous_instruments: tuple[str, ...] = ()
+    # Records Arshin carries for this serial, so the operator can pick the one on the card
+    # instead of reading a list of type numbers in the note.
+    candidates: tuple[dict[str, Any], ...] = ()
 
 
 class FolderRefreshMatcher:
@@ -177,6 +180,7 @@ class FolderRefreshMatcher:
             serial_candidates=int(stage1_record["serial_candidates"]),
             serial_ambiguous=bool(stage1_record["serial_ambiguous"]),
             ambiguous_instruments=tuple(stage1_record["ambiguous_instruments"]),
+            candidates=tuple(stage1_record.get("candidates") or ()),
         )
 
     async def match_esi(
@@ -299,6 +303,7 @@ class FolderRefreshMatcher:
             serial_candidates=int(matched_record["serial_candidates"]),
             serial_ambiguous=bool(matched_record["serial_ambiguous"]),
             ambiguous_instruments=tuple(matched_record["ambiguous_instruments"]),
+            candidates=tuple(matched_record.get("candidates") or ()),
         )
 
     async def _resolve_latest_vri_candidate(
@@ -413,7 +418,7 @@ class FolderRefreshMatcher:
             include_notation_flag = attempt.notation is not None or attempt.serial_is_variant
             break
 
-        ambiguous_instruments = await self._describe_serial_instruments(
+        candidates, ambiguous_instruments = await self._collect_serial_candidates(
             serial=mi_number,
             matched_serial=_normalize_value(chosen_record.get("mi_number")),
         )
@@ -437,34 +442,37 @@ class FolderRefreshMatcher:
                 ),
                 "serial_requires_review": chosen_serial_match == SERIAL_MATCH_DIGITS_ONLY,
                 "serial_candidates": serial_candidates,
-                "serial_ambiguous": bool(ambiguous_instruments),
+                "serial_ambiguous": len(ambiguous_instruments) > 1,
                 "ambiguous_instruments": ambiguous_instruments,
+                "candidates": candidates,
                 "current_serial": mi_number,
                 "matched_serial": _normalize_value(chosen_record.get("mi_number")),
             },
             final_result,
         )
 
-    async def _describe_serial_instruments(
+    async def _collect_serial_candidates(
         self,
         *,
         serial: str | None,
         matched_serial: str | None,
-    ) -> list[str]:
-        """Which instruments Arshin carries for this serial.
+    ) -> tuple[list[dict[str, Any]], list[str]]:
+        """What Arshin carries for this serial: the records themselves, and the instruments.
 
-        A short serial (``45549``, ``201003``) belongs to many instruments of different types, so
-        the serial alone cannot say that a verification is the one on the card. Every distinct
-        instrument found here turns the match into a question for the operator.
+        A short serial (``45549``, ``201003``, ``841``) belongs to many instruments of different
+        types, so the serial alone cannot say that a verification is the one on the card. The
+        records are kept so the operator can pick the right one; the instrument labels are kept so
+        the row can say how many instruments share the number.
         """
         spellings: list[str] = []
         for value in (matched_serial, serial):
             if value and value not in spellings:
                 spellings.append(value)
         if not spellings:
-            return []
+            return [], []
 
-        signatures: dict[tuple[str, str], str] = {}
+        instruments: dict[tuple[str, str], str] = {}
+        candidates: dict[str, dict[str, Any]] = {}
         for spelling in spellings:
             records = await self.client.search_records(
                 params={"mi_number": spelling},
@@ -483,15 +491,29 @@ class FolderRefreshMatcher:
                 mit_number = _normalize_value(record.get("mit_number")) or ""
                 modification = _normalize_value(record.get("mi_modification")) or ""
                 signature = (mit_number, modification)
-                if signature in signatures:
+                if signature not in instruments:
+                    title = _normalize_value(record.get("mit_title")) or ""
+                    instruments[signature] = " ".join(
+                        part for part in (mit_number, title) if part
+                    ).strip()
+                result = _map_vri_search_result(record)
+                if result is None or result.vri_id in candidates:
                     continue
-                title = _normalize_value(record.get("mit_title")) or ""
-                parts = (mit_number, title)
-                signatures[signature] = " ".join(part for part in parts if part).strip()
+                candidates[result.vri_id] = {
+                    "vri_id": result.vri_id,
+                    "mit_number": result.mit_number,
+                    "mit_title": result.mit_title,
+                    "mit_notation": result.mit_notation,
+                    "mi_modification": result.mi_modification,
+                    "mi_number": result.mi_number,
+                    "certificate_number": result.result_docnum,
+                    "org_title": result.org_title,
+                    "verification_date": _serialize_day(result.verification_date),
+                    "valid_date": _serialize_day(result.valid_date),
+                    "arshin_url": result.arshin_url,
+                }
 
-        if len(signatures) <= 1:
-            return []
-        return [signatures[key] for key in signatures]
+        return list(candidates.values()), [instruments[key] for key in instruments]
 
     async def _run_stage1_lookup_sequence(
         self,
@@ -1004,6 +1026,11 @@ def _coerce_datetime_string(value: str | None) -> datetime | None:
     return _coerce_datetime(value)
 
 
+def _serialize_day(value: datetime | None) -> str | None:
+    """День в виде `YYYY-MM-DD` для хранения среди кандидатов строки обновления."""
+    return value.date().isoformat() if value is not None else None
+
+
 def _extract_applicability(value: Any) -> bool | None:
     if isinstance(value, bool):
         return value
@@ -1036,10 +1063,9 @@ def _build_match_note(result: dict[str, Any]) -> str | None:
 
     sentences = [note]
     if result.get("serial_ambiguous"):
-        instruments = ", ".join(result.get("ambiguous_instruments") or ())
+        instruments = result.get("ambiguous_instruments") or ()
         sentences.append(
-            f"Заводской номер в Аршине есть у нескольких приборов ({instruments}) — "
-            "проверьте, чей это сертификат."
+            f"Заводской номер в Аршине есть у {len(instruments)} приборов — выберите нужный."
         )
     if result.get("serial_relaxed"):
         sentences.append(
@@ -1049,7 +1075,7 @@ def _build_match_note(result: dict[str, Any]) -> str | None:
     if (result.get("serial_candidates") or 0) > 1:
         sentences.append(
             f"Подходящих записей несколько ({result['serial_candidates']}) — "
-            "выберите нужную вручную."
+            "выберите нужную в списке."
         )
     return " ".join(sentences)
 

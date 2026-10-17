@@ -30,6 +30,7 @@ from app.schemas.equipment import (
     EquipmentFolderRefreshApplyRequest,
     EquipmentFolderRefreshApplyResultRead,
     EquipmentFolderRefreshApplyRowResultRead,
+    EquipmentFolderRefreshCandidatePickRequest,
     EquipmentFolderRefreshRowRead,
     EquipmentFolderRefreshTaskDetailsRead,
     EquipmentFolderRefreshTaskRead,
@@ -304,6 +305,104 @@ class EquipmentFolderRefreshMixin:
                 self.session.commit()
             raise
 
+    async def pick_folder_refresh_candidate(
+        self,
+        *,
+        folder_id: int,
+        task_id: int,
+        row_id: int,
+        payload: EquipmentFolderRefreshCandidatePickRequest,
+        current_user: User,
+    ) -> EquipmentFolderRefreshRow:
+        """Запомнить, какую запись Аршина оператор считает своей.
+
+        Заводской номер карточки может принадлежать нескольким приборам в Аршине, поэтому
+        строку нельзя применить, пока человек не выбрал запись. Выбранная запись тянется из
+        Аршина целиком (как при сканировании) и кладётся в строку — применение пишет её.
+        """
+        task = self._get_folder_refresh_task(folder_id=folder_id, task_id=task_id)
+        row = self.folder_refresh_rows.get_by_task_id_and_id(task_id=task.id, row_id=row_id)
+        if row is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Строка обновления не найдена.",
+            )
+
+        candidate = next(
+            (
+                item
+                for item in (row.candidates_json or [])
+                if isinstance(item, dict) and item.get("vri_id") == payload.vri_id
+            ),
+            None,
+        )
+        if candidate is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Такой записи нет среди найденных по заводскому номеру этой карточки.",
+            )
+        certificate_number = _normalize_optional_text(candidate.get("certificate_number"))
+        if certificate_number is None:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="У выбранной записи нет номера свидетельства.",
+            )
+        equipment = self.get_equipment(equipment_id=row.equipment_id)
+
+        if row.target_kind == EquipmentFolderRefreshTargetKind.SI:
+            match = await self.folder_refresh_matcher.match_si(
+                current_certificate_number=certificate_number,
+                current_verification_date=row.current_verification_date,
+                current_valid_date=row.current_valid_date,
+            )
+        else:
+            match = await self.folder_refresh_matcher.match_esi(
+                current_certificate_number=certificate_number,
+                current_registry_number=row.target_registry_number,
+                current_verification_date=row.current_verification_date,
+                current_valid_date=row.current_valid_date,
+            )
+        if match.payload is None or match.matched_vri_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail="Аршин не отдал данные по выбранной записи, попробуйте ещё раз.",
+            )
+
+        row.matched_vri_id = match.matched_vri_id
+        row.matched_arshin_url = _normalize_long_optional_text(match.matched_arshin_url)
+        row.matched_registry_number = _normalize_optional_text(
+            match.matched_registry_number or match.payload.result_docnum
+        )
+        row.matched_certificate_number = _normalize_optional_text(match.matched_certificate_number)
+        row.matched_verification_date = match.matched_verification_date
+        row.matched_valid_date = _resolve_equipment_si_valid_date(
+            manual_interval_months=equipment.manual_verification_interval_months,
+            verification_date=match.matched_verification_date,
+            fallback_valid_date=match.matched_valid_date,
+        )
+        row.matched_payload_json = match.payload.model_dump(mode="json")
+        row.picked_candidate_vri_id = match.matched_vri_id
+        row.notes = self._build_picked_candidate_note(candidate)
+        self.session.commit()
+        self.session.refresh(row)
+        return row
+
+    @staticmethod
+    def _build_picked_candidate_note(candidate: dict) -> str:
+        parts = [
+            _normalize_optional_text(candidate.get("mit_title")),
+            _normalize_optional_text(candidate.get("mi_modification")),
+        ]
+        instrument = " · ".join(part for part in parts if part) or "прибор без наименования"
+        certificate = _normalize_optional_text(candidate.get("certificate_number"))
+        laboratory = _normalize_optional_text(candidate.get("org_title"))
+        note = f"Выбран прибор: {instrument}"
+        if certificate:
+            note += f", свидетельство {certificate}"
+        if laboratory:
+            note += f", {laboratory}"
+        return f"{note}."
+
     def apply_folder_refresh_rows(
         self,
         *,
@@ -557,6 +656,8 @@ class EquipmentFolderRefreshMixin:
         row.modification_relaxed = match.modification_relaxed
         row.notation_relaxed = match.notation_relaxed
         row.notes = match.notes
+        row.serial_ambiguous = match.serial_ambiguous
+        row.candidates_json = list(match.candidates) if match.serial_ambiguous else None
         row.matched_vri_id = match.matched_vri_id
         row.matched_arshin_url = _normalize_long_optional_text(match.matched_arshin_url)
         row.matched_registry_number = _normalize_optional_text(
@@ -652,6 +753,36 @@ class EquipmentFolderRefreshMixin:
                 composition_entry_id=row.composition_entry_id,
                 applied=False,
                 message="Для этой строки нет данных обновления.",
+            )
+
+        # Заводской номер принадлежит нескольким приборам Аршина — пока оператор не сказал,
+        # чей это сертификат, применять нечего.
+        if row.serial_ambiguous and row.picked_candidate_vri_id is None:
+            return EquipmentFolderRefreshApplyRowResultRead(
+                row_id=row.id,
+                equipment_id=row.equipment_id,
+                composition_entry_id=row.composition_entry_id,
+                applied=False,
+                message=(
+                    "Заводской номер в Аршине есть у нескольких приборов — "
+                    "выберите, чей это сертификат."
+                ),
+            )
+
+        # Выбор делается после сканирования, поэтому правило «не старше текущей поверки»
+        # проверяется здесь ещё раз.
+        if (
+            row.picked_candidate_vri_id is not None
+            and row.matched_verification_date is not None
+            and row.current_verification_date is not None
+            and row.matched_verification_date.date() < row.current_verification_date.date()
+        ):
+            return EquipmentFolderRefreshApplyRowResultRead(
+                row_id=row.id,
+                equipment_id=row.equipment_id,
+                composition_entry_id=row.composition_entry_id,
+                applied=False,
+                message="Выбранная запись поверена раньше текущей — обновление не применяется.",
             )
 
         si_payload = SIVerificationCreateRequest.model_validate(row.matched_payload_json)

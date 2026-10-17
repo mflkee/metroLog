@@ -775,6 +775,12 @@ class EquipmentFolderRefreshRow(Base):
     modification_relaxed: Mapped[bool | None] = mapped_column(nullable=True)
     notation_relaxed: Mapped[bool | None] = mapped_column(nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Serial ambiguity: the number belongs to several instruments in Arshin, so the operator has
+    # to say which record is the one on the card. The candidates are the records found for the
+    # serial; the picked one is what the apply writes.
+    serial_ambiguous: Mapped[bool] = mapped_column(nullable=False, default=False)
+    candidates_json: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    picked_candidate_vri_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     matched_vri_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     matched_arshin_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     matched_registry_number: Mapped[str | None] = mapped_column(String(255), nullable=True)

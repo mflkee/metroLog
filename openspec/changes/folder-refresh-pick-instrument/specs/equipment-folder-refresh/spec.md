@@ -13,9 +13,9 @@ types, and the operator has to say which Arshin record is the one on the card.
 
 When the serial recorded on the card is carried by more than one instrument in Arshin, the refresh
 SHALL keep the instruments it found as candidates on the review row — each with its type number,
-type title, modification, serial, certificate number, verification date, valid date and Arshin
-link — and SHALL keep the row for review. The row note SHALL state how many instruments carry the
-serial and that a choice is required, and SHALL NOT list every type number.
+type title, modification, serial, certificate number, laboratory, verification date, valid date and
+Arshin link — and SHALL keep the row for review. The row note SHALL state how many instruments carry
+the serial and that a choice is required, and SHALL NOT list every type number.
 
 #### Scenario: Several instruments carry the serial
 
@@ -32,16 +32,23 @@ serial and that a choice is required, and SHALL NOT list every type number.
 
 ### Requirement: The candidates are inspectable before applying
 
-The review row SHALL expose its candidates with their type, modification, serial, certificate and
-dates, SHALL mark the candidate that is currently matched, and SHALL link each candidate to its
-Arshin record.
+The review row SHALL expose its candidates with their type, modification, serial, certificate,
+laboratory and dates, SHALL mark the candidate that is currently matched, and SHALL link each
+candidate to its Arshin record.
 
 #### Scenario: Inspecting an ambiguous row
 
 - **WHEN** the operator opens the candidate list of a row whose serial is ambiguous
-- **THEN** every candidate found by the refresh is listed with its type, modification, certificate
-  and verification dates
+- **THEN** every candidate found by the refresh is listed with its type, modification, certificate,
+  laboratory and verification dates
 - **AND** the currently matched candidate is marked
+
+#### Scenario: The offered certificate belongs to another laboratory
+
+- **WHEN** the only newer record for the serial was issued by a laboratory other than the one that
+  verified the instrument on the card
+- **THEN** the list shows that laboratory, so the operator can tell the record is not theirs
+- **AND** the row is not applied
 
 ### Requirement: Applying an ambiguous row requires a picked candidate
 

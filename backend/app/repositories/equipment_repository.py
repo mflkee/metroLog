@@ -1829,6 +1829,18 @@ class EquipmentFolderRefreshRowRepository:
         )
         return list(self.session.scalars(statement))
 
+    def get_by_task_id_and_id(
+        self,
+        *,
+        task_id: int,
+        row_id: int,
+    ) -> EquipmentFolderRefreshRow | None:
+        statement = select(EquipmentFolderRefreshRow).where(
+            EquipmentFolderRefreshRow.task_id == task_id,
+            EquipmentFolderRefreshRow.id == row_id,
+        )
+        return self.session.scalars(statement).first()
+
     def list_by_task_id_and_ids(
         self,
         *,

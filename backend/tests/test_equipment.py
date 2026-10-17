@@ -8272,6 +8272,248 @@ async def test_folder_refresh_marks_manual_si_as_updated_and_clears_flags_after_
 
 
 @pytest.mark.anyio
+async def test_folder_refresh_ambiguous_row_needs_a_picked_candidate(
+    client: AsyncClient,
+    db_engine,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Короткий зав. номер: пока оператор не выбрал запись, строка не применяется."""
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=headers,
+        json={"name": "Папка спорного номера"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    own_certificate = "С-АС/15-07-2026/541665983"
+    create_response = await client.post(
+        "/api/v1/equipment",
+        headers=headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "Узел учета",
+            "equipment_type": "SI",
+            "name": "Термометр",
+            "modification": "ТЛ-4",
+            "serial_number": "841",
+            "status": "IN_WORK",
+            "created_manually": True,
+            "exclude_from_arshin_refresh": False,
+            "si_verification": {
+                "vri_id": None,
+                "arshin_url": None,
+                "org_title": None,
+                "mit_number": None,
+                "mit_title": "Термометр",
+                "mit_notation": "ТЛ-4",
+                "mi_number": "841",
+                "certificate_number": own_certificate,
+                "result_docnum": own_certificate,
+                "verification_date": "2026-07-15T00:00:00",
+                "valid_date": "2029-07-14T00:00:00",
+                "raw_payload_json": None,
+                "detail_payload_json": None,
+            },
+        },
+    )
+    assert create_response.status_code == 201
+    equipment = create_response.json()
+
+    def candidate(
+        *,
+        vri_id: str,
+        certificate: str,
+        laboratory: str,
+        verification_date: str,
+        valid_date: str,
+    ) -> dict[str, object]:
+        return {
+            "vri_id": vri_id,
+            "mit_number": "303-91",
+            "mit_title": "Термометры ртутные стеклянные лабораторные",
+            "mit_notation": "ТЛ-4",
+            "mi_modification": "мод. ТЛ-4 №2",
+            "mi_number": "841",
+            "certificate_number": certificate,
+            "org_title": laboratory,
+            "verification_date": verification_date,
+            "valid_date": valid_date,
+            "arshin_url": f"https://fgis.gost.ru/fundmetrology/cm/results/{vri_id}",
+        }
+
+    own_candidate = candidate(
+        vri_id="VRI-OWN",
+        certificate="С-АС/22-09-2026/565400067",
+        laboratory='ФБУ "ЯКУТСКИЙ ЦСМ"',
+        verification_date="2026-09-22",
+        valid_date="2029-09-21",
+    )
+    stranger_candidate = candidate(
+        vri_id="VRI-STRANGER",
+        certificate="С-АВФ/01-10-2026/565138558",
+        laboratory='АО "ТЕРМОПРИБОР"',
+        verification_date="2026-10-01",
+        valid_date="2029-09-30",
+    )
+    older_candidate = candidate(
+        vri_id="VRI-OLD",
+        certificate="С-ВЯ/10-01-2025/500000001",
+        laboratory='ФБУ "ТЮМЕНСКИЙ ЦСМ"',
+        verification_date="2025-01-10",
+        valid_date="2028-01-09",
+    )
+
+    def payload_from(candidate_row: dict[str, object]) -> SIVerificationCreateRequest:
+        return SIVerificationCreateRequest(
+            vri_id=str(candidate_row["vri_id"]),
+            arshin_url=str(candidate_row["arshin_url"]),
+            org_title=str(candidate_row["org_title"]),
+            mit_number=str(candidate_row["mit_number"]),
+            mit_title=str(candidate_row["mit_title"]),
+            mit_notation=str(candidate_row["mit_notation"]),
+            mi_number=str(candidate_row["mi_number"]),
+            certificate_number=str(candidate_row["certificate_number"]),
+            result_docnum=str(candidate_row["certificate_number"]),
+            verification_date=datetime.fromisoformat(
+                f"{candidate_row['verification_date']}T00:00:00"
+            ),
+            valid_date=datetime.fromisoformat(f"{candidate_row['valid_date']}T00:00:00"),
+        )
+
+    async def fake_match_si(
+        self: FolderRefreshMatcher,
+        *,
+        current_certificate_number: str,
+        current_verification_date,
+        current_valid_date,
+    ) -> FolderRefreshMatchResult:
+        # Выбор оператора приходит сюда со свидетельством выбранной записи.
+        for picked in (own_candidate, older_candidate):
+            if current_certificate_number == picked["certificate_number"]:
+                return FolderRefreshMatchResult(
+                    found=True,
+                    certificate_updated=True,
+                    uncertain_update=True,
+                    stage2_successful=True,
+                    modification_relaxed=False,
+                    notation_relaxed=False,
+                    current_certificate_number=current_certificate_number,
+                    matched_certificate_number=str(picked["certificate_number"]),
+                    matched_registry_number=None,
+                    matched_vri_id=str(picked["vri_id"]),
+                    matched_arshin_url=str(picked["arshin_url"]),
+                    matched_verification_date=datetime.fromisoformat(
+                        f"{picked['verification_date']}T00:00:00"
+                    ),
+                    matched_valid_date=datetime.fromisoformat(f"{picked['valid_date']}T00:00:00"),
+                    payload=payload_from(picked),
+                    notes="Выбран прибор.",
+                )
+
+        # Сканирование: номер принадлежит нескольким приборам, поиск предлагает чужую запись.
+        return FolderRefreshMatchResult(
+            found=True,
+            certificate_updated=True,
+            uncertain_update=True,
+            stage2_successful=True,
+            modification_relaxed=True,
+            notation_relaxed=False,
+            current_certificate_number=current_certificate_number,
+            matched_certificate_number=str(stranger_candidate["certificate_number"]),
+            matched_registry_number=None,
+            matched_vri_id=str(stranger_candidate["vri_id"]),
+            matched_arshin_url=str(stranger_candidate["arshin_url"]),
+            matched_verification_date=datetime.fromisoformat("2026-10-01T00:00:00"),
+            matched_valid_date=datetime.fromisoformat("2029-09-30T00:00:00"),
+            payload=payload_from(stranger_candidate),
+            notes=(
+                "Найдено обновление после ослабления части фильтров. Нужна ручная проверка. "
+                "Заводской номер в Аршине есть у 2 приборов — выберите нужный."
+            ),
+            serial_ambiguous=True,
+            ambiguous_instruments=(
+                "303-91 Термометры ртутные стеклянные лабораторные",
+                "4657-12 Термометры стеклянные керосиновые",
+            ),
+            candidates=(own_candidate, stranger_candidate, older_candidate),
+        )
+
+    monkeypatch.setattr(FolderRefreshMatcher, "match_si", fake_match_si)
+
+    task_id = create_folder_refresh_task(
+        db_engine,
+        folder_id=folder["id"],
+        user_email=admin_email,
+    )
+    await process_folder_refresh_task(db_engine, task_id=task_id)
+
+    details_response = await client.get(
+        f"/api/v1/equipment/folders/{folder['id']}/refresh-tasks/{task_id}",
+        headers=headers,
+    )
+    assert details_response.status_code == 200
+    row = details_response.json()["rows"][0]
+    assert row["serial_ambiguous"] is True
+    assert [item["vri_id"] for item in row["candidates"]] == [
+        "VRI-OWN",
+        "VRI-STRANGER",
+        "VRI-OLD",
+    ]
+    assert row["candidates"][0]["org_title"] == 'ФБУ "ЯКУТСКИЙ ЦСМ"'
+    assert row["picked_candidate_vri_id"] is None
+    assert "выберите нужный" in row["notes"]
+    assert "4657-12" not in row["notes"]
+
+    apply_url = f"/api/v1/equipment/folders/{folder['id']}/refresh-tasks/{task_id}/apply"
+    pick_url = (
+        f"/api/v1/equipment/folders/{folder['id']}/refresh-tasks/{task_id}"
+        f"/rows/{row['id']}/candidate"
+    )
+
+    # Без выбора строка не применяется, карточка не меняется.
+    apply_response = await client.post(apply_url, headers=headers, json={"row_ids": [row["id"]]})
+    assert apply_response.status_code == 200
+    assert apply_response.json()["applied_count"] == 0
+    assert "выберите" in apply_response.json()["results"][0]["message"]
+    unchanged = await client.get(f"/api/v1/equipment/{equipment['id']}", headers=headers)
+    assert unchanged.json()["si_verification"]["certificate_number"] == own_certificate
+
+    # Чужой идентификатор записи не принимается.
+    stranger_pick = await client.post(pick_url, headers=headers, json={"vri_id": "VRI-NOPE"})
+    assert stranger_pick.status_code == 422
+
+    # Выбор более старой записи сохраняется, но применение отклоняется.
+    older_pick = await client.post(pick_url, headers=headers, json={"vri_id": "VRI-OLD"})
+    assert older_pick.status_code == 200
+    assert older_pick.json()["picked_candidate_vri_id"] == "VRI-OLD"
+    older_apply = await client.post(apply_url, headers=headers, json={"row_ids": [row["id"]]})
+    assert older_apply.json()["applied_count"] == 0
+    assert "раньше текущей" in older_apply.json()["results"][0]["message"]
+
+    # Выбор своей записи — и строка применяется.
+    own_pick = await client.post(pick_url, headers=headers, json={"vri_id": "VRI-OWN"})
+    assert own_pick.status_code == 200
+    picked_row = own_pick.json()
+    assert picked_row["picked_candidate_vri_id"] == "VRI-OWN"
+    assert picked_row["matched_certificate_number"] == own_candidate["certificate_number"]
+    assert 'ФБУ "ЯКУТСКИЙ ЦСМ"' in picked_row["notes"]
+
+    own_apply = await client.post(apply_url, headers=headers, json={"row_ids": [row["id"]]})
+    assert own_apply.status_code == 200
+    assert own_apply.json()["applied_count"] == 1
+    refreshed = await client.get(f"/api/v1/equipment/{equipment['id']}", headers=headers)
+    assert (
+        refreshed.json()["si_verification"]["certificate_number"]
+        == own_candidate["certificate_number"]
+    )
+
+
+@pytest.mark.anyio
 @pytest.mark.parametrize(
     ("serial_requires_review", "expected_status"),
     [(True, "UPDATED_UNCERTAIN"), (False, "UPDATED")],

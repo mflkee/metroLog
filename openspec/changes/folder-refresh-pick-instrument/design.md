@@ -40,9 +40,15 @@ Non-Goals:
 
 The probe that detects the ambiguity is the only place that knows the serial spellings and filters
 used, so the records it found are persisted as candidates on the row (`candidates_json`: `vri_id`,
-`mit_number`, `mit_title`, `mi_modification`, `mi_number`, `certificate_number`,
+`mit_number`, `mit_title`, `mi_modification`, `mi_number`, `certificate_number`, `org_title`,
 `verification_date`, `valid_date`, `arshin_url`). A new `serial_ambiguous` flag is stored next to
 them, so the apply guard does not have to re-derive the ambiguity from the note text.
+
+The laboratory (`org_title`) is the field that actually settles the question: an object is verified
+by one laboratory, so a newer record issued by another one belongs to a same-serial stranger. In
+production the type dump hid exactly that — the operator could see that dozens of types share
+`841` but not that the offered certificate came from Термоприбор while their own came from the
+Якутский ЦСМ.
 
 Alternative rejected: re-running the probe when the operator opens the picker — it doubles Arshin
 traffic for the same data and can return a different set than the row's note describes.

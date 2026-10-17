@@ -2,6 +2,7 @@ import {
   EquipmentFolderRefreshApplyResult,
   EquipmentFolderRefreshRowStatus,
   applyFolderRefreshRows,
+  pickFolderRefreshCandidate,
   startFolderRefreshTask,
 } from "@/api/equipment/folders";
 import { updateEquipmentArshinRefreshExclusion } from "@/api/equipment/refresh";
@@ -93,6 +94,34 @@ export function useFolderRefresh({
     },
   });
 
+  const pickFolderRefreshCandidateMutation = useMutation({
+    mutationFn: (input: { rowId: number; vriId: string }) =>
+      pickFolderRefreshCandidate(
+        token ?? "",
+        reviewedFolderId ?? 0,
+        folderRefreshTaskId ?? 0,
+        input.rowId,
+        input.vriId,
+      ),
+    onError: (error) => {
+      setFolderRefreshActionMessage(
+        error instanceof Error && error.message
+          ? `Не удалось выбрать прибор: ${error.message}`
+          : "Не удалось сохранить выбранный прибор.",
+      );
+    },
+    onSuccess: async () => {
+      setFolderRefreshActionMessage(null);
+      await queryClient.invalidateQueries({
+        queryKey: [
+          "equipment-folder-refresh-task",
+          reviewedFolderId ?? "none",
+          folderRefreshTaskId ?? "none",
+        ],
+      });
+    },
+  });
+
   const excludeFolderRefreshSelectionMutation = useMutation({
     mutationFn: async (equipmentIds: number[]) => {
       const uniqueEquipmentIds = Array.from(new Set(equipmentIds));
@@ -152,6 +181,7 @@ export function useFolderRefresh({
     setFolderRefreshSearchQuery,
     startFolderRefreshMutation,
     applyFolderRefreshMutation,
+    pickFolderRefreshCandidateMutation,
     excludeFolderRefreshSelectionMutation,
   };
 }

@@ -59,6 +59,7 @@ import {
 import { DateInput } from "@/components/DateInput";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { EmojiPickerButton } from "@/components/EmojiPickerButton";
+import { FolderRefreshCandidatePicker } from "@/components/FolderRefreshCandidatePicker";
 import { Icon } from "@/components/Icon";
 import { IconActionButton } from "@/components/icon-action-button";
 import { Modal } from "@/components/Modal";
@@ -348,6 +349,7 @@ export function EquipmentPage() {
     setFolderRefreshSearchQuery,
     startFolderRefreshMutation,
     applyFolderRefreshMutation,
+    pickFolderRefreshCandidateMutation,
     excludeFolderRefreshSelectionMutation,
   } = useFolderRefresh({
     folderId: selectedFolderId,
@@ -3820,7 +3822,16 @@ async function handleEquipmentSubmit(event: FormEvent<HTMLFormElement>) {
                             </span>
                           </td>
                           <td className="border-b border-line px-3 py-2 text-xs text-steel">
-                            {row.notes ?? "—"}
+                            <div>{row.notes ?? "—"}</div>
+                            {row.candidates.length > 0 ? (
+                              <FolderRefreshCandidatePicker
+                                row={row}
+                                pending={pickFolderRefreshCandidateMutation.isPending}
+                                onPick={(vriId) =>
+                                  pickFolderRefreshCandidateMutation.mutate({ rowId: row.id, vriId })
+                                }
+                              />
+                            ) : null}
                           </td>
                         </tr>
                       );

@@ -10,8 +10,8 @@ one. The note asks "проверьте, чей это сертификат" whil
 ## What Changes
 
 - The refresh keeps the candidates it already found for an ambiguous serial (type number and title,
-  modification, serial, certificate, verification and valid dates, Arshin link) on the review row,
-  instead of reducing them to a sentence in the note.
+  modification, serial, certificate, laboratory, verification and valid dates, Arshin link) on the
+  review row, instead of reducing them to a sentence in the note.
 - The row note becomes short: it says how many instruments carry the serial and that a choice is
   required. The list of type numbers moves out of the note and into the candidate list.
 - The review screen shows the candidates per row and lets the operator pick one; the picked

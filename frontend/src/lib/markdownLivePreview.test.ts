@@ -18,7 +18,9 @@ describe("живой предпросмотр Markdown", () => {
   it("заголовок получает строчное оформление, а пометка `#` скрывается на неактивной строке", () => {
     const result = plan("# Заголовок\n\nтекст", 15);
 
-    expect(result.some((item) => item.kind === "line" && item.className === "cm-md-h1" && item.from === 0)).toBe(true);
+    expect(
+      result.some((item) => item.kind === "line" && item.className === "cm-md-h1" && item.from === 0),
+    ).toBe(true);
     expect(hidden(result)).toContain("0..1");
   });
 
@@ -39,12 +41,29 @@ describe("живой предпросмотр Markdown", () => {
     expect(hidden(result)).toEqual(["3..5", "11..13"]);
   });
 
-  it("пункт списка и цитата получают оформление, а их пометки скрываются", () => {
-    const list = plan("- первый\n\nтекст", 12);
-    expect(hidden(list).length).toBeGreaterThan(0);
+  it("у пункта списка пометка заменяется точкой, а не исчезает", () => {
+    const doc = "- первый\n- второй\n\nтекст";
+    const list = plan(doc, doc.length);
 
+    const bullets = list.filter((item) => item.kind === "widget");
+    expect(bullets).toHaveLength(2);
+    expect(bullets[0].className).toBe("• ");
+    expect(hidden(list)).toHaveLength(0);
+  });
+
+  it("у нумерованного списка номер остаётся видимым", () => {
+    const doc = "1. первый\n\nтекст";
+    const list = plan(doc, doc.length);
+
+    expect(list.some((item) => item.kind === "widget")).toBe(false);
+    expect(hidden(list)).toHaveLength(0);
+  });
+
+  it("цитата получает оформление, а её пометка скрывается", () => {
     const quote = plan("> цитата\n\nтекст", 12);
+
     expect(quote.some((item) => item.kind === "line" && item.className === "cm-md-quote")).toBe(true);
+    expect(hidden(quote).length).toBeGreaterThan(0);
   });
 
   it("упоминание подсвечивается прямо во время набора", () => {

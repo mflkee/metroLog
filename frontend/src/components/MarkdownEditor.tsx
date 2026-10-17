@@ -14,12 +14,14 @@ import {
   EditorView,
   ViewPlugin,
   type ViewUpdate,
+  WidgetType,
   keymap,
 } from "@codemirror/view";
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 
 import type { AutocompleteSuggestion } from "@/components/AutocompleteTextarea";
 import {
+  LIST_BULLET_TEXT,
   activeLineNumbers,
   planMarkdownDecorations,
   type MarkdownDecoration,
@@ -58,12 +60,29 @@ function decorationsFor(view: EditorView): DecorationSet {
   return builder.finish();
 }
 
+/** Точка списка, которой заменяется скрытая пометка `-`. */
+class ListBulletWidget extends WidgetType {
+  eq(): boolean {
+    return true;
+  }
+
+  toDOM(): HTMLElement {
+    const element = document.createElement("span");
+    element.className = "cm-md-bullet";
+    element.textContent = LIST_BULLET_TEXT;
+    return element;
+  }
+}
+
 function decorationFor(item: MarkdownDecoration): Decoration {
   if (item.kind === "line") {
     return Decoration.line({ class: item.className });
   }
   if (item.kind === "hide") {
     return Decoration.replace({});
+  }
+  if (item.kind === "widget") {
+    return Decoration.replace({ widget: new ListBulletWidget() });
   }
   return Decoration.mark({ class: item.className });
 }

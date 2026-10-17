@@ -52,8 +52,11 @@ export type MarkdownDecoration = {
   from: number;
   to: number;
   className: string;
-  kind: "line" | "mark" | "hide";
+  kind: "line" | "mark" | "hide" | "widget";
 };
+
+/** Что нарисовать вместо пометки списка: сама пометка скрывается. */
+export const LIST_BULLET_TEXT = "• ";
 
 type Range = { from: number; to: number };
 
@@ -112,7 +115,18 @@ export function planMarkdownDecorations(
         }
 
         if (MARKER_NODE_NAMES.has(node.name) && !activeLines.has(line.number)) {
-          plan.push({ from: node.from, to: node.to, className: "", kind: "hide" });
+          // Пометку списка не «выкидываем», а показываем точкой: иначе строка читается как
+          // обычный текст, и точка появлялась только в отправленном сообщении. У нумерованного
+          // списка пометка — это номер, его оставляем как есть.
+          if (node.name === "ListMark") {
+            // Пометка лежит в ListItem, а сам список — на уровень выше
+            const ordered = node.node.parent?.parent?.name === "OrderedList";
+            if (!ordered) {
+              plan.push({ from: node.from, to: node.to, className: LIST_BULLET_TEXT, kind: "widget" });
+            }
+          } else {
+            plan.push({ from: node.from, to: node.to, className: "", kind: "hide" });
+          }
         }
       },
     });
@@ -140,7 +154,7 @@ function innerContentRange(ref: SyntaxNodeRef): Range {
 
 /** Порядок для RangeSetBuilder: по позиции, строчные раньше остальных, скрытия последними. */
 function sortPlan(plan: MarkdownDecoration[]): MarkdownDecoration[] {
-  const order: Record<MarkdownDecoration["kind"], number> = { line: 0, mark: 1, hide: 2 };
+  const order: Record<MarkdownDecoration["kind"], number> = { line: 0, mark: 1, widget: 2, hide: 3 };
   return plan.sort((left, right) => {
     if (left.from !== right.from) {
       return left.from - right.from;

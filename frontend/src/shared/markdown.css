@@ -227,6 +227,10 @@
   color: var(--border-color);
 }
 
+.markdown-editor .cm-md-bullet {
+  color: var(--text-muted);
+}
+
 .markdown-editor .cm-md-mention {
   color: var(--mention);
   font-weight: 600;

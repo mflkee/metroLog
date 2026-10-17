@@ -25,11 +25,7 @@ jobs:
           git fetch origin && git reset --hard origin/main
           if [ ! -f .env ]; then cp .env.example .env 2>/dev/null || true; fi
       - name: Login GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - name: Backup DB
         run: |
           mkdir -p ~/.backups

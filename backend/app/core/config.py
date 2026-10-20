@@ -31,6 +31,12 @@ class Settings(BaseSettings):
     bootstrap_admin_password: str = "ChangeMe123"
     frontend_app_url: str = "http://localhost:5173"
     database_url: str = "postgresql+psycopg://metrolog:metrolog@127.0.0.1:5432/metrolog"
+    # Safety net against a lock chain freezing the service (incident 2026-10-19: the backend hung
+    # for eleven hours because Postgres had no limits and a stalled transaction kept its locks).
+    # Applied to PostgreSQL connections only; SQLite (tests, local dev) has no such options.
+    db_statement_timeout_ms: int = 90_000
+    db_lock_timeout_ms: int = 15_000
+    db_idle_in_transaction_timeout_ms: int = 600_000
     redis_url: str = "redis://127.0.0.1:6379/0"
     notification_queue_enabled: bool = False
     notification_queue_name: str = "notifications"

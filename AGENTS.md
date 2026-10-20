@@ -506,6 +506,17 @@ SemVer `MAJOR.MINOR.PATCH`. **Единый источник** — `version` в
 - Create: choose type (`SI`/`ESI`/`OTHER` etc.). For `SI`/`ESI`, Arshin-backed creation is the intended path; manual plain creation exists for edge cases.
 - Update: limited type transitions allowed (e.g. `OTHER` → `SI`/`IO`/`VO`). Backend validation enforces measurement fields per type.
 - Delete: single or batch. Cascades repairs, verifications, comments, attachments.
+- ⚠️ **Чтение оборудования — только чтение** (change `equipment-status-lock-safety`, инцидент
+  19.10.2026). Нормализация «застрявших» статусов (`IN_REPAIR`/`IN_VERIFICATION` без активного
+  процесса) **не** живёт в путях чтения: `EquipmentRepository.get_by_id/list_all/list_page` ничего не
+  пишут, иначе каждая карточка и каждая страница реестра брали `RowExclusiveLock` на `equipment`.
+  Само-лечение выполняется один раз при старте (`normalize_equipment_statuses_once` в `app/main.py`,
+  single-flight через `pg_try_advisory_lock`, т.к. воркеров несколько) и на путях изменения
+  (`_sync_equipment_status` при закрытии ремонта/поверки). Вторая половина защиты — таймауты
+  соединения (`DB_STATEMENT_TIMEOUT_MS` 90 c, `DB_LOCK_TIMEOUT_MS` 15 c,
+  `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` 10 мин, только для PostgreSQL): без них цепочка ожиданий
+  висела 11 часов, и сервис перестал отвечать целиком — вместе с логином и `/health/ready`. Поэтому
+  **не возвращай запись в read-путь** «для надёжности»: это и был корень аварии.
 
 ### Repairs / Verifications
 - **Grouped (batch)**: shared `batch_key` + `batch_name`, shared dialog history, batch milestone editing.

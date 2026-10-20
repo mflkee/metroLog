@@ -217,7 +217,6 @@ class EquipmentRepository:
         self.session.execute(statement)
 
     def get_by_id(self, equipment_id: int) -> Equipment | None:
-        self.normalize_transient_statuses()
         statement = (
             select(Equipment)
             .options(
@@ -493,7 +492,6 @@ class EquipmentRepository:
         equipment_type: EquipmentType | None = None,
         allowed_folder_ids: set[int] | None = None,
     ) -> list[Equipment]:
-        self.normalize_transient_statuses()
         equipment_id_statement = self._build_filtered_equipment_id_statement(
             folder_id=folder_id,
             group_id=group_id,
@@ -529,7 +527,6 @@ class EquipmentRepository:
         sort_key: EquipmentSortKey | None = None,
         sort_direction: EquipmentSortDirection = "asc",
     ) -> tuple[list[Equipment], int]:
-        self.normalize_transient_statuses()
         filtered_equipment_id_statement = self._build_filtered_equipment_id_statement(
             folder_id=folder_id,
             group_id=group_id,

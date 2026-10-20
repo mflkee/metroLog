@@ -18,6 +18,7 @@ from fastapi import (
     status,
 )
 from fastapi.responses import Response
+from sqlalchemy.orm import Session
 from starlette.types import Receive, Scope, Send
 
 from app.api.deps import AdminUser, CurrentUser, DbSession, OperatorUser
@@ -206,6 +207,7 @@ def _build_ascii_download_name(name: str) -> str:
 
 def _build_file_response(
     *,
+    db: Session,
     file_path: Path,
     media_type: str,
     download_name: str,
@@ -213,6 +215,10 @@ def _build_file_response(
     cleanup_after_send: bool = False,
     disposition_type: str = "attachment",
 ) -> Response:
+    # The file is already on disk, so the request no longer needs the database: release the session
+    # (and its transaction) before the bytes are streamed, otherwise a slow client keeps row locks
+    # for the whole transfer.
+    db.close()
     ascii_fallback_name = _build_ascii_download_name(fallback_name or download_name)
     headers = {
         "Content-Disposition": (
@@ -714,6 +720,7 @@ async def export_verification_queue_xlsx(
     lifecycle_label = "активные" if lifecycle_status.strip().lower() == "active" else "архив"
     file_name = f"Поверка СИ {lifecycle_label} {date.today().strftime('%d.%m.%Y')}.xlsx"
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         download_name=file_name,
@@ -738,6 +745,7 @@ async def export_repair_queue_xlsx(
     lifecycle_label = "активные" if lifecycle_status.strip().lower() == "active" else "архив"
     file_name = f"Ремонты {lifecycle_label} {date.today().strftime('%d.%m.%Y')}.xlsx"
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         download_name=file_name,
@@ -874,6 +882,7 @@ async def export_equipment_registry_xlsx(
         equipment_type=equipment_type,
     )
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         download_name="equipment-registry.xlsx",
@@ -1458,6 +1467,7 @@ async def download_equipment_repair_message_attachment(
         attachment_id=attachment_id,
     )
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type=attachment.file_mime_type or "application/octet-stream",
         download_name=attachment.file_name,
@@ -1483,6 +1493,7 @@ async def download_equipment_verification_message_attachment(
         attachment_id=attachment_id,
     )
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type=attachment.file_mime_type or "application/octet-stream",
         download_name=attachment.file_name,
@@ -1499,6 +1510,7 @@ async def download_verification_archive(
         verification_id=verification_id
     )
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type="application/zip",
         download_name=file_name,
@@ -1517,6 +1529,7 @@ async def download_repair_archive(
         repair_id=repair_id
     )
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type="application/zip",
         download_name=file_name,
@@ -1582,6 +1595,7 @@ async def download_equipment_attachment(
         attachment_id=attachment_id,
     )
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type=attachment.file_mime_type or "application/octet-stream",
         download_name=attachment.file_name,
@@ -1704,6 +1718,7 @@ async def download_equipment_comment_attachment(
         attachment_id=attachment_id,
     )
     return _build_file_response(
+        db=db,
         file_path=file_path,
         media_type=attachment.file_mime_type or "application/octet-stream",
         download_name=attachment.file_name,

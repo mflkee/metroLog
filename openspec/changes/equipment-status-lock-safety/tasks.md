@@ -24,5 +24,5 @@
 ## 5. Documentation and rollout
 
 - [x] 5.1 Record the rule in `AGENTS.md`: equipment reads must stay read-only, and the new timeout settings are the safety net
-- [ ] 5.2 Run the full check suite through CI (ruff, pytest, eslint, vitest) on the pull request
-- [ ] 5.3 On Stage: open the registry and an equipment card, confirm no `UPDATE equipment` appears in the backend log, and confirm attachments still download
+- [x] 5.2 Run the full check suite through CI (ruff, pytest, eslint, vitest) on the pull request
+- [x] 5.3 On Stage: open the registry and an equipment card, confirm no `UPDATE equipment` appears in the backend log, and confirm attachments still download

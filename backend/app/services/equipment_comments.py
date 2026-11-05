@@ -27,7 +27,7 @@ from app.models.user import User
 from app.schemas.equipment import EquipmentCommentCreateRequest, EquipmentCommentUpdateRequest
 from app.services.equipment_folders import _format_user_display_name
 from app.services.equipment_text import _normalize_optional_text
-from app.services.user_service import has_admin_access
+from app.services.user_service import has_admin_access, is_developer_role
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -836,7 +836,7 @@ class EquipmentCommentsMixin:
         current_user: User,
     ) -> EquipmentComment:
         comment = self._get_comment(equipment_id=equipment_id, comment_id=comment_id)
-        self._assert_comment_owner(comment=comment, current_user=current_user)
+        self._assert_comment_editor(comment=comment, current_user=current_user)
         previous_text = comment.text
         comment.text = _normalize_comment_text(payload.text)
         equipment = self.get_equipment(equipment_id=equipment_id)
@@ -1033,7 +1033,11 @@ class EquipmentCommentsMixin:
             )
         return attachment
 
-    def _assert_comment_owner(self, *, comment: EquipmentComment, current_user: User) -> None:
+    def _assert_comment_editor(self, *, comment: EquipmentComment, current_user: User) -> None:
+        # Разработчик может править любой комментарий (в том числе чужой);
+        # администраторы и операторы по-прежнему правят только свои.
+        if is_developer_role(current_user.role):
+            return
         if comment.author_user_id != current_user.id:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

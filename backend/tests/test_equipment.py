@@ -15,7 +15,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.config import settings
 from app.models.equipment import Repair
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.schemas.arshin import ArshinRegistryKind, ArshinSearchResultRead, ArshinVriDetailRead
 from app.schemas.equipment import SIVerificationCreateRequest
 from app.services.arshin_service import ArshinService
@@ -23,6 +23,7 @@ from app.services.equipment_service import EquipmentService
 from app.services.folder_refresh_matcher import FolderRefreshMatcher, FolderRefreshMatchResult
 from app.services.notification_service import NotificationDeliveryError
 from app.services.user_service import UserService
+from app.utils.security import hash_password
 
 
 def bootstrap_admin(db_engine) -> tuple[str, str]:
@@ -5053,6 +5054,106 @@ async def test_only_administrator_can_delete_other_users_equipment_comments_and_
         headers=admin_headers,
     )
     assert admin_attachment_delete_response.status_code == 204
+
+
+@pytest.mark.anyio
+async def test_developer_can_edit_other_users_equipment_comment_but_administrator_cannot(
+    client: AsyncClient,
+    db_engine,
+) -> None:
+    admin_email, admin_password = bootstrap_admin(db_engine)
+    admin = await login_user(client, email=admin_email, password=admin_password)
+    admin_headers = {"Authorization": f"Bearer {admin['access_token']}"}
+
+    folder_response = await client.post(
+        "/api/v1/equipment/folders",
+        headers=admin_headers,
+        json={"name": "Правка комментариев"},
+    )
+    assert folder_response.status_code == 201
+    folder = folder_response.json()
+
+    create_author_response = await client.post(
+        "/api/v1/users",
+        headers=admin_headers,
+        json={
+            "first_name": "Author",
+            "last_name": "Mkair",
+            "email": "comment-author@example.com",
+            "role": "MKAIR",
+            "is_active": True,
+            "allowed_folder_ids": [folder["id"]],
+        },
+    )
+    assert create_author_response.status_code == 201
+    author_password = create_author_response.json()["temporary_password"]
+    author = await login_user(
+        client,
+        email="comment-author@example.com",
+        password=author_password,
+    )
+    author_headers = {"Authorization": f"Bearer {author['access_token']}"}
+
+    testing_session = sessionmaker(bind=db_engine, autoflush=False, autocommit=False, future=True)
+    with testing_session() as session:
+        session.add(
+            User(
+                first_name="Lead",
+                last_name="Developer",
+                patronymic=None,
+                email="comment-developer@example.com",
+                password_hash=hash_password("Developer123"),
+                role=UserRole.DEVELOPER,
+                is_active=True,
+                must_change_password=False,
+            )
+        )
+        session.commit()
+    developer = await login_user(
+        client,
+        email="comment-developer@example.com",
+        password="Developer123",
+    )
+    developer_headers = {"Authorization": f"Bearer {developer['access_token']}"}
+
+    equipment_response = await client.post(
+        "/api/v1/equipment",
+        headers=admin_headers,
+        json={
+            "folder_id": folder["id"],
+            "object_name": "ХАЛ",
+            "equipment_type": "OTHER",
+            "name": "Карточка для правки",
+            "status": "IN_WORK",
+        },
+    )
+    assert equipment_response.status_code == 201
+    equipment = equipment_response.json()
+
+    comment_response = await client.post(
+        f"/api/v1/equipment/{equipment['id']}/comments",
+        headers=author_headers,
+        json={"text": "Исходный комментарий автора."},
+    )
+    assert comment_response.status_code == 201
+    comment_id = comment_response.json()["id"]
+    comment_url = f"/api/v1/equipment/{equipment['id']}/comments/{comment_id}"
+
+    admin_update_response = await client.patch(
+        comment_url,
+        headers=admin_headers,
+        json={"text": "Правка администратора."},
+    )
+    assert admin_update_response.status_code == 403
+    assert admin_update_response.json()["detail"] == "You cannot modify this comment."
+
+    developer_update_response = await client.patch(
+        comment_url,
+        headers=developer_headers,
+        json={"text": "Правка разработчика."},
+    )
+    assert developer_update_response.status_code == 200
+    assert developer_update_response.json()["text"] == "Правка разработчика."
 
 
 @pytest.mark.anyio

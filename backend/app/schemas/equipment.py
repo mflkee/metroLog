@@ -565,10 +565,19 @@ class EquipmentRead(BaseModel):
 
 
 class EquipmentPageRead(BaseModel):
-    items: list[EquipmentRead]
-    total: int
-    limit: int
-    offset: int
+    items: list[EquipmentRead] = Field(description="Приборы текущей страницы.")
+    total: int = Field(description="Всего приборов по фильтру (без учёта пагинации).")
+    limit: int = Field(description="Размер страницы в нотации `limit`/`offset`.")
+    offset: int = Field(description="Смещение в нотации `limit`/`offset`.")
+    page: int = Field(
+        description="Номер страницы (1-based): из запроса `page` или вычислен из `offset`/`limit`.",
+    )
+    per_page: int = Field(
+        description="Размер страницы: из запроса `per_page` или равен `limit`.",
+    )
+    total_pages: int = Field(
+        description="Всего страниц при текущем `per_page` (0, если записей нет).",
+    )
 
 
 class EquipmentDetailsRead(BaseModel):

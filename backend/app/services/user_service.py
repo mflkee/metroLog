@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.errors import ConflictError, NotFoundError
 from app.models.user import User, UserRole
 from app.repositories.equipment_repository import EquipmentFolderRepository
 from app.repositories.user_repository import UserRepository
@@ -97,10 +98,7 @@ class UserService:
     def get_user(self, *, user_id: int) -> User:
         user = self.users.get_by_id(user_id)
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found.",
-            )
+            raise NotFoundError("User not found.")
         self._mirror_roles([user])
         return user
 
@@ -205,10 +203,7 @@ class UserService:
         patronymic = _normalize_optional_name(payload.patronymic)
         email = _normalize_email(payload.email)
         if self.users.get_by_email(email) is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A user with this email already exists.",
-            )
+            raise ConflictError("A user with this email already exists.")
 
         if accounts_client.is_enabled():
             # The registry owns the credentials and sends the invitation link; the
@@ -291,10 +286,7 @@ class UserService:
     ) -> User:
         user = self.users.get_by_id_for_update(user_id)
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found.",
-            )
+            raise NotFoundError("User not found.")
 
         next_role = payload.role or user.role
         next_active = payload.is_active if payload.is_active is not None else user.is_active
@@ -387,10 +379,7 @@ class UserService:
     def reset_password(self, *, user_id: int, current_user: User) -> tuple[User, str | None]:
         user = self.users.get_by_id_for_update(user_id)
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found.",
-            )
+            raise NotFoundError("User not found.")
 
         self._assert_user_management_target_access(
             current_user=current_user,
@@ -414,10 +403,7 @@ class UserService:
     def delete_user(self, *, user_id: int, current_user: User) -> None:
         user = self.users.get_by_id_for_update(user_id)
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="User not found.",
-            )
+            raise NotFoundError("User not found.")
 
         if user.id == current_user.id:
             raise HTTPException(

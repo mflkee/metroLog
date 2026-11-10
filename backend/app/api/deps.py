@@ -8,6 +8,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.errors import ForbiddenError
 from app.db.session import get_db
 from app.models.user import User
 from app.repositories.user_repository import UserRepository
@@ -60,10 +61,7 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 async def require_admin(current_user: CurrentUser) -> User:
     if not has_admin_access(current_user.role):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Administrator or developer role is required.",
-        )
+        raise ForbiddenError("Administrator or developer role is required.")
     return current_user
 
 
@@ -72,10 +70,7 @@ AdminUser = Annotated[User, Depends(require_admin)]
 
 async def require_operator(current_user: CurrentUser) -> User:
     if not has_operator_access(current_user.role):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Operator role is required.",
-        )
+        raise ForbiddenError("Operator role is required.")
     return current_user
 
 

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.api.v1.router import api_router
 from app.core.config import settings
+from app.core.errors import InternalErrorMiddleware, register_exception_handlers
 from app.db.session import SessionLocal
 from app.repositories.equipment_repository import EquipmentRepository
 from app.services.user_service import UserService
@@ -77,6 +78,9 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    # Unhandled exceptions become the standard error envelope; CORS is added afterwards so the
+    # error response also gets its CORS headers.
+    app.add_middleware(InternalErrorMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.backend_cors_origins,
@@ -84,6 +88,8 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    register_exception_handlers(app)
 
     app.include_router(api_router, prefix=settings.api_v1_prefix)
     return app

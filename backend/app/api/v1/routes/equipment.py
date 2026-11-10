@@ -604,8 +604,13 @@ async def list_equipment_page(
     current_location_manual: Annotated[str | None, Query()] = None,
     status: Annotated[EquipmentStatus | None, Query()] = None,
     equipment_type: Annotated[EquipmentType | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=500)] = 100,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int | None, Query(ge=1, le=500)] = None,
+    offset: Annotated[int | None, Query(ge=0)] = None,
+    page: Annotated[int | None, Query(ge=1, description="Номер страницы (1-based).")] = None,
+    per_page: Annotated[
+        int | None,
+        Query(ge=1, le=200, description="Размер страницы для `page`; по умолчанию 20."),
+    ] = None,
     sort_key: Annotated[EquipmentSortKey | None, Query()] = None,
     sort_direction: Annotated[EquipmentSortDirection, Query()] = "asc",
 ) -> EquipmentPageRead:
@@ -619,6 +624,8 @@ async def list_equipment_page(
         equipment_type=equipment_type,
         limit=limit,
         offset=offset,
+        page=page,
+        per_page=per_page,
         sort_key=sort_key,
         sort_direction=sort_direction,
     )

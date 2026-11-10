@@ -10,6 +10,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
+from app.core.errors import ForbiddenError, NotFoundError
 from app.models.equipment import (
     DeadlinePreset,
     Equipment,
@@ -120,6 +121,7 @@ from app.services.notification_service import (
     NotificationDeliveryError,
     NotificationService,
 )
+from app.services.pagination import resolve_pagination, total_pages
 from app.services.user_service import (
     build_user_mention_keys,
     has_operator_access,
@@ -186,17 +188,11 @@ class EquipmentService(
         if not is_private:
             return
         if current_user.role == UserRole.CUSTOMER:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Приватные комментарии доступны только администраторам и МКАИР.",
-            )
+            raise ForbiddenError("Приватные комментарии доступны только администраторам и МКАИР.")
 
     def _assert_private_note_visible(self, *, is_private: bool, detail: str) -> None:
         if is_private and not self._can_view_private_notes():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=detail,
-            )
+            raise NotFoundError(detail)
 
     def _filter_private_mention_recipients(self, users: list[User]) -> list[User]:
         return [user for user in users if user.role != UserRole.CUSTOMER]
@@ -360,8 +356,10 @@ class EquipmentService(
         current_location_manual: str | None = None,
         status: EquipmentStatus | None = None,
         equipment_type: EquipmentType | None = None,
-        limit: int = 100,
-        offset: int = 0,
+        limit: int | None = None,
+        offset: int | None = None,
+        page: int | None = None,
+        per_page: int | None = None,
         sort_key: EquipmentSortKey | None = None,
         sort_direction: EquipmentSortDirection = "asc",
     ) -> EquipmentPageRead:
@@ -369,6 +367,12 @@ class EquipmentService(
             self._get_folder(folder_id)
         if group_id is not None:
             self._get_group(group_id)
+        resolved_limit, resolved_offset, resolved_page, resolved_per_page = resolve_pagination(
+            limit=limit,
+            offset=offset,
+            page=page,
+            per_page=per_page,
+        )
         items, total = self.equipment.list_page(
             folder_id=folder_id,
             group_id=group_id,
@@ -381,8 +385,8 @@ class EquipmentService(
             status=status,
             equipment_type=equipment_type,
             allowed_folder_ids=self._get_accessible_folder_ids(),
-            limit=limit,
-            offset=offset,
+            limit=resolved_limit,
+            offset=resolved_offset,
             sort_key=sort_key,
             sort_direction=sort_direction,
         )
@@ -392,8 +396,11 @@ class EquipmentService(
                 for item in items
             ],
             total=total,
-            limit=limit,
-            offset=offset,
+            limit=resolved_limit,
+            offset=resolved_offset,
+            page=resolved_page,
+            per_page=resolved_per_page,
+            total_pages=total_pages(total, resolved_per_page),
         )
 
     def get_equipment_details(self, *, equipment_id: int) -> EquipmentDetailsRead:
@@ -500,10 +507,7 @@ class EquipmentService(
     def get_equipment(self, *, equipment_id: int) -> Equipment:
         equipment = self.equipment.get_by_id(equipment_id)
         if equipment is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Equipment not found.",
-            )
+            raise NotFoundError("Equipment not found.")
         self._assert_folder_access(equipment.folder_id, detail="Equipment not found.")
         return self._enrich_equipment_processes(equipment)
 

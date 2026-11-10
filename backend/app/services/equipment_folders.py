@@ -5,8 +5,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from fastapi import HTTPException, status
-
+from app.core.errors import ConflictError, NotFoundError, ValidationError
 from app.models.equipment import EquipmentFolder, EquipmentGroup, FolderProcessSubscription
 from app.models.event import EventCategory
 from app.models.user import User, UserRole
@@ -135,10 +134,7 @@ class EquipmentFoldersMixin:
         name = _normalize_required_text(payload.name, field_label="Folder name")
         description = _normalize_optional_text(payload.description)
         if self.folders.get_by_name(name) is not None:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A folder with this name already exists.",
-            )
+            raise ConflictError("A folder with this name already exists.")
         deadline_preset = self._resolve_deadline_preset_for_folder(
             preset_id=payload.deadline_preset_id,
             current_folder=None,
@@ -186,10 +182,7 @@ class EquipmentFoldersMixin:
             name = _normalize_required_text(payload.name, field_label="Folder name")
             existing = self.folders.get_by_name(name)
             if existing is not None and existing.id != folder.id:
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail="A folder with this name already exists.",
-                )
+                raise ConflictError("A folder with this name already exists.")
             folder.name = name
             changed_fields.append("название")
 
@@ -332,9 +325,9 @@ class EquipmentFoldersMixin:
         users_by_id = {user.id: user for user in visible_users}
         unknown_user_ids = sorted(target_user_ids.difference(users_by_id))
         if unknown_user_ids:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Some selected users do not have access to this folder.",
+            raise ValidationError(
+                "Some selected users do not have access to this folder.",
+                field="user_ids",
             )
 
         existing_subscriptions = self.folder_process_subscriptions.list_by_folder_id(
@@ -380,20 +373,14 @@ class EquipmentFoldersMixin:
     def _get_folder(self, folder_id: int) -> EquipmentFolder:
         folder = self.folders.get_by_id(folder_id)
         if folder is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Folder not found.",
-            )
+            raise NotFoundError("Folder not found.")
         self._assert_folder_access(folder.id, detail="Folder not found.")
         return folder
 
     def _get_group(self, group_id: int) -> EquipmentGroup:
         group = self.groups.get_by_id(group_id)
         if group is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Group not found.",
-            )
+            raise NotFoundError("Group not found.")
         self._assert_folder_access(group.folder_id, detail="Group not found.")
         return group
 
@@ -405,10 +392,7 @@ class EquipmentFoldersMixin:
         if allowed_folder_ids is None:
             return
         if folder_id is None or folder_id not in allowed_folder_ids:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=detail,
-            )
+            raise NotFoundError(detail)
 
     def _grant_created_folder_access_to_mkair(
         self,

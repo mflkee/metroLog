@@ -95,6 +95,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 |------|---------|
 | `app/main.py` | FastAPI bootstrap, lifespan, middleware, static mount. |
 | `app/core/config.py` | Pydantic-settings: DB/Redis URLs, auth, SMTP, Arshin, upload limits. |
+| `app/core/errors.py` | Единый формат ошибок: `AppError` (`NotFoundError`/`ConflictError`/`ForbiddenError`/`ValidationError`), глобальные обработчики (`error_code`, `field`, конверт `{detail, error_code, field}`) и middleware для непойманных исключений. |
 | `app/core/deps.py` | `get_db`, `get_current_user`, `require_admin`, `require_operator`. |
 | `app/db/session.py` | SQLAlchemy engine + session factory. |
 | `app/models/` | All ORM models: `user.py`, `equipment.py`, `event.py`. |
@@ -115,9 +116,13 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/services/folder_refresh_matcher.py` | Two-stage Arshin matcher for folder refresh. |
 | `app/services/notification_service.py` | SMTP email dispatch. |
 | `app/services/task_service.py` | Tasks: creation (folder derived from equipment), participants, checklist, messages, attachments, subscriptions, reminders, permissions (`_can_mutate`, `_assert_task_visible`). |
+| `app/services/stats_service.py` | Статистика реестра: сводка и группировки в пределах доступных папок (`get_user_allowed_folder_ids`). |
+| `app/services/pagination.py` | Пагинация `page`/`per_page` поверх `limit`/`offset` (`resolve_pagination`, `total_pages`). |
+| `app/repositories/stats_repository.py` | Агрегаты статистики (`func.count`, `GROUP BY`) с фильтром по доступным папкам. |
 | `app/repositories/task_repository.py` | Task queries: list filters (folder scope plus the folder-less tasks of the viewer) and ordering. |
 | `app/models/task.py` | Task ORM models (task, participants, equipment links, checklist, messages, attachments, subscriptions, reminder log). |
 | `app/schemas/task.py` | Task request/response schemas. |
+| `app/schemas/stats.py` | Схемы статистики (`StatsSummaryRead`, `StatsGroupRead`) с описаниями для Swagger. |
 | `app/api/v1/routes/tasks.py` | Task HTTP surface: list/detail, participants, equipment, checklist, messages, attachments, subscription. |
 | `app/tasks/worker.py` | RQ worker bootstrap. |
 | `app/tasks/notifications.py` | Enqueued email jobs. |
@@ -128,6 +133,7 @@ Folder scoping is enforced via `users.allowed_folder_ids` (JSON list). `ADMINIST
 | `app/api/v1/routes/events.py` | Event journal. |
 | `app/api/v1/routes/arshin.py` | Arshin proxy endpoints. |
 | `app/api/v1/routes/health.py` | Liveness + readiness (DB + Redis). |
+| `app/api/v1/routes/stats.py` | `/stats/summary`, `/stats/equipment`, `/stats/verifications` — агрегаты с учётом прав на папки. |
 | `alembic/versions/` | 62 migrations. |
 
 ### Frontend (`frontend/`)

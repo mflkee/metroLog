@@ -25,7 +25,7 @@ export function formatDateRu(value: string | null | undefined): string {
   }).format(parsed);
 }
 
-/** `dd.mm.yyyy HH:MM`. */
+/** `dd.mm.yyyy HH:MM (МСК)`. Время всегда московское, независимо от часового пояса браузера. */
 export function formatDateTimeRu(value: string | null | undefined): string {
   if (!value) {
     return "—";
@@ -34,9 +34,15 @@ export function formatDateTimeRu(value: string | null | undefined): string {
   if (Number.isNaN(parsed.getTime())) {
     return value;
   }
-  const time = new Intl.DateTimeFormat("ru-RU", {
+  const parts = new Intl.DateTimeFormat("ru-RU", {
+    timeZone: "Europe/Moscow",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(parsed);
-  return `${formatDateRu(value)} ${time}`;
+    hour12: false,
+  }).formatToParts(parsed);
+  const part = (type: string) => parts.find((item) => item.type === type)?.value ?? "";
+  return `${part("day")}.${part("month")}.${part("year")} ${part("hour")}:${part("minute")} (МСК)`;
 }

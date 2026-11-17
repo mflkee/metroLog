@@ -14,6 +14,7 @@ from app.models.event import EventCategory
 from app.models.user import User
 from app.schemas.event import EventLogRead
 from app.services.event_service import EventService
+from app.utils.time import msk_today
 
 router = APIRouter(prefix="/events")
 EXPORT_READ_CHUNK_SIZE_BYTES = 1024 * 1024
@@ -104,7 +105,7 @@ async def export_events_xlsx(
         date_to=date_to,
         limit=limit,
     )
-    file_name = f"Журнал событий {date.today().strftime('%d.%m.%Y')}.xlsx"
+    file_name = f"Журнал событий {msk_today().strftime('%d.%m.%Y')}.xlsx"
     return FileBackedResponse(
         file_path=file_path,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

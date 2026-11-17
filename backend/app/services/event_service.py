@@ -13,6 +13,7 @@ from app.repositories.equipment_repository import EquipmentRepository
 from app.repositories.event_repository import EventLogRepository
 from app.schemas.event import EventLogRead
 from app.services.user_service import get_user_allowed_folder_ids
+from app.utils.time import to_msk
 
 
 class EventService:
@@ -67,7 +68,7 @@ class EventService:
         sheet.append(
             [
                 "Дата",
-                "Время",
+                "Время (МСК)",
                 "Категория",
                 "Действие",
                 "Заголовок",
@@ -146,4 +147,4 @@ class EventService:
         )
 
     def _to_local_datetime(self, value: datetime) -> datetime:
-        return value.astimezone() if value.tzinfo is not None else value
+        return to_msk(value)

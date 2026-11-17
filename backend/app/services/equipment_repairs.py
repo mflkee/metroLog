@@ -76,6 +76,7 @@ from app.services.equipment_text import (
     _normalize_optional_text,
 )
 from app.services.user_service import has_admin_access
+from app.utils.time import fmt_msk
 
 if TYPE_CHECKING:
     from sqlalchemy.orm import Session
@@ -1575,7 +1576,7 @@ class EquipmentRepairsMixin:
             with ZipFile(archive_path, mode="w", compression=ZIP_DEFLATED) as zip_file:
                 transcript_lines: list[str] = []
                 for index, message in enumerate(messages, start=1):
-                    created_at = message.created_at.strftime("%d.%m.%Y %H:%M")
+                    created_at = fmt_msk(message.created_at)
                     transcript_lines.append(f"[{created_at}] {message.author_display_name}")
                     if message.text:
                         transcript_lines.append(message.text)

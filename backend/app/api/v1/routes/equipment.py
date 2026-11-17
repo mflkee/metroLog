@@ -91,6 +91,7 @@ from app.schemas.equipment import (
 from app.services.arshin_service import ArshinService
 from app.services.equipment_comments import UploadedFilePayload
 from app.services.equipment_service import EquipmentService
+from app.utils.time import msk_today
 
 router = APIRouter(prefix="/equipment")
 ATTACHMENT_FILE = File(...)
@@ -725,7 +726,7 @@ async def export_verification_queue_xlsx(
         folder_id=folder_id,
     )
     lifecycle_label = "активные" if lifecycle_status.strip().lower() == "active" else "архив"
-    file_name = f"Поверка СИ {lifecycle_label} {date.today().strftime('%d.%m.%Y')}.xlsx"
+    file_name = f"Поверка СИ {lifecycle_label} {msk_today().strftime('%d.%m.%Y')}.xlsx"
     return _build_file_response(
         db=db,
         file_path=file_path,
@@ -750,7 +751,7 @@ async def export_repair_queue_xlsx(
         folder_id=folder_id,
     )
     lifecycle_label = "активные" if lifecycle_status.strip().lower() == "active" else "архив"
-    file_name = f"Ремонты {lifecycle_label} {date.today().strftime('%d.%m.%Y')}.xlsx"
+    file_name = f"Ремонты {lifecycle_label} {msk_today().strftime('%d.%m.%Y')}.xlsx"
     return _build_file_response(
         db=db,
         file_path=file_path,

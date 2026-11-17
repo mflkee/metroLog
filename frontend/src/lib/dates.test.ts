@@ -19,7 +19,7 @@ describe("formatDateRu", () => {
 
 describe("formatDateTimeRu", () => {
   it("renders dd.mm.yyyy HH:MM", () => {
-    expect(formatDateTimeRu("2026-12-22T18:30:00")).toMatch(/^22\.12\.2026 \d{2}:\d{2}$/);
+    expect(formatDateTimeRu("2026-12-22T18:30:00Z")).toBe("22.12.2026 21:30 (МСК)");
   });
 
   it("falls back to a dash for empty values", () => {
